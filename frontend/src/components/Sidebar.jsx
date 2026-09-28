@@ -1,23 +1,78 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { APP_VERSION, getVersionStatus, subscribeVersion, performReload } from '../services/version';
+import { api } from '../api/client';
+import VersionModal from './VersionModal';
 
 export default function Sidebar() {
   const { user, logout, isAdmin } = useAuth();
+  const [versionStatus, setVersionStatus] = useState(getVersionStatus());
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    // Subscribe to version changes (e.g. from API responses)
+    const unsubscribe = subscribeVersion((status) => {
+      setVersionStatus({ ...status });
+    });
+
+    // Check version once on mount
+    api.getSystemVersion().catch(() => {});
+
+    // Periodic check every 60 seconds
+    const interval = setInterval(() => {
+      api.getSystemVersion().catch(() => {});
+    }, 60000);
+
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, []);
 
   const initial = user?.displayName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || '?';
 
   return (
-    <aside className="sidebar" id="sidebar">
-      {/* Brand */}
-      <div className="sidebar-header">
-        <div className="sidebar-brand">
-          <div className="sidebar-brand-icon">🏥</div>
-          <div className="sidebar-brand-text">
-            <h1>RBH Virtual Hospital</h1>
-            <span>ระบบหลังบ้าน</span>
+    <>
+      <aside className="sidebar" id="sidebar">
+        {/* Brand */}
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <div className="sidebar-brand-icon">🏥</div>
+            <div className="sidebar-brand-text">
+              <h1>RBH Virtual Hospital</h1>
+              <div className="sidebar-subtitle-row">
+                <span>ระบบหลังบ้าน</span>
+                <button
+                  type="button"
+                  className={`version-badge-btn ${versionStatus.hasNewVersion ? 'has-update' : ''}`}
+                  onClick={() => {
+                    if (versionStatus.hasNewVersion) {
+                      performReload();
+                    } else {
+                      setIsModalOpen(true);
+                    }
+                  }}
+                  title={
+                    versionStatus.hasNewVersion
+                      ? `ตรวจพบเวอร์ชันใหม่ (v${versionStatus.latestServerVersion}) คลิกเพื่ออัปเดตทันที`
+                      : `เวอร์ชัน: v${APP_VERSION} (คลิกเพื่อดูรายละเอียด)`
+                  }
+                >
+                  <span className="version-tag">v{APP_VERSION}</span>
+                  {versionStatus.hasNewVersion && (
+                    <span className="version-update-tag">
+                      <svg className="spin-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                      </svg>
+                      อัปเดต
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
       {/* Navigation */}
       <nav className="sidebar-nav">
@@ -130,5 +185,12 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+
+    <VersionModal
+      isOpen={isModalOpen}
+      onClose={() => setIsModalOpen(false)}
+      versionStatus={versionStatus}
+    />
+  </>
   );
 }

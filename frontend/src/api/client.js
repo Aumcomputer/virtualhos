@@ -1,3 +1,5 @@
+import { checkServerVersion } from '../services/version';
+
 const API_BASE = '/api';
 
 async function request(url, options = {}) {
@@ -10,6 +12,13 @@ async function request(url, options = {}) {
   };
 
   const response = await fetch(`${API_BASE}${url}`, config);
+
+  // Check server version header (like in d-flow)
+  const serverVersion = response.headers?.get('x-app-version') || response.headers?.get('X-App-Version');
+  if (serverVersion) {
+    checkServerVersion(serverVersion);
+  }
+
   const data = await response.json();
 
   if (!response.ok) {
@@ -153,4 +162,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ tracking_number }),
     }),
+
+  // System version & updates
+  getSystemVersion: () => request('/system/version'),
+  checkSystemUpdate: () => request('/system/check-update'),
 };

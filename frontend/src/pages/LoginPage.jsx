@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { APP_VERSION } from '../services/version';
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -88,6 +89,9 @@ export default function LoginPage() {
             {submitting ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
           </button>
         </form>
+        <div className="login-footer-version">
+          v{APP_VERSION}
+        </div>
       </div>
     </div>
   );

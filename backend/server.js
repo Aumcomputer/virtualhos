@@ -14,6 +14,8 @@ const telemedCasesRoutes = require('./routes/telemed-cases');
 const cronSettingsRoutes = require('./routes/cronSettings');
 const prescreeningRoutes = require('./routes/prescreening');
 const requestTelemedRoutes = require('./routes/request-telemed');
+const systemRoutes = require('./routes/system');
+const { getAppVersion } = require('./lib/version');
 
 const app = express();
 
@@ -64,10 +66,19 @@ const generalLimiter = rateLimit({
 });
 app.use(generalLimiter);
 
+// Attach X-App-Version to all responses
+app.use((req, res, next) => {
+  const appVersion = getAppVersion();
+  res.setHeader('X-App-Version', appVersion);
+  res.setHeader('Access-Control-Expose-Headers', 'X-App-Version');
+  next();
+});
+
 // ---------------------------------------------------------------------------
 // Routes
 // ---------------------------------------------------------------------------
 app.use('/api', authRoutes);              // /api/login, /api/logout, /api/me
+app.use('/api/system', systemRoutes);     // /api/system/version, /api/system/check-update
 app.use('/api/lineid', lineidRoutes);     // /api/lineid, /api/lineid/today
 app.use('/api/create-link', telemedRoutes); // /api/create-link
 app.use('/api/admin-users', adminRoutes); // /api/admin-users CRUD + /api/admin-users/search-opduser
