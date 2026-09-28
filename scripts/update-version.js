@@ -38,7 +38,7 @@ function updateVersion() {
     try {
       if (!isPreCommit && fs.existsSync(file)) {
         const existing = JSON.parse(fs.readFileSync(file, 'utf8'));
-        if (existing.version === versionData.version && existing.commit === versionData.commit) {
+        if (existing.version === versionData.version) {
           // Version is already up to date, skip writing to avoid dirty working tree
           continue;
         }
