@@ -145,7 +145,7 @@ export default function Sidebar() {
           id="nav-request-telemed"
         >
           <span className="nav-icon">📦</span>
-          รายชื่อผู้ยื่นความจำนงทั้งหมด
+          รายชื่อผู้ยื่นความจำนง
         </NavLink>
 
         {isAdmin && (

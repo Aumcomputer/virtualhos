@@ -261,7 +261,7 @@ export default function RequestTelemedPage() {
       <div className="page-header">
         <div className="page-title-row">
           <div>
-            <h2 className="page-title">รายชื่อผู้ยื่นความจำนง Telemed ทั้งหมด</h2>
+            <h2 className="page-title">รายชื่อผู้ยื่นความจำนงรับยาไม่พบแพทย์ทั้งหมด</h2>
             <p className="page-subtitle">
               รายการคำขอบริการ Telemedicine และจัดส่งยา/เวชภัณฑ์ทางไปรษณีย์ (ตาราง virtualhos.req_telemed)
             </p>
