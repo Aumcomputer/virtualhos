@@ -99,43 +99,48 @@ export default function Sidebar() {
           </NavLink>
         )}
 
-        <div className="sidebar-section-label">Telemed</div>
+        {/* Section: Telemed (ซ่อนสำหรับ Role Request Telemed) */}
+        {user?.role !== 'request_telemed' && (
+          <>
+            <div className="sidebar-section-label">Telemed</div>
 
-        <NavLink
-          to="/telemed-dashboard"
-          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          id="nav-telemed-dashboard"
-        >
-          <span className="nav-icon">📊</span>
-          Dashboard Telemed
-        </NavLink>
+            <NavLink
+              to="/telemed-dashboard"
+              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              id="nav-telemed-dashboard"
+            >
+              <span className="nav-icon">📊</span>
+              Dashboard Telemed
+            </NavLink>
 
-        <NavLink
-          to="/telemed-with-doctor"
-          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          id="nav-telemed-cases"
-        >
-          <span className="nav-icon">🏥</span>
-          Case Telemed วันนี้
-        </NavLink>
+            <NavLink
+              to="/telemed-with-doctor"
+              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              id="nav-telemed-cases"
+            >
+              <span className="nav-icon">🏥</span>
+              Case Telemed วันนี้
+            </NavLink>
 
-        <NavLink
-          to="/telemed-appointments"
-          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          id="nav-telemed-appointments"
-        >
-          <span className="nav-icon">📅</span>
-          ใบนัด Telemed วันนี้
-        </NavLink>
+            <NavLink
+              to="/telemed-appointments"
+              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              id="nav-telemed-appointments"
+            >
+              <span className="nav-icon">📅</span>
+              ใบนัด Telemed วันนี้
+            </NavLink>
 
-        <NavLink
-          to="/prescreening"
-          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          id="nav-prescreening"
-        >
-          <span className="nav-icon">📋</span>
-          ข้อมูลคัดกรอง
-        </NavLink>
+            <NavLink
+              to="/prescreening"
+              className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+              id="nav-prescreening"
+            >
+              <span className="nav-icon">📋</span>
+              ข้อมูลคัดกรอง
+            </NavLink>
+          </>
+        )}
 
         <div className="sidebar-section-label">Request Telemed</div>
 
@@ -268,7 +273,11 @@ export default function Sidebar() {
           <div className="sidebar-user-info">
             <div className="sidebar-user-name">{user?.displayName || user?.name}</div>
             <div className="sidebar-user-role">
-              {user?.role === 'admin' ? 'Admin' : 'Viewer'}
+              {user?.role === 'admin'
+                ? 'Admin'
+                : user?.role === 'request_telemed'
+                ? 'Request Telemed'
+                : 'Viewer'}
             </div>
           </div>
         </div>

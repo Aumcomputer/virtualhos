@@ -80,11 +80,23 @@ export default function SettingsPage() {
     }
   }, [fetchAdminUsers, fetchCronSettings, fetchCronLogs, isAdmin]);
 
+  const ROLE_CYCLE = {
+    admin: 'request_telemed',
+    request_telemed: 'viewer',
+    viewer: 'admin',
+  };
+
+  const ROLE_CONFIG = {
+    admin: { label: 'Admin', icon: '🛡️', badgeClass: 'role-admin' },
+    request_telemed: { label: 'Request Telemed', icon: '📦', badgeClass: 'role-request_telemed' },
+    viewer: { label: 'Viewer', icon: '👁️', badgeClass: 'role-viewer' },
+  };
+
   const handleToggleRole = async (user) => {
-    const newRole = user.role === 'admin' ? 'viewer' : 'admin';
+    const nextRole = ROLE_CYCLE[user.role] || 'viewer';
     setActionLoading(user.id);
     try {
-      await api.updateAdminUser(user.id, { role: newRole });
+      await api.updateAdminUser(user.id, { role: nextRole });
       await fetchAdminUsers();
     } catch (err) {
       console.error('Failed to update role');
@@ -145,6 +157,7 @@ export default function SettingsPage() {
 
   const totalAdmin = adminUsers.filter((u) => u.role === 'admin').length;
   const totalViewer = adminUsers.filter((u) => u.role === 'viewer').length;
+  const totalRequestTelemed = adminUsers.filter((u) => u.role === 'request_telemed').length;
 
   return (
     <>
@@ -176,6 +189,10 @@ export default function SettingsPage() {
           <div className="stat-card">
             <div className="stat-label">Admin</div>
             <div className="stat-value accent">{totalAdmin}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Request Telemed</div>
+            <div className="stat-value" style={{ color: '#7c3aed' }}>{totalRequestTelemed}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Viewer</div>
@@ -220,8 +237,8 @@ export default function SettingsPage() {
                       </td>
                       <td>{u.display_name || '—'}</td>
                       <td>
-                        <span className={`role-badge role-${u.role}`}>
-                          {u.role === 'admin' ? '🛡️ Admin' : '👁️ Viewer'}
+                        <span className={`role-badge ${ROLE_CONFIG[u.role]?.badgeClass || 'role-viewer'}`}>
+                          {ROLE_CONFIG[u.role] ? `${ROLE_CONFIG[u.role].icon} ${ROLE_CONFIG[u.role].label}` : u.role}
                         </span>
                       </td>
                       <td>
@@ -245,7 +262,7 @@ export default function SettingsPage() {
                             className="btn-action btn-role-toggle"
                             onClick={() => handleToggleRole(u)}
                             disabled={actionLoading === u.id}
-                            title={`เปลี่ยนเป็น ${u.role === 'admin' ? 'Viewer' : 'Admin'}`}
+                            title={`เปลี่ยนเป็น ${ROLE_CONFIG[ROLE_CYCLE[u.role] || 'viewer']?.label}`}
                             type="button"
                           >
                             🔄
@@ -636,6 +653,26 @@ function AddUserModal({ onClose, onSuccess }) {
                   <div>
                     <div className="role-option-title">Admin</div>
                     <div className="role-option-desc">จัดการผู้ใช้งาน, สร้างลิงก์ Telemed</div>
+                  </div>
+                </div>
+              </label>
+              <label
+                className={`role-option ${selectedRole === 'request_telemed' ? 'selected' : ''}`}
+                htmlFor="role-request-telemed"
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="request_telemed"
+                  id="role-request-telemed"
+                  checked={selectedRole === 'request_telemed'}
+                  onChange={() => setSelectedRole('request_telemed')}
+                />
+                <div className="role-option-content">
+                  <span className="role-option-icon">📦</span>
+                  <div>
+                    <div className="role-option-title">Request Telemed</div>
+                    <div className="role-option-desc">เข้าถึงเฉพาะเมนู Line OA และ Request Telemed</div>
                   </div>
                 </div>
               </label>

@@ -32,7 +32,7 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   if (username.length > 100) {
     return res.status(400).json({ error: 'Username too long' });
   }
-  const validRoles = ['admin', 'viewer'];
+  const validRoles = ['admin', 'viewer', 'request_telemed'];
   const finalRole = validRoles.includes(role) ? role : 'viewer';
 
   let conn;
@@ -70,14 +70,14 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   }
 
   const { role, is_active } = req.body;
-  const validRoles = ['admin', 'viewer'];
+  const validRoles = ['admin', 'viewer', 'request_telemed'];
 
   const updates = [];
   const params = [];
 
   if (role !== undefined) {
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be admin or viewer.' });
+      return res.status(400).json({ error: 'Invalid role. Must be admin, viewer, or request_telemed.' });
     }
     updates.push('role = ?');
     params.push(role);

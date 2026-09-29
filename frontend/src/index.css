@@ -1066,6 +1066,12 @@ a {
   color: var(--gray-600);
 }
 
+.role-request_telemed {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(147, 51, 234, 0.12));
+  color: #7c3aed;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
 /* ---- Action Buttons ---- */
 .admin-actions {
   display: flex;
@@ -1154,7 +1160,7 @@ a {
 
 .modal-content {
   width: 100%;
-  max-width: 520px;
+  max-width: 580px;
   background: white;
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-xl), 0 0 60px rgba(99, 102, 241, 0.1);
@@ -1426,7 +1432,7 @@ a {
 
 .role-options {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin-top: 8px;
 }

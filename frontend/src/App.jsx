@@ -26,13 +26,13 @@ export default function App() {
             }
           >
             <Route index element={<TodayRegistrations />} />
-            <Route path="all" element={<AllRegistrations />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="telemed-dashboard" element={<TelemedDashboardPage />} />
-            <Route path="telemed-with-doctor" element={<TelemedCasesPage type="combined" />} />
-            <Route path="telemed-no-doctor" element={<TelemedCasesPage type="combined" />} />
-            <Route path="telemed-appointments" element={<TelemedCasesPage type="appointments" />} />
-            <Route path="prescreening" element={<PrescreeningPage />} />
+            <Route path="all" element={<ProtectedRoute allowedRoles={['admin']}><AllRegistrations /></ProtectedRoute>} />
+            <Route path="settings" element={<ProtectedRoute allowedRoles={['admin']}><SettingsPage /></ProtectedRoute>} />
+            <Route path="telemed-dashboard" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedDashboardPage /></ProtectedRoute>} />
+            <Route path="telemed-with-doctor" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedCasesPage type="combined" /></ProtectedRoute>} />
+            <Route path="telemed-no-doctor" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedCasesPage type="combined" /></ProtectedRoute>} />
+            <Route path="telemed-appointments" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedCasesPage type="appointments" /></ProtectedRoute>} />
+            <Route path="prescreening" element={<ProtectedRoute disallowedRoles={['request_telemed']}><PrescreeningPage /></ProtectedRoute>} />
             <Route path="request-telemed/register" element={<RegisterTelemedPage />} />
             <Route path="request-telemed/pending-receive" element={<RequestTelemedPage stage="receive" />} />
             <Route path="request-telemed/pending-doctor" element={<RequestTelemedPage stage="doctor" />} />
