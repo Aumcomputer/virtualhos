@@ -445,17 +445,6 @@ export default function RequestTelemedPage({ stage = 'all' }) {
             <h2 className="page-title">{meta.title}</h2>
             <p className="page-subtitle">{meta.subtitle}</p>
           </div>
-          <div className="page-actions">
-            <NavLink to="/request-telemed/register" className="btn btn-primary">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="8.5" cy="7" r="4" />
-                <line x1="20" y1="8" x2="20" y2="14" />
-                <line x1="23" y1="11" x2="17" y2="11" />
-              </svg>
-              ลงทะเบียนใหม่
-            </NavLink>
-          </div>
         </div>
       </div>
 
