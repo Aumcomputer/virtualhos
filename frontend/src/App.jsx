@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
@@ -34,7 +34,13 @@ export default function App() {
             <Route path="telemed-appointments" element={<TelemedCasesPage type="appointments" />} />
             <Route path="prescreening" element={<PrescreeningPage />} />
             <Route path="request-telemed/register" element={<RegisterTelemedPage />} />
-            <Route path="request-telemed" element={<RequestTelemedPage />} />
+            <Route path="request-telemed/pending-receive" element={<RequestTelemedPage stage="receive" />} />
+            <Route path="request-telemed/pending-doctor" element={<RequestTelemedPage stage="doctor" />} />
+            <Route path="request-telemed/pharmacist" element={<RequestTelemedPage stage="pharmacist" />} />
+            <Route path="request-telemed/approved" element={<RequestTelemedPage stage="approved" />} />
+            <Route path="request-telemed/all" element={<RequestTelemedPage stage="all" />} />
+            <Route path="request-telemed/today" element={<RequestTelemedPage stage="today" />} />
+            <Route path="request-telemed" element={<Navigate to="/request-telemed/pending-receive" replace />} />
           </Route>
         </Routes>
       </AuthProvider>

@@ -148,12 +148,15 @@ export const api = {
     }),
 
   // Request Telemed (req_telemed)
-  getRequestTelemed: ({ page = 1, limit = 20, search = '', status = '', startDate = '', endDate = '' } = {}) => {
+  getRequestTelemed: ({ page = 1, limit = 20, search = '', status = '', stage = '', startDate = '', endDate = '', sortBy = '', sortOrder = '' } = {}) => {
     const params = new URLSearchParams({ page, limit });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
+    if (stage) params.set('stage', stage);
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);
+    if (sortBy) params.set('sortBy', sortBy);
+    if (sortOrder) params.set('sortOrder', sortOrder);
     return request(`/request-telemed?${params}`);
   },
 
@@ -161,6 +164,18 @@ export const api = {
 
   receiveRequestTelemed: (id) =>
     request(`/request-telemed/${id}/receive`, { method: 'POST' }),
+
+  doctorActionRequestTelemed: (id, { approve, remark }) =>
+    request(`/request-telemed/${id}/doctor-action`, {
+      method: 'POST',
+      body: JSON.stringify({ approve, remark }),
+    }),
+
+  pharmacyActionRequestTelemed: (id, { approve, remark }) =>
+    request(`/request-telemed/${id}/pharmacy-action`, {
+      method: 'POST',
+      body: JSON.stringify({ approve, remark }),
+    }),
 
   approveRequestTelemed: (id, { approve, remark }) =>
     request(`/request-telemed/${id}/approve`, {
@@ -173,6 +188,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ tracking_number }),
     }),
+
+  getVisitDetail: (id) =>
+    request(`/request-telemed/${id}/visit-detail`),
 
   getPatientAppointments: (hn) =>
     request(`/request-telemed/patient-appointments/${encodeURIComponent(hn)}`),

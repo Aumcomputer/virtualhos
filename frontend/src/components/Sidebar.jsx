@@ -156,13 +156,94 @@ export default function Sidebar() {
         </NavLink>
 
         <NavLink
-          to="/request-telemed"
-          end
+          to="/request-telemed/pending-receive"
           className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
-          id="nav-request-telemed"
+          id="nav-request-telemed-receive"
         >
-          <span className="nav-icon">📦</span>
-          รายชื่อผู้ยื่นความจำนง
+          <span className="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+              <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+            </svg>
+          </span>
+          รอรับเรื่อง
+        </NavLink>
+
+        <NavLink
+          to="/request-telemed/pending-doctor"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          id="nav-request-telemed-doctor"
+        >
+          <span className="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12h3l3 8 4-16 3 8h4" />
+            </svg>
+          </span>
+          รอปรึกษาแพทย์
+        </NavLink>
+
+        <NavLink
+          to="/request-telemed/pharmacist"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          id="nav-request-telemed-pharmacist"
+        >
+          <span className="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <path d="M12 7v10" />
+              <path d="M7 12h10" />
+            </svg>
+          </span>
+          เภสัชกร
+        </NavLink>
+
+        <NavLink
+          to="/request-telemed/approved"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          id="nav-request-telemed-approved"
+        >
+          <span className="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+              <polyline points="22 4 12 14.01 9 11.01" />
+            </svg>
+          </span>
+          รายการที่อนุมัติ
+        </NavLink>
+
+        <NavLink
+          to="/request-telemed/all"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          id="nav-request-telemed-all"
+        >
+          <span className="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6" />
+              <line x1="8" y1="12" x2="21" y2="12" />
+              <line x1="8" y1="18" x2="21" y2="18" />
+              <line x1="3" y1="6" x2="3.01" y2="6" />
+              <line x1="3" y1="12" x2="3.01" y2="12" />
+              <line x1="3" y1="18" x2="3.01" y2="18" />
+            </svg>
+          </span>
+          ผู้ยื่นความจำนงทั้งหมด
+        </NavLink>
+
+        <NavLink
+          to="/request-telemed/today"
+          className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
+          id="nav-request-telemed-today"
+        >
+          <span className="nav-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <polyline points="9 15 12 12 15 15" />
+            </svg>
+          </span>
+          &ldquo;รับยาไม่พบแพทย์&rdquo;วันนี้
         </NavLink>
 
         {isAdmin && (

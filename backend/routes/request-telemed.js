@@ -4,16 +4,22 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Safely ensure request_by column exists in virtualhos.req_telemed (if user has ALTER privilege)
+// Safely ensure workflow columns exist in virtualhos.req_telemed (if user has ALTER privilege)
 (async () => {
   let conn;
   try {
     conn = await pool_vhos.getConnection();
     await conn.query(`
       ALTER TABLE virtualhos.req_telemed 
-      ADD COLUMN IF NOT EXISTS request_by VARCHAR(100) DEFAULT NULL COMMENT 'ผู้บันทึกคำขอ (เจ้าหน้าที่หรือคนไข้)'
+      ADD COLUMN IF NOT EXISTS request_by VARCHAR(100) DEFAULT NULL COMMENT 'ผู้บันทึกคำขอ (เจ้าหน้าที่หรือคนไข้)',
+      ADD COLUMN IF NOT EXISTS doctor_approved_by VARCHAR(100) DEFAULT NULL COMMENT 'แพทย์ผู้อนุมัติหรือเจ้าหน้าที่ผู้ประสานแพทย์',
+      ADD COLUMN IF NOT EXISTS doctor_approved_at DATETIME DEFAULT NULL COMMENT 'วันเวลาที่แพทย์อนุมัติ',
+      ADD COLUMN IF NOT EXISTS doctor_remark TEXT DEFAULT NULL COMMENT 'เหตุผลหรือหมายเหตุจากแพทย์',
+      ADD COLUMN IF NOT EXISTS pharmacy_approved_by VARCHAR(100) DEFAULT NULL COMMENT 'เภสัชกรผู้ตรวจอนุมัติยา',
+      ADD COLUMN IF NOT EXISTS pharmacy_approved_at DATETIME DEFAULT NULL COMMENT 'วันเวลาที่เภสัชกรอนุมัติ',
+      ADD COLUMN IF NOT EXISTS pharmacy_remark TEXT DEFAULT NULL COMMENT 'เหตุผลหรือหมายเหตุจากเภสัชกร'
     `);
-    console.log('[req_telemed] Ensured request_by column exists in virtualhos.req_telemed');
+    console.log('[req_telemed] Ensured workflow columns exist in virtualhos.req_telemed');
   } catch (err) {
     // Non-fatal if DB user does not have ALTER permission or already exists
   } finally {
@@ -28,8 +34,10 @@ function getStatusKeywords(status) {
   if (!status) return [];
   const trimmed = status.trim();
   if (trimmed.includes('รอตรวจสอบ')) return ['%รอตรวจสอบ%'];
+  if (trimmed.includes('รอปรึกษาแพทย์')) return ['%รอปรึกษาแพทย์%'];
+  if (trimmed.includes('รอเภสัช')) return ['%รอเภสัช%'];
   if (trimmed.includes('สามารถจัดส่งได้') && !trimmed.includes('ไม่สามารถ')) return ['%สามารถจัดส่งได้%'];
-  if (trimmed.includes('ไม่สามารถจัดส่งได้')) return ['%ไม่สามารถจัดส่งได้%'];
+  if (trimmed.includes('ไม่สามารถจัดส่งได้') || trimmed.includes('ไม่อนุมัติ')) return ['%ไม่สามารถจัดส่งได้%', '%ไม่อนุมัติ%'];
   if (trimmed.includes('จัดส่งเรียบร้อย')) return ['%จัดส่งเรียบร้อย%'];
   return [`%${trimmed}%`];
 }
@@ -47,15 +55,32 @@ function serializeRow(row) {
   return item;
 }
 
-// GET /api/request-telemed — List all telemed requests with filters, search, and pagination
+// GET /api/request-telemed — List requests with stage, filters, search, sorting, and pagination
 router.get('/', authenticateToken, async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
   const search = (req.query.search || '').trim();
+  const stage = (req.query.stage || '').trim();
   const statusFilter = (req.query.status || '').trim();
   const startDate = (req.query.startDate || '').trim();
   const endDate = (req.query.endDate || '').trim();
   const offset = (page - 1) * limit;
+
+  // Sorting
+  const allowedSorts = {
+    id: 'id',
+    created_at: 'created_at',
+    nextdate: 'nextdate',
+    hn: 'hn',
+    patient_name: 'patient_name',
+    clinic_name: 'clinic_name',
+    doctor_name: 'doctor_name',
+    status: 'status',
+    received_at: 'received_at',
+    delivery_at: 'delivery_at',
+  };
+  const sortCol = allowedSorts[req.query.sortBy] || 'id';
+  const sortOrder = String(req.query.sortOrder || 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
 
   let conn;
   try {
@@ -63,6 +88,24 @@ router.get('/', authenticateToken, async (req, res) => {
 
     let whereConditions = ['1=1'];
     const params = [];
+
+    // Stage filters
+    if (stage === 'receive') {
+      // 2. รอรับเรื่อง: คำขอใหม่ที่ยังไม่ได้กดรับเรื่อง
+      whereConditions.push("(status LIKE '%รอตรวจสอบ%' AND (received_by IS NULL OR received_by = ''))");
+    } else if (stage === 'doctor') {
+      // 3. รอปรึกษาแพทย์: รับเรื่องแล้ว รอแพทย์อนุมัติ
+      whereConditions.push("status LIKE '%รอปรึกษาแพทย์%'");
+    } else if (stage === 'pharmacist') {
+      // 4. เภสัชกร: แพทย์อนุมัติแล้ว รอเภสัชตรวจยา
+      whereConditions.push("(status LIKE '%รอเภสัช%' OR status = 'รอเภสัชกรตรวจสอบ')");
+    } else if (stage === 'approved') {
+      // 5. รายการที่อนุมัติ: ผ่านการอนุมัติแล้ว รอจัดส่ง
+      whereConditions.push("(status LIKE '%สามารถจัดส่งได้%' AND (tracking_number IS NULL OR tracking_number = ''))");
+    } else if (stage === 'today') {
+      // 7. "รับยาไม่พบแพทย์"วันนี้: ดึงเฉพาะคำขอใน virtualhos.req_telemed ที่มีนัดหมายวันนี้
+      whereConditions.push('DATE(nextdate) = CURDATE()');
+    }
 
     // Search condition
     if (search) {
@@ -77,10 +120,11 @@ router.get('/', authenticateToken, async (req, res) => {
         symptoms LIKE ? OR
         tracking_number LIKE ? OR
         received_by LIKE ? OR
-        approve_by LIKE ?
+        approve_by LIKE ? OR
+        request_by LIKE ?
       )`);
       const searchParam = `%${search}%`;
-      for (let i = 0; i < 11; i++) {
+      for (let i = 0; i < 12; i++) {
         params.push(searchParam);
       }
     }
@@ -109,38 +153,56 @@ router.get('/', authenticateToken, async (req, res) => {
     // 1. Total count with current filters
     const countQuery = `SELECT COUNT(*) AS total FROM virtualhos.req_telemed WHERE ${whereClause}`;
     const countResult = await conn.query(countQuery, params);
-    const total = Number(countResult[0].total);
+    const total = Number(countResult[0]?.total || 0);
 
-    // 2. Summary counts by status (overall)
+    // 2. Summary counts by stage & status (overall)
     const summaryQuery = `
       SELECT 
         COUNT(*) AS total_all,
-        SUM(CASE WHEN status LIKE '%รอตรวจสอบ%' THEN 1 ELSE 0 END) AS pending_count,
-        SUM(CASE WHEN status LIKE '%สามารถจัดส่งได้%' AND status NOT LIKE '%ไม่สามารถ%' THEN 1 ELSE 0 END) AS approved_count,
-        SUM(CASE WHEN status LIKE '%ไม่สามารถจัดส่งได้%' THEN 1 ELSE 0 END) AS rejected_count,
+        SUM(CASE WHEN (status LIKE '%รอตรวจสอบ%' AND (received_by IS NULL OR received_by = '')) THEN 1 ELSE 0 END) AS receive_count,
+        SUM(CASE WHEN status LIKE '%รอปรึกษาแพทย์%' THEN 1 ELSE 0 END) AS doctor_count,
+        SUM(CASE WHEN (status LIKE '%รอเภสัช%' OR status = 'รอเภสัชกรตรวจสอบ') THEN 1 ELSE 0 END) AS pharmacist_count,
+        SUM(CASE WHEN (status LIKE '%สามารถจัดส่งได้%' AND (tracking_number IS NULL OR tracking_number = '')) THEN 1 ELSE 0 END) AS approved_count,
+        SUM(CASE WHEN DATE(nextdate) = CURDATE() THEN 1 ELSE 0 END) AS today_count,
+        SUM(CASE WHEN (status LIKE '%ไม่อนุมัติ%' OR status LIKE '%ไม่สามารถจัดส่งได้%') THEN 1 ELSE 0 END) AS rejected_count,
         SUM(CASE WHEN status LIKE '%จัดส่งเรียบร้อย%' THEN 1 ELSE 0 END) AS delivered_count
       FROM virtualhos.req_telemed
     `;
-    const summaryResult = await conn.query(summaryQuery);
-    const summary = {
-      total: Number(summaryResult[0]?.total_all || 0),
-      pending: Number(summaryResult[0]?.pending_count || 0),
-      approved: Number(summaryResult[0]?.approved_count || 0),
-      rejected: Number(summaryResult[0]?.rejected_count || 0),
-      delivered: Number(summaryResult[0]?.delivered_count || 0),
+    let summary = {
+      total: total,
+      receive: 0,
+      doctor: 0,
+      pharmacist: 0,
+      approved: 0,
+      today: 0,
+      rejected: 0,
+      delivered: 0,
     };
+    try {
+      const summaryResult = await conn.query(summaryQuery);
+      if (summaryResult && summaryResult[0]) {
+        const s = summaryResult[0];
+        summary = {
+          total: Number(s.total_all || 0),
+          receive: Number(s.receive_count || 0),
+          doctor: Number(s.doctor_count || 0),
+          pharmacist: Number(s.pharmacist_count || 0),
+          approved: Number(s.approved_count || 0),
+          today: Number(s.today_count || 0),
+          rejected: Number(s.rejected_count || 0),
+          delivered: Number(s.delivered_count || 0),
+        };
+      }
+    } catch (sErr) {
+      console.warn('[req_telemed] Summary query error:', sErr.message);
+    }
 
-    // 3. Fetch paginated data
+    // 3. Fetch paginated data (defensive SELECT * to prevent unknown column errors)
     const dataQuery = `
-      SELECT 
-        id, oapp_id, hn, line_user_id, patient_name, nextdate, 
-        clinic_name, doctor_name, reason, symptoms, address, 
-        postcode, phone, status, received_by, received_at, 
-        approve, approve_by, approve_at, tracking_number, delivery_at, 
-        remark, created_at, updated_at
+      SELECT *
       FROM virtualhos.req_telemed
       WHERE ${whereClause}
-      ORDER BY id DESC
+      ORDER BY ${sortCol} ${sortOrder}
       LIMIT ? OFFSET ?
     `;
     const rows = await conn.query(dataQuery, [...params, limit, offset]);
@@ -157,8 +219,8 @@ router.get('/', authenticateToken, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Error fetching req_telemed data:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error fetching req_telemed data:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (conn) conn.release();
   }
@@ -179,51 +241,189 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.json(serializeRow(results[0]));
   } catch (err) {
     console.error('Error fetching req_telemed detail:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (conn) conn.release();
   }
 });
 
-// POST /api/request-telemed/:id/receive — รับเรื่องโดยเจ้าหน้าที่
+// POST /api/request-telemed/:id/receive — รับเรื่องโดยเจ้าหน้าที่คลินิก (ส่งต่อคิวรอปรึกษาแพทย์)
 router.post('/:id/receive', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const officerName = req.user.displayName || req.user.name || 'เจ้าหน้าที่';
+  const officerName = req.user.displayName || req.user.name || req.user.username || 'เจ้าหน้าที่';
 
   let conn;
   try {
     conn = await pool_vhos.getConnection();
 
-    // Check item exists
-    const checkQuery = `SELECT id, received_by FROM virtualhos.req_telemed WHERE id = ? LIMIT 1`;
+    const checkQuery = `SELECT id, status, received_by FROM virtualhos.req_telemed WHERE id = ? LIMIT 1`;
     const existing = await conn.query(checkQuery, [id]);
     if (existing.length === 0) {
       return res.status(404).json({ error: 'ไม่พบข้อมูลคำขอนี้' });
     }
 
-    // Update received_by and received_at
+    // Update received_by and transition status to 'รอปรึกษาแพทย์'
     const updateQuery = `
       UPDATE virtualhos.req_telemed
-      SET received_by = ?, received_at = NOW(), updated_at = NOW()
+      SET 
+        received_by = ?, 
+        received_at = NOW(), 
+        status = 'รอปรึกษาแพทย์', 
+        updated_at = NOW()
       WHERE id = ?
     `;
     await conn.query(updateQuery, [officerName, id]);
 
-    // Return updated record
     const updated = await conn.query(`SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1`, [id]);
     res.json({
-      message: 'รับเรื่องเรียบร้อยแล้ว',
+      message: 'รับเรื่องเรียบร้อยแล้ว (ย้ายไปคิวรอปรึกษาแพทย์)',
       data: serializeRow(updated[0]),
     });
   } catch (err) {
-    console.error('Error receiving req_telemed:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error receiving req_telemed:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (conn) conn.release();
   }
 });
 
-// POST /api/request-telemed/:id/approve — อนุมัติ หรือ ไม่อนุมัติ
+// POST /api/request-telemed/:id/doctor-action — บันทึกผลการปรึกษาแพทย์ (อนุมัติ / ไม่อนุมัติ)
+router.post('/:id/doctor-action', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { approve, remark } = req.body;
+  const staffName = req.user.displayName || req.user.name || req.user.username || 'เจ้าหน้าที่';
+
+  if (!approve || (approve !== 'APPROVED' && approve !== 'REJECTED')) {
+    return res.status(400).json({ error: 'กรุณาระบุผลการปรึกษาแพทย์ (APPROVED หรือ REJECTED)' });
+  }
+
+  if (approve === 'REJECTED' && (!remark || !remark.trim())) {
+    return res.status(400).json({ error: 'กรุณาระบุเหตุผลที่แพทย์ไม่อนุมัติ (จำเป็นต้องกรอก)' });
+  }
+
+  let conn;
+  try {
+    conn = await pool_vhos.getConnection();
+    const existing = await conn.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลคำขอนี้' });
+    }
+
+    const isApproved = approve === 'APPROVED';
+    const newStatus = isApproved ? 'รอเภสัชกรตรวจสอบ' : 'ไม่อนุมัติ (แพทย์ไม่อนุมัติ)';
+    const approveFlag = isApproved ? 'PENDING' : 'REJECTED';
+
+    try {
+      const updateSql = `
+        UPDATE virtualhos.req_telemed
+        SET 
+          status = ?,
+          approve = ?,
+          doctor_approved_by = ?,
+          doctor_approved_at = NOW(),
+          doctor_remark = ?,
+          updated_at = NOW()
+        WHERE id = ?
+      `;
+      await conn.query(updateSql, [newStatus, approveFlag, staffName, remark ? remark.trim() : null, id]);
+    } catch (colErr) {
+      // Fallback if doctor_approved columns do not exist yet
+      const fallbackSql = `
+        UPDATE virtualhos.req_telemed
+        SET 
+          status = ?,
+          approve = ?,
+          remark = COALESCE(?, remark),
+          updated_at = NOW()
+        WHERE id = ?
+      `;
+      await conn.query(fallbackSql, [newStatus, approveFlag, remark ? `[แพทย์] ${remark.trim()}` : null, id]);
+    }
+
+    const updated = await conn.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
+    res.json({
+      message: isApproved ? 'บันทึกแพทย์อนุมัติเรียบร้อยแล้ว (ส่งต่อคิวเภสัชกร)' : 'บันทึกแพทย์ไม่อนุมัติเรียบร้อยแล้ว',
+      data: serializeRow(updated[0]),
+    });
+  } catch (err) {
+    console.error('Error in doctor-action:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// POST /api/request-telemed/:id/pharmacy-action — เภสัชกรอนุมัติว่ายาส่งได้ หรือ ไม่อนุมัติ
+router.post('/:id/pharmacy-action', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  const { approve, remark } = req.body;
+  const staffName = req.user.displayName || req.user.name || req.user.username || 'เภสัชกร';
+
+  if (!approve || (approve !== 'APPROVED' && approve !== 'REJECTED')) {
+    return res.status(400).json({ error: 'กรุณาระบุผลการตรวจของเภสัชกร (APPROVED หรือ REJECTED)' });
+  }
+
+  if (approve === 'REJECTED' && (!remark || !remark.trim())) {
+    return res.status(400).json({ error: 'กรุณาระบุเหตุผลที่เภสัชกรไม่อนุมัติ/ยาส่งไม่ได้ (จำเป็นต้องกรอก)' });
+  }
+
+  let conn;
+  try {
+    conn = await pool_vhos.getConnection();
+    const existing = await conn.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลคำขอนี้' });
+    }
+
+    const isApproved = approve === 'APPROVED';
+    const newStatus = isApproved ? 'สามารถจัดส่งได้' : 'ไม่อนุมัติ (ยาส่งไม่ได้)';
+    const approveFlag = isApproved ? 'APPROVED' : 'REJECTED';
+
+    try {
+      const updateSql = `
+        UPDATE virtualhos.req_telemed
+        SET 
+          status = ?,
+          approve = ?,
+          approve_by = ?,
+          approve_at = NOW(),
+          pharmacy_approved_by = ?,
+          pharmacy_approved_at = NOW(),
+          pharmacy_remark = ?,
+          updated_at = NOW()
+        WHERE id = ?
+      `;
+      await conn.query(updateSql, [newStatus, approveFlag, staffName, staffName, remark ? remark.trim() : null, id]);
+    } catch (colErr) {
+      // Fallback if pharmacy_approved columns do not exist yet
+      const fallbackSql = `
+        UPDATE virtualhos.req_telemed
+        SET 
+          status = ?,
+          approve = ?,
+          approve_by = ?,
+          approve_at = NOW(),
+          remark = COALESCE(?, remark),
+          updated_at = NOW()
+        WHERE id = ?
+      `;
+      await conn.query(fallbackSql, [newStatus, approveFlag, staffName, remark ? `[เภสัช] ${remark.trim()}` : null, id]);
+    }
+
+    const updated = await conn.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
+    res.json({
+      message: isApproved ? 'เภสัชกรอนุมัติเรียบร้อยแล้ว (ย้ายไปรายการที่อนุมัติ)' : 'บันทึกสถานะยาส่งไม่ได้เรียบร้อยแล้ว',
+      data: serializeRow(updated[0]),
+    });
+  } catch (err) {
+    console.error('Error in pharmacy-action:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+// POST /api/request-telemed/:id/approve — อนุมัติ หรือ ไม่อนุมัติ (Legacy Endpoint)
 router.post('/:id/approve', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { approve, remark } = req.body;
@@ -237,7 +437,6 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
   try {
     conn = await pool_vhos.getConnection();
 
-    // Check item exists
     const checkQuery = `SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1`;
     const existing = await conn.query(checkQuery, [id]);
     if (existing.length === 0) {
@@ -279,8 +478,8 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
       data: serializeRow(updated[0]),
     });
   } catch (err) {
-    console.error('Error approving req_telemed:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error approving req_telemed:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (conn) conn.release();
   }
@@ -322,10 +521,145 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
       data: serializeRow(updated[0]),
     });
   } catch (err) {
-    console.error('Error updating delivery for req_telemed:', err.message);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error updating delivery for req_telemed:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (conn) conn.release();
+  }
+});
+
+// GET /api/request-telemed/:id/visit-detail — ดูรายละเอียดการมารับบริการครั้งที่มีการนัดหมาย (จาก vn ที่ได้จาก oapp_id)
+router.get('/:id/visit-detail', authenticateToken, async (req, res) => {
+  const { id } = req.params;
+  let connVhos;
+  let connHos;
+  try {
+    connVhos = await pool_vhos.getConnection();
+    const reqRows = await connVhos.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
+    if (!reqRows || reqRows.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลคำขอนี้' });
+    }
+    const requestItem = reqRows[0];
+
+    connHos = await pool_hos.getConnection();
+
+    let targetVn = null;
+    let oappRow = null;
+
+    // 1. Find vn from oapp
+    if (requestItem.oapp_id) {
+      const oappRows = await connHos.query(
+        'SELECT oapp_id, vn, hn, vstdate, nextdate, nexttime, clinic, doctor, note, app_cause FROM oapp WHERE oapp_id = ? LIMIT 1',
+        [requestItem.oapp_id]
+      );
+      if (oappRows && oappRows.length > 0) {
+        oappRow = oappRows[0];
+        targetVn = oappRow.vn;
+      }
+    }
+
+    // Fallback: If vn is missing in oapp, try finding previous visit for this patient
+    if (!targetVn && requestItem.hn) {
+      const vstDate = oappRow?.vstdate || requestItem.created_at;
+      const ovstRows = await connHos.query(
+        'SELECT vn FROM ovst WHERE hn = ? AND vstdate <= ? ORDER BY vstdate DESC, vsttime DESC LIMIT 1',
+        [requestItem.hn, vstDate]
+      );
+      if (ovstRows && ovstRows.length > 0) {
+        targetVn = ovstRows[0].vn;
+      }
+    }
+
+    if (!targetVn) {
+      return res.json({
+        request: serializeRow(requestItem),
+        oapp: oappRow ? serializeRow(oappRow) : null,
+        visit: null,
+        message: 'ไม่พบรหัสการตรวจ (VN) สำหรับการนัดหมายนี้ในระบบ HOSxP',
+      });
+    }
+
+    // 2. Query clinical visit details using the exact user-specified query
+    const visitQuery = `
+      SELECT o.vn, o.vstdate, o.vsttime, p.hn, v.age_y, v.age_m, v.age_d,
+             od.bps, od.bpd, od.height, od.bw, od.pulse, od.temperature, od.cc, od.hr, od.pe, od.rr, od.bmi,
+             ovstist.name AS ovstist_name,
+             pt.name AS pttype_name,
+             (SELECT GROUP_CONCAT(IF(ovstdiag.diagtype = 1, CONCAT(ovstdiag.icd10, ':', icd101.name, ' (PDX)'), CONCAT(ovstdiag.icd10, ':', icd101.name)) SEPARATOR '\n')
+              FROM ovstdiag
+              LEFT OUTER JOIN icd101 ON icd101.code = ovstdiag.icd10
+              WHERE vn = o.vn
+             ) AS diagnosis_concat,
+             (SELECT GROUP_CONCAT(
+                 CONCAT(IFNULL(d.name, ''), ' ', IFNULL(d.strength, ''), ' ',
+                        IF(o1.sp_use <> '', CONCAT(IFNULL(u.name1, ''), ' ', IFNULL(u.name2, ''), ' ', IFNULL(u.name3, '')), ''),
+                        IFNULL(du.shortlist, ''), ' #', IFNULL(o1.qty, ''))
+                 SEPARATOR '\n')
+              FROM opitemrece o1
+              INNER JOIN drugitems d ON o1.icode = d.icode
+              LEFT OUTER JOIN drugusage du ON du.drugusage = o1.drugusage
+              LEFT OUTER JOIN sp_use u ON u.sp_use = o1.sp_use
+              WHERE o1.vn = o.vn
+             ) AS drug_concat,
+             (SELECT GROUP_CONCAT(CONCAT(d.name, ' #', o2.qty) SEPARATOR '\n')
+              FROM opitemrece o2
+              INNER JOIN nondrugitems d ON o2.icode = d.icode
+              WHERE o2.vn = o.vn
+             ) AS nondrug_concat,
+             (SELECT report_text FROM xray_report WHERE vn = o.vn LIMIT 1) AS xray_report
+      FROM ovst o
+      LEFT OUTER JOIN vn_stat v ON v.vn = o.vn
+      LEFT OUTER JOIN patient p ON p.hn = o.hn
+      LEFT OUTER JOIN pttype pt ON pt.pttype = o.pttype
+      LEFT OUTER JOIN opdscreen od ON od.vn = o.vn
+      LEFT OUTER JOIN ovstist ON ovstist.ovstist = o.ovstist
+      WHERE o.vn = ?
+      LIMIT 1
+    `;
+
+    let visit = null;
+    try {
+      const visitRows = await connHos.query(visitQuery, [targetVn]);
+      if (visitRows && visitRows.length > 0) {
+        visit = serializeRow(visitRows[0]);
+      }
+    } catch (vErr) {
+      console.warn('[req_telemed] Clinical query warning:', vErr.message);
+      // Fallback with simpler visit query if any subquery table is missing
+      const simpleQuery = `
+        SELECT o.vn, o.vstdate, o.vsttime, p.hn, v.age_y, v.age_m, v.age_d,
+               od.bps, od.bpd, od.height, od.bw, od.pulse, od.temperature, od.cc, od.hr, od.pe, od.rr, od.bmi,
+               ovstist.name AS ovstist_name,
+               (SELECT GROUP_CONCAT(CONCAT(ovstdiag.icd10, ':', icd101.name) SEPARATOR '\n')
+                FROM ovstdiag
+                LEFT OUTER JOIN icd101 ON icd101.code = ovstdiag.icd10
+                WHERE vn = o.vn) AS diagnosis_concat
+        FROM ovst o
+        LEFT OUTER JOIN vn_stat v ON v.vn = o.vn
+        LEFT OUTER JOIN patient p ON p.hn = o.hn
+        LEFT OUTER JOIN opdscreen od ON od.vn = o.vn
+        LEFT OUTER JOIN ovstist ON ovstist.ovstist = o.ovstist
+        WHERE o.vn = ?
+        LIMIT 1
+      `;
+      const fallbackRows = await connHos.query(simpleQuery, [targetVn]);
+      if (fallbackRows && fallbackRows.length > 0) {
+        visit = serializeRow(fallbackRows[0]);
+      }
+    }
+
+    res.json({
+      request: serializeRow(requestItem),
+      oapp: oappRow ? serializeRow(oappRow) : null,
+      visit,
+      vn: targetVn,
+    });
+  } catch (err) {
+    console.error('Error fetching visit detail:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
+  } finally {
+    if (connVhos) connVhos.release();
+    if (connHos) connHos.release();
   }
 });
 

@@ -2808,3 +2808,499 @@ a {
   gap: 12px;
   flex-wrap: wrap;
 }
+
+/* ========================================================================
+   Request Telemed — Workflow Queues, Sorting & Clinical Visit Modal
+   ======================================================================== */
+
+/* Sortable table header */
+.sortable-th {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.sortable-th:hover {
+  background-color: var(--gray-100);
+  color: var(--gray-900);
+}
+
+.th-sort-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  color: var(--primary-600);
+  font-size: 0.75rem;
+}
+
+.sort-indicator.inactive {
+  color: var(--gray-300);
+}
+
+/* Clickable patient link */
+.patient-click-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--primary-600);
+  cursor: pointer;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color var(--transition-fast);
+}
+
+.patient-click-link:hover {
+  color: var(--primary-800);
+  text-decoration: underline;
+}
+
+/* Row action buttons */
+.queue-action-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.btn-queue-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+
+.btn-queue-receive {
+  background: var(--primary-50);
+  color: var(--primary-700);
+  border-color: var(--primary-200);
+}
+.btn-queue-receive:hover {
+  background: var(--primary-600);
+  color: white;
+  border-color: var(--primary-600);
+}
+
+.btn-queue-approve {
+  background: var(--success-50);
+  color: var(--success-700);
+  border-color: var(--success-200);
+}
+.btn-queue-approve:hover {
+  background: var(--success-600);
+  color: white;
+  border-color: var(--success-600);
+}
+
+.btn-queue-reject {
+  background: var(--error-50);
+  color: var(--error-700);
+  border-color: var(--error-200);
+}
+.btn-queue-reject:hover {
+  background: var(--error-600);
+  color: white;
+  border-color: var(--error-600);
+}
+
+.btn-queue-deliver {
+  background: #ede9fe;
+  color: #6d28d9;
+  border-color: #ddd6fe;
+}
+.btn-queue-deliver:hover {
+  background: #7c3aed;
+  color: white;
+  border-color: #7c3aed;
+}
+
+.btn-queue-view {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border-color: var(--gray-200);
+}
+.btn-queue-view:hover {
+  background: var(--gray-200);
+  color: var(--gray-900);
+}
+
+/* Stage summary pills bar */
+.stage-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.stage-summary-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: white;
+  border: 1px solid var(--gray-200);
+  color: var(--gray-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.stage-summary-chip:hover {
+  border-color: var(--primary-300);
+  background: var(--gray-50);
+}
+
+.stage-summary-chip.active {
+  background: var(--primary-50);
+  border-color: var(--primary-500);
+  color: var(--primary-800);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.stage-chip-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: var(--gray-100);
+  color: var(--gray-600);
+}
+
+.stage-summary-chip.active .stage-chip-count {
+  background: var(--primary-600);
+  color: white;
+}
+
+/* Patient Clinical Visit Modal */
+.visit-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+}
+
+.visit-modal-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.visit-modal-header {
+  padding: 16px 20px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.visit-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.visit-modal-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.visit-modal-close-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  color: var(--gray-400);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.visit-modal-close-btn:hover {
+  color: var(--gray-700);
+  background: var(--gray-200);
+}
+
+.visit-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Patient quick info strip inside modal */
+.patient-quick-banner {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  font-size: 0.875rem;
+}
+
+.quick-banner-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-banner-item .label {
+  color: var(--gray-500);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.quick-banner-item .value {
+  color: var(--gray-900);
+  font-weight: 600;
+}
+
+/* Vitals grid */
+.vitals-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+}
+
+.vital-stat-card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.vital-stat-card .v-label {
+  font-size: 0.75rem;
+  color: var(--gray-500);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.vital-stat-card .v-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--gray-900);
+}
+
+.vital-stat-card .v-unit {
+  font-size: 0.6875rem;
+  color: var(--gray-400);
+  font-weight: 400;
+}
+
+/* Clinical sections */
+.clinical-card {
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.clinical-card-header {
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--gray-200);
+  padding: 10px 14px;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--gray-800);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.clinical-card-body {
+  padding: 14px;
+  font-size: 0.875rem;
+}
+
+/* Diagnosis tags */
+.diag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.diag-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--gray-200);
+  font-size: 0.875rem;
+}
+
+.pdx-badge {
+  background: var(--primary-100);
+  color: var(--primary-700);
+  border: 1px solid var(--primary-200);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+}
+
+/* Medication list in modal */
+.meds-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.med-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fdfdfd;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  gap: 12px;
+}
+
+.med-item-name {
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.med-item-usage {
+  font-size: 0.8125rem;
+  color: var(--gray-600);
+  margin-top: 2px;
+}
+
+.med-item-qty {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: var(--primary-700);
+  background: var(--primary-50);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+/* X-Ray Report text box */
+.xray-text-box {
+  background: #1e293b;
+  color: #e2e8f0;
+  font-family: monospace;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* Modal Footer Actions */
+.visit-modal-footer {
+  padding: 14px 20px;
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Dialog prompt modal (for reject & tracking) */
+.dialog-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+}
+
+.dialog-modal-card {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  width: 100%;
+  max-width: 500px;
+  overflow: hidden;
+  animation: scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialog-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--gray-200);
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: var(--gray-900);
+}
+
+.dialog-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dialog-modal-footer {
+  padding: 14px 20px;
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+

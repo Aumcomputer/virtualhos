@@ -1,44 +1,37 @@
 import { useState, useEffect, useCallback } from 'react';
+import { NavLink } from 'react-router-dom';
 import { api } from '../api/client';
 
 function formatThaiDate(dateStr) {
-  if (!dateStr) return '-';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) {
-    const parts = String(dateStr).split('-');
-    if (parts.length !== 3) return dateStr;
-    const [y, m, day] = parts.map(Number);
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
     const months = [
       '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
       'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
     ];
-    return `${day} ${months[m]} ${y + 543}`;
+    return `${d.getDate()} ${months[d.getMonth() + 1]} ${d.getFullYear() + 543}`;
+  } catch {
+    return dateStr;
   }
-  const day = d.getDate();
-  const month = d.getMonth() + 1;
-  const year = d.getFullYear() + 543;
-  const months = [
-    '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-  ];
-  return `${day} ${months[month]} ${year}`;
 }
 
 function formatThaiDateTime(dateTimeStr) {
-  if (!dateTimeStr) return '-';
-  const d = new Date(dateTimeStr);
-  if (isNaN(d.getTime())) return dateTimeStr;
-
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = d.getMonth() + 1;
-  const year = d.getFullYear() + 543;
-  const hours = String(d.getHours()).padStart(2, '0');
-  const mins = String(d.getMinutes()).padStart(2, '0');
-  const months = [
-    '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-  ];
-  return `${day} ${months[month]} ${year} ${hours}:${mins} น.`;
+  if (!dateTimeStr) return '—';
+  try {
+    const d = new Date(dateTimeStr);
+    if (isNaN(d.getTime())) return dateTimeStr;
+    const months = [
+      '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+    ];
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${d.getDate()} ${months[d.getMonth() + 1]} ${d.getFullYear() + 543} ${hours}:${mins} น.`;
+  } catch {
+    return dateTimeStr;
+  }
 }
 
 function getStatusBadgeConfig(status) {
@@ -46,514 +39,733 @@ function getStatusBadgeConfig(status) {
   if (str.includes('รอตรวจสอบ')) {
     return {
       label: 'รอตรวจสอบ',
-      className: 'status-pill-pending',
-      style: {
-        background: '#fef3c7',
-        color: '#92400e',
-        border: '1px solid #fde68a',
-      },
+      style: { background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' },
+    };
+  }
+  if (str.includes('รอปรึกษาแพทย์')) {
+    return {
+      label: 'รอปรึกษาแพทย์',
+      style: { background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe' },
+    };
+  }
+  if (str.includes('รอเภสัช')) {
+    return {
+      label: 'รอเภสัชกร',
+      style: { background: '#f3e8ff', color: '#6b21a8', border: '1px solid #e9d5ff' },
     };
   }
   if (str.includes('สามารถจัดส่งได้') && !str.includes('ไม่สามารถ')) {
     return {
-      label: 'สามารถจัดส่งได้',
-      className: 'status-pill-approved',
-      style: {
-        background: '#dcfce7',
-        color: '#166534',
-        border: '1px solid #bbf7d0',
-      },
+      label: 'อนุมัติแล้ว (พร้อมส่ง)',
+      style: { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
     };
   }
-  if (str.includes('ไม่สามารถจัดส่งได้')) {
+  if (str.includes('ไม่สามารถจัดส่งได้') || str.includes('ไม่อนุมัติ')) {
     return {
-      label: 'ไม่สามารถจัดส่งได้',
-      className: 'status-pill-rejected',
-      style: {
-        background: '#fee2e2',
-        color: '#991b1b',
-        border: '1px solid #fecaca',
-      },
+      label: str.includes('แพทย์') ? 'แพทย์ไม่อนุมัติ' : str.includes('ยา') ? 'ยาส่งไม่ได้' : 'ไม่อนุมัติ',
+      style: { background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
     };
   }
   if (str.includes('จัดส่งเรียบร้อย')) {
     return {
       label: 'จัดส่งเรียบร้อย',
-      className: 'status-pill-delivered',
-      style: {
-        background: '#e0f2fe',
-        color: '#075985',
-        border: '1px solid #bae6fd',
-      },
+      style: { background: '#e0f2fe', color: '#075985', border: '1px solid #bae6fd' },
     };
   }
   return {
     label: str || 'ไม่ระบุ',
-    className: 'status-pill-default',
-    style: {
-      background: 'var(--gray-100)',
-      color: 'var(--gray-600)',
-      border: '1px solid var(--gray-200)',
-    },
+    style: { background: 'var(--gray-100)', color: 'var(--gray-600)', border: '1px solid var(--gray-200)' },
   };
 }
 
-export default function RequestTelemedPage() {
+const STAGE_META = {
+  receive: {
+    title: 'คิวรอรับเรื่อง',
+    subtitle: 'คำขอรับยาไม่พบแพทย์ที่ยื่นเข้ามาใหม่ รอเจ้าหน้าที่ประจำคลินิกตรวจสอบและกดรับเรื่อง',
+    emptyText: 'ไม่มีรายการที่รอรับเรื่องในขณะนี้',
+  },
+  doctor: {
+    title: 'คิวรอปรึกษาแพทย์',
+    subtitle: 'รายการที่รับเรื่องแล้ว อยู่ระหว่างประสานแพทย์ผู้นัดเพื่อพิจารณาความเหมาะสมในการรับยาไม่พบแพทย์',
+    emptyText: 'ไม่มีรายการที่รอปรึกษาแพทย์ในขณะนี้',
+  },
+  pharmacist: {
+    title: 'คิวเภสัชกร',
+    subtitle: 'รายการที่แพทย์อนุมัติแล้ว อยู่ระหว่างเภสัชกรตรวจสอบความพร้อมของยาและความปลอดภัยในการจัดส่ง',
+    emptyText: 'ไม่มีรายการที่รอเภสัชกรตรวจสอบในขณะนี้',
+  },
+  approved: {
+    title: 'รายการที่อนุมัติ (พร้อมจัดส่งยา)',
+    subtitle: 'รายการที่ผ่านการอนุมัติครบถ้วนจากแพทย์และเภสัชกร รอจัดยาและบันทึกเลขพัสดุเพื่อจัดส่ง',
+    emptyText: 'ไม่มีรายการที่รอจัดส่งในขณะนี้',
+  },
+  today: {
+    title: '“รับยาไม่พบแพทย์” วันนี้',
+    subtitle: 'คำขอรับยาไม่พบแพทย์ที่มีวันนัดหมายตรงกับวันนี้',
+    emptyText: 'ไม่มีรายการคำขอรับยาไม่พบแพทย์ที่มีนัดหมายในวันนี้',
+  },
+  all: {
+    title: 'ผู้ยื่นความจำนงทั้งหมด',
+    subtitle: 'ประวัติและสถานะคำขอรับยาไม่พบแพทย์ทั้งหมดในระบบ สามารถค้นหา กรอง และตรวจสอบขั้นตอนได้',
+    emptyText: 'ไม่พบรายการคำขอตามเงื่อนไขที่ระบุ',
+  },
+};
+
+export default function RequestTelemedPage({ stage = 'all' }) {
+  const meta = STAGE_META[stage] || STAGE_META.all;
+
+  // Data states
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
     total: 0,
-    pending: 0,
+    receive: 0,
+    doctor: 0,
+    pharmacist: 0,
     approved: 0,
+    today: 0,
     rejected: 0,
     delivered: 0,
   });
+
+  // Filters & sorting states
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
-  const [selectedItem, setSelectedItem] = useState(null);
   const limit = 20;
 
-  // Workflow states in modal
-  const [actionLoading, setActionLoading] = useState(false);
-  const [feedback, setFeedback] = useState({ type: '', message: '' });
-  const [rejecting, setRejecting] = useState(false);
-  const [rejectRemark, setRejectRemark] = useState('');
-  const [trackingInput, setTrackingInput] = useState('');
-  const [isEditingTracking, setIsEditingTracking] = useState(false);
+  // Notifications
+  const [toast, setToast] = useState({ type: '', message: '' });
 
+  // Clinical Visit Modal states
+  const [visitModalItem, setVisitModalItem] = useState(null);
+  const [visitDetail, setVisitDetail] = useState(null);
+  const [visitLoading, setVisitLoading] = useState(false);
+  const [visitError, setVisitError] = useState('');
+
+  // Reject Modal states
+  const [rejectModalItem, setRejectModalItem] = useState(null);
+  const [rejectTargetRole, setRejectTargetRole] = useState('doctor'); // 'doctor' | 'pharmacist'
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectSubmitting, setRejectSubmitting] = useState(false);
+  const [rejectError, setRejectError] = useState('');
+
+  // Delivery Modal states
+  const [deliveryModalItem, setDeliveryModalItem] = useState(null);
+  const [deliveryTracking, setDeliveryTracking] = useState('');
+  const [deliverySubmitting, setDeliverySubmitting] = useState(false);
+  const [deliveryError, setDeliveryError] = useState('');
+
+  // Fetch data
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api.getRequestTelemed({
+      const res = await api.getRequestTelemed({
         page,
         limit,
         search,
-        status: statusFilter,
+        status: stage === 'all' ? statusFilter : '',
+        stage,
+        sortBy,
+        sortOrder,
       });
-      setData(result.data || []);
-      setSummary(result.summary || {});
-      setPagination(result.pagination || { total: 0, totalPages: 1 });
+      setData(res.data || []);
+      setSummary(res.summary || {});
+      setPagination(res.pagination || { total: 0, totalPages: 1 });
     } catch (err) {
-      console.error('Failed to fetch request-telemed data:', err.message);
+      console.error('Fetch req_telemed error:', err);
+      setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการดึงข้อมูล' });
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, stage, sortBy, sortOrder]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 
-  // Debounced search reset to page 1
+  // Reset page when search or stage changes
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  // Sync modal sub-states when selectedItem changes
-  const handleOpenModal = (item) => {
-    setSelectedItem(item);
-    setFeedback({ type: '', message: '' });
-    setRejecting(false);
-    setRejectRemark(item.remark || '');
-    setTrackingInput(item.tracking_number || '');
-    setIsEditingTracking(!item.tracking_number);
-  };
-
-  const handleStatusFilterChange = (status) => {
-    setStatusFilter(status);
     setPage(1);
-  };
+  }, [search, stage, statusFilter]);
 
-  const handleClearFilters = () => {
-    setSearch('');
-    setStatusFilter('');
-    setPage(1);
-  };
+  // Clear toast after 4s
+  useEffect(() => {
+    if (toast.message) {
+      const timer = setTimeout(() => setToast({ type: '', message: '' }), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
-  // 1. รับเรื่อง
-  const handleReceive = async () => {
-    if (!selectedItem) return;
-    setActionLoading(true);
-    setFeedback({ type: '', message: '' });
-    try {
-      const res = await api.receiveRequestTelemed(selectedItem.id);
-      setSelectedItem(res.data);
-      setData((prev) => prev.map((item) => (item.id === res.data.id ? res.data : item)));
-      setFeedback({ type: 'success', message: 'รับเรื่องเรียบร้อยแล้ว' });
-      fetchData();
-    } catch (err) {
-      setFeedback({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการรับเรื่อง' });
-    } finally {
-      setActionLoading(false);
+  // Handle Sort Click
+  const handleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortOrder(column.includes('date') || column === 'id' ? 'desc' : 'asc');
     }
   };
 
-  // 2. อนุมัติ / ไม่อนุมัติ
-  const handleApprove = async (approveStatus) => {
-    if (!selectedItem) return;
-    if (approveStatus === 'N' && !rejecting) {
-      setRejecting(true);
+  // Helper to remove item immediately from current view when moved
+  const removeRowFromView = (id) => {
+    if (stage !== 'all' && stage !== 'today') {
+      setData((prev) => prev.filter((r) => r.id !== id));
+    }
+  };
+
+  // 1. รับเรื่อง (Receive)
+  const handleReceive = async (item) => {
+    try {
+      await api.receiveRequestTelemed(item.id);
+      removeRowFromView(item.id);
+      setToast({ type: 'success', message: `รับเรื่องสำหรับ HN ${item.hn} เรียบร้อยแล้ว (ย้ายไปคิวรอปรึกษาแพทย์)` });
+      fetchData();
+      if (visitModalItem?.id === item.id) setVisitModalItem(null);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการรับเรื่อง' });
+    }
+  };
+
+  // 2. แพทย์อนุมัติ (Doctor Approve)
+  const handleDoctorApprove = async (item) => {
+    try {
+      await api.doctorActionRequestTelemed(item.id, { approve: 'APPROVED' });
+      removeRowFromView(item.id);
+      setToast({ type: 'success', message: `บันทึกแพทย์อนุมัติสำหรับ HN ${item.hn} เรียบร้อยแล้ว (ย้ายไปคิวเภสัชกร)` });
+      fetchData();
+      if (visitModalItem?.id === item.id) setVisitModalItem(null);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกแพทย์อนุมัติ' });
+    }
+  };
+
+  // 3. เภสัชกรอนุมัติ ยาส่งได้ (Pharmacy Approve)
+  const handlePharmacyApprove = async (item) => {
+    try {
+      await api.pharmacyActionRequestTelemed(item.id, { approve: 'APPROVED' });
+      removeRowFromView(item.id);
+      setToast({ type: 'success', message: `เภสัชกรอนุมัติสำหรับ HN ${item.hn} เรียบร้อยแล้ว (ย้ายไปรายการที่อนุมัติ)` });
+      fetchData();
+      if (visitModalItem?.id === item.id) setVisitModalItem(null);
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกเภสัชกรอนุมัติ' });
+    }
+  };
+
+  // Open Reject Modal
+  const openRejectModal = (item, role) => {
+    setRejectModalItem(item);
+    setRejectTargetRole(role);
+    setRejectReason('');
+    setRejectError('');
+  };
+
+  // Confirm Reject
+  const handleConfirmReject = async (e) => {
+    e.preventDefault();
+    if (!rejectModalItem) return;
+    const cleanReason = rejectReason.trim();
+    if (!cleanReason) {
+      setRejectError('กรุณากรอกเหตุผลความจำเป็นที่ไม่อนุมัติ (บังคับกรอก)');
       return;
     }
 
-    if (approveStatus === 'N' && !rejectRemark.trim()) {
-      setFeedback({ type: 'error', message: 'กรุณาระบุเหตุผลที่ไม่อนุมัติ' });
-      return;
-    }
-
-    setActionLoading(true);
-    setFeedback({ type: '', message: '' });
+    setRejectSubmitting(true);
+    setRejectError('');
     try {
-      const res = await api.approveRequestTelemed(selectedItem.id, {
-        approve: approveStatus,
-        remark: approveStatus === 'N' ? rejectRemark.trim() : (selectedItem.remark || ''),
-      });
-      setSelectedItem(res.data);
-      setData((prev) => prev.map((item) => (item.id === res.data.id ? res.data : item)));
-      setRejecting(false);
-      setFeedback({
-        type: 'success',
-        message: approveStatus === 'Y' ? 'อนุมัติเรียบร้อยแล้ว (สามารถจัดส่งได้)' : 'บันทึกสถานะไม่อนุมัติเรียบร้อยแล้ว',
-      });
+      if (rejectTargetRole === 'doctor') {
+        await api.doctorActionRequestTelemed(rejectModalItem.id, {
+          approve: 'REJECTED',
+          remark: cleanReason,
+        });
+        setToast({ type: 'success', message: `บันทึกแพทย์ไม่อนุมัติสำหรับ HN ${rejectModalItem.hn} เรียบร้อยแล้ว (ย้ายไปผู้ยื่นความจำนงทั้งหมด)` });
+      } else {
+        await api.pharmacyActionRequestTelemed(rejectModalItem.id, {
+          approve: 'REJECTED',
+          remark: cleanReason,
+        });
+        setToast({ type: 'success', message: `บันทึกเภสัชกรไม่อนุมัติ (ยาส่งไม่ได้) สำหรับ HN ${rejectModalItem.hn} เรียบร้อยแล้ว` });
+      }
+
+      removeRowFromView(rejectModalItem.id);
+      setRejectModalItem(null);
       fetchData();
+      if (visitModalItem?.id === rejectModalItem.id) setVisitModalItem(null);
     } catch (err) {
-      setFeedback({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกผลการพิจารณา' });
+      setRejectError(err.message || 'เกิดข้อผิดพลาดในการบันทึก');
     } finally {
-      setActionLoading(false);
+      setRejectSubmitting(false);
     }
   };
 
-  // 3. บันทึกเลขพัสดุ
-  const handleSaveTracking = async () => {
-    if (!selectedItem) return;
-    if (!trackingInput.trim()) {
-      setFeedback({ type: 'error', message: 'กรุณาระบุเลขพัสดุ (Tracking Number)' });
+  // Open Delivery Modal
+  const openDeliveryModal = (item) => {
+    setDeliveryModalItem(item);
+    setDeliveryTracking(item.tracking_number || '');
+    setDeliveryError('');
+  };
+
+  // Confirm Delivery
+  const handleConfirmDelivery = async (e) => {
+    e.preventDefault();
+    if (!deliveryModalItem) return;
+    const cleanTracking = deliveryTracking.trim();
+    if (!cleanTracking) {
+      setDeliveryError('กรุณากรอกหมายเลขพัสดุ (Tracking Number)');
       return;
     }
 
-    setActionLoading(true);
-    setFeedback({ type: '', message: '' });
+    setDeliverySubmitting(true);
+    setDeliveryError('');
     try {
-      const res = await api.updateDeliveryRequestTelemed(selectedItem.id, {
-        tracking_number: trackingInput.trim(),
+      await api.updateDeliveryRequestTelemed(deliveryModalItem.id, {
+        tracking_number: cleanTracking,
       });
-      setSelectedItem(res.data);
-      setData((prev) => prev.map((item) => (item.id === res.data.id ? res.data : item)));
-      setIsEditingTracking(false);
-      setFeedback({ type: 'success', message: 'บันทึกเลขพัสดุและจัดส่งเรียบร้อยแล้ว' });
+      removeRowFromView(deliveryModalItem.id);
+      setToast({ type: 'success', message: `บันทึกจัดส่งยาเรียบร้อยแล้ว (เลขพัสดุ: ${cleanTracking})` });
+      setDeliveryModalItem(null);
       fetchData();
+      if (visitModalItem?.id === deliveryModalItem.id) setVisitModalItem(null);
     } catch (err) {
-      setFeedback({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกเลขพัสดุ' });
+      setDeliveryError(err.message || 'เกิดข้อผิดพลาดในการบันทึกเลขพัสดุ');
     } finally {
-      setActionLoading(false);
+      setDeliverySubmitting(false);
     }
+  };
+
+  // Open Clinical Visit Detail Modal
+  const openVisitModal = async (item) => {
+    setVisitModalItem(item);
+    setVisitDetail(null);
+    setVisitLoading(true);
+    setVisitError('');
+
+    try {
+      const res = await api.getVisitDetail(item.id);
+      setVisitDetail(res);
+    } catch (err) {
+      console.error('Error fetching visit detail:', err);
+      setVisitError(err.message || 'ไม่สามารถดึงข้อมูลประวัติการตรวจได้');
+    } finally {
+      setVisitLoading(false);
+    }
+  };
+
+  // Render sorting indicator
+  const renderSortArrow = (column) => {
+    if (sortBy !== column) {
+      return (
+        <span className="sort-indicator inactive" aria-hidden="true">
+          ↕
+        </span>
+      );
+    }
+    return (
+      <span className="sort-indicator active" aria-hidden="true">
+        {sortOrder === 'asc' ? '▲' : '▼'}
+      </span>
+    );
+  };
+
+  // Helper to parse line-separated clinical strings
+  const parseLines = (text) => {
+    if (!text) return [];
+    return String(text)
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
   };
 
   return (
     <>
-      {/* Header */}
+      {/* Toast Notification */}
+      {toast.message && (
+        <div className={`toast-notification toast-${toast.type}`}>
+          <div className="toast-content">
+            <span>{toast.message}</span>
+            <button type="button" className="toast-close" onClick={() => setToast({ type: '', message: '' })}>
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Page Header */}
       <div className="page-header">
         <div className="page-title-row">
           <div>
-            <h2 className="page-title">รายชื่อผู้ยื่นความจำนงรับยาไม่พบแพทย์ทั้งหมด</h2>
-            <p className="page-subtitle">
-              รายการคำขอบริการ Telemedicine และจัดส่งยา/เวชภัณฑ์ทางไปรษณีย์ (ตาราง virtualhos.req_telemed)
-            </p>
+            <h2 className="page-title">{meta.title}</h2>
+            <p className="page-subtitle">{meta.subtitle}</p>
           </div>
           <div className="page-actions">
-            <button
-              className="btn btn-secondary"
-              onClick={fetchData}
-              disabled={loading}
-              title="รีเฟรชข้อมูล"
-            >
-              รีเฟรช
-            </button>
+            <NavLink to="/request-telemed/register" className="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              ลงทะเบียนใหม่
+            </NavLink>
           </div>
         </div>
       </div>
 
       <div className="page-body">
-        {/* Stat Cards */}
-        <div className="stats-row">
-          <div
-            className={`stat-card ${statusFilter === '' ? 'stat-card-active' : ''}`}
-            onClick={() => handleStatusFilterChange('')}
-            style={{ cursor: 'pointer' }}
+        {/* Stage Summary Navigation Chips */}
+        <div className="stage-summary-bar">
+          <NavLink
+            to="/request-telemed/pending-receive"
+            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
           >
-            <div className="stat-label">คำขอทั้งหมด</div>
-            <div className="stat-value primary">{summary.total || 0}</div>
-          </div>
-
-          <div
-            className={`stat-card ${statusFilter === 'รอตรวจสอบ' ? 'stat-card-active' : ''}`}
-            onClick={() => handleStatusFilterChange(statusFilter === 'รอตรวจสอบ' ? '' : 'รอตรวจสอบ')}
-            style={{ cursor: 'pointer' }}
+            <span>รอรับเรื่อง</span>
+            <span className="stage-chip-count">{summary.receive || 0}</span>
+          </NavLink>
+          <NavLink
+            to="/request-telemed/pending-doctor"
+            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
           >
-            <div className="stat-label">รอตรวจสอบ</div>
-            <div className="stat-value accent" style={{ color: '#d97706' }}>
-              {summary.pending || 0}
-            </div>
-          </div>
-
-          <div
-            className={`stat-card ${statusFilter === 'สามารถจัดส่งได้' ? 'stat-card-active' : ''}`}
-            onClick={() => handleStatusFilterChange(statusFilter === 'สามารถจัดส่งได้' ? '' : 'สามารถจัดส่งได้')}
-            style={{ cursor: 'pointer' }}
+            <span>รอปรึกษาแพทย์</span>
+            <span className="stage-chip-count">{summary.doctor || 0}</span>
+          </NavLink>
+          <NavLink
+            to="/request-telemed/pharmacist"
+            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
           >
-            <div className="stat-label">สามารถจัดส่งได้</div>
-            <div className="stat-value success">{summary.approved || 0}</div>
-          </div>
-
-          <div
-            className={`stat-card ${statusFilter === 'ไม่สามารถจัดส่งได้' ? 'stat-card-active' : ''}`}
-            onClick={() => handleStatusFilterChange(statusFilter === 'ไม่สามารถจัดส่งได้' ? '' : 'ไม่สามารถจัดส่งได้')}
-            style={{ cursor: 'pointer' }}
+            <span>เภสัชกร</span>
+            <span className="stage-chip-count">{summary.pharmacist || 0}</span>
+          </NavLink>
+          <NavLink
+            to="/request-telemed/approved"
+            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
           >
-            <div className="stat-label">ไม่สามารถจัดส่งได้</div>
-            <div className="stat-value warning" style={{ color: '#dc2626' }}>
-              {summary.rejected || 0}
-            </div>
-          </div>
-
-          <div
-            className={`stat-card ${statusFilter === 'จัดส่งเรียบร้อย' ? 'stat-card-active' : ''}`}
-            onClick={() => handleStatusFilterChange(statusFilter === 'จัดส่งเรียบร้อย' ? '' : 'จัดส่งเรียบร้อย')}
-            style={{ cursor: 'pointer' }}
+            <span>รายการที่อนุมัติ</span>
+            <span className="stage-chip-count">{summary.approved || 0}</span>
+          </NavLink>
+          <NavLink
+            to="/request-telemed/today"
+            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
           >
-            <div className="stat-label">จัดส่งเรียบร้อย</div>
-            <div className="stat-value info" style={{ color: '#0288d1' }}>
-              {summary.delivered || 0}
-            </div>
-          </div>
+            <span>“รับยาไม่พบแพทย์” วันนี้</span>
+            <span className="stage-chip-count">{summary.today || 0}</span>
+          </NavLink>
+          <NavLink
+            to="/request-telemed/all"
+            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+          >
+            <span>ผู้ยื่นความจำนงทั้งหมด</span>
+            <span className="stage-chip-count">{summary.total || 0}</span>
+          </NavLink>
         </div>
 
-        {/* Filters Toolbar */}
-        <div className="table-card" style={{ marginBottom: '16px' }}>
-          <div className="table-toolbar" style={{ flexWrap: 'wrap', gap: '12px' }}>
-            <div className="search-box" style={{ flex: '1 1 320px' }}>
+        {/* Filter & Search Bar */}
+        <div className="telemed-card filter-card">
+          <div className="filter-row">
+            <div className="search-box-wrapper" style={{ flex: 1 }}>
+              <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <input
-                className="search-input"
                 type="text"
-                placeholder="ค้นหา HN, ชื่อผู้ป่วย, เบอร์โทร, คลินิก, ผู้รับเรื่อง, ผู้อนุมัติ, เลขพัสดุ..."
+                className="form-input search-input"
+                placeholder="ค้นหา HN, ชื่อผู้ป่วย, เบอร์โทร, คลินิก, แพทย์, เลขพัสดุ..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                id="search-req-telemed"
-                style={{ paddingLeft: '14px' }}
               />
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <select
-                className="form-control"
-                value={statusFilter}
-                onChange={(e) => handleStatusFilterChange(e.target.value)}
-                style={{
-                  height: '42px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--gray-300)',
-                  padding: '0 12px',
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  backgroundColor: '#ffffff',
-                }}
-              >
-                <option value="">ทุกสถานะ (ทั้งหมด)</option>
-                <option value="รอตรวจสอบ">รอตรวจสอบ</option>
-                <option value="สามารถจัดส่งได้">สามารถจัดส่งได้</option>
-                <option value="ไม่สามารถจัดส่งได้">ไม่สามารถจัดส่งได้</option>
-                <option value="จัดส่งเรียบร้อย">จัดส่งเรียบร้อย</option>
-              </select>
-
-              {(search || statusFilter) && (
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleClearFilters}
-                  style={{ height: '42px', padding: '0 14px' }}
-                >
-                  ล้างตัวกรอง
+              {search && (
+                <button type="button" className="search-clear-btn" onClick={() => setSearch('')}>
+                  ✕
                 </button>
               )}
             </div>
+
+            {stage === 'all' && (
+              <div className="status-filter-wrapper">
+                <select
+                  className="form-select"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  <option value="">สถานะทั้งหมด</option>
+                  <option value="รอตรวจสอบ">รอตรวจสอบ (ใหม่)</option>
+                  <option value="รอปรึกษาแพทย์">รอปรึกษาแพทย์</option>
+                  <option value="รอเภสัช">รอเภสัชกร</option>
+                  <option value="สามารถจัดส่งได้">สามารถจัดส่งได้</option>
+                  <option value="จัดส่งเรียบร้อย">จัดส่งเรียบร้อย</option>
+                  <option value="ไม่อนุมัติ">ไม่อนุมัติ / ยาส่งไม่ได้</option>
+                </select>
+              </div>
+            )}
+
+            <button type="button" className="btn btn-secondary" onClick={() => fetchData()} title="รีเฟรชข้อมูล">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+              </svg>
+              รีเฟรช
+            </button>
           </div>
         </div>
 
         {/* Data Table */}
-        <div className="table-card">
-          <div className="table-container" style={{ overflowX: 'auto' }}>
-            <table className="data-table">
+        <div className="telemed-card table-card">
+          <div className="table-responsive">
+            <table className="telemed-table">
               <thead>
                 <tr>
-                  <th style={{ width: '50px', textAlign: 'center' }}>#</th>
-                  <th style={{ minWidth: '130px' }}>วันที่ยื่น</th>
-                  <th style={{ minWidth: '100px' }}>HN</th>
-                  <th style={{ minWidth: '160px' }}>ชื่อ-สกุล</th>
-                  <th style={{ minWidth: '120px' }}>เบอร์โทร</th>
-                  <th style={{ minWidth: '110px' }}>วันนัดหมาย</th>
-                  <th style={{ minWidth: '180px' }}>คลินิก / แพทย์</th>
-                  <th style={{ minWidth: '180px' }}>เหตุผล / อาการ</th>
-                  <th style={{ minWidth: '160px', textAlign: 'center' }}>สถานะ / ผู้รับเรื่อง</th>
-                  <th style={{ minWidth: '130px' }}>เลขพัสดุ</th>
-                  <th style={{ minWidth: '90px', textAlign: 'center' }}>จัดการ</th>
+                  <th style={{ width: '45px', textAlign: 'center' }}>#</th>
+                  <th className="sortable-th" onClick={() => handleSort('created_at')}>
+                    <div className="th-sort-wrapper">
+                      <span>วันที่ยื่น</span>
+                      {renderSortArrow('created_at')}
+                    </div>
+                  </th>
+                  <th className="sortable-th" onClick={() => handleSort('nextdate')}>
+                    <div className="th-sort-wrapper">
+                      <span>วันนัดหมาย</span>
+                      {renderSortArrow('nextdate')}
+                    </div>
+                  </th>
+                  <th className="sortable-th" onClick={() => handleSort('hn')}>
+                    <div className="th-sort-wrapper">
+                      <span>HN</span>
+                      {renderSortArrow('hn')}
+                    </div>
+                  </th>
+                  <th className="sortable-th" onClick={() => handleSort('patient_name')}>
+                    <div className="th-sort-wrapper">
+                      <span>ชื่อ-นามสกุล</span>
+                      {renderSortArrow('patient_name')}
+                    </div>
+                  </th>
+                  <th className="sortable-th" onClick={() => handleSort('clinic_name')}>
+                    <div className="th-sort-wrapper">
+                      <span>คลินิก</span>
+                      {renderSortArrow('clinic_name')}
+                    </div>
+                  </th>
+                  <th className="sortable-th" onClick={() => handleSort('doctor_name')}>
+                    <div className="th-sort-wrapper">
+                      <span>แพทย์ผู้นัด</span>
+                      {renderSortArrow('doctor_name')}
+                    </div>
+                  </th>
+                  <th>อาการ / เหตุผล</th>
+                  <th>เบอร์โทร</th>
+
+                  {/* Stage-specific context column */}
+                  {stage === 'receive' && <th>ผู้ลงทะเบียน</th>}
+                  {stage === 'doctor' && <th>ผู้รับเรื่อง</th>}
+                  {stage === 'pharmacist' && <th>แพทย์ผู้อนุมัติ</th>}
+                  {stage === 'approved' && <th>เภสัชกรผู้อนุมัติ</th>}
+                  {(stage === 'today' || stage === 'all') && (
+                    <th className="sortable-th" onClick={() => handleSort('status')}>
+                      <div className="th-sort-wrapper">
+                        <span>สถานะ</span>
+                        {renderSortArrow('status')}
+                      </div>
+                    </th>
+                  )}
+
+                  <th style={{ textAlign: 'center', minWidth: '150px' }}>การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="11" style={{ textAlign: 'center', padding: '40px' }}>
-                      <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
-                      <div style={{ color: 'var(--gray-500)' }}>กำลังโหลดข้อมูล...</div>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>
+                      <div className="loading-spinner-wrapper">
+                        <svg className="spin-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                        <span style={{ marginLeft: '10px' }}>กำลังโหลดข้อมูล...</span>
+                      </div>
                     </td>
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan="11" style={{ textAlign: 'center', padding: '48px' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--gray-700)', fontSize: '1.05rem' }}>
-                        ไม่พบรายการผู้ยื่นความจำนง
-                      </div>
-                      <div style={{ color: 'var(--gray-500)', fontSize: '0.875rem', marginTop: '4px' }}>
-                        {search || statusFilter ? 'ลองเปลี่ยนคำค้นหาหรือตัวกรองสถานะ' : 'ยังไม่มีข้อมูลในระบบ'}
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                      <div className="empty-state-box">
+                        <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '4px' }}>
+                          {meta.emptyText}
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
+                          {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างตัวกรอง' : 'เมื่อมีรายการคำขอใหม่จะแสดงในตารางนี้'}
+                        </div>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  data.map((item, index) => {
+                  data.map((item, idx) => {
+                    const rowNumber = (page - 1) * limit + idx + 1;
                     const badge = getStatusBadgeConfig(item.status);
-                    const rowNumber = (page - 1) * limit + index + 1;
 
                     return (
-                      <tr key={item.id} className="hover-row">
-                        <td style={{ textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.85rem' }}>
+                      <tr key={item.id} className="table-row-hover">
+                        <td style={{ textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
                           {rowNumber}
                         </td>
-                        <td>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>
-                            {formatThaiDateTime(item.created_at)}
-                          </div>
+                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.8125rem' }}>
+                          {formatThaiDateTime(item.created_at)}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.875rem' }}>
+                          {formatThaiDate(item.nextdate)}
                         </td>
                         <td>
-                          <span
-                            style={{
-                              display: 'inline-block',
-                              padding: '2px 8px',
-                              background: '#e0e7ff',
-                              color: '#3730a3',
-                              borderRadius: 'var(--radius-full)',
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {item.hn}
-                          </span>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 600, color: 'var(--gray-800)', fontSize: '0.875rem' }}>
-                            {item.patient_name || '-'}
-                          </div>
-                        </td>
-                        <td>
-                          {item.phone ? (
-                            <span style={{ fontSize: '0.85rem', color: 'var(--gray-700)', whiteSpace: 'nowrap' }}>
-                              {item.phone}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--gray-400)' }}>-</span>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--gray-700)' }}>
-                            {formatThaiDate(item.nextdate)}
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 500, fontSize: '0.875rem', color: 'var(--primary-700)' }}>
-                            {item.clinic_name || '-'}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--gray-500)', marginTop: '2px' }}>
-                            {item.doctor_name || '-'}
-                          </div>
-                        </td>
-                        <td>
-                          {item.reason && (
-                            <div style={{ fontSize: '0.85rem', color: 'var(--gray-800)' }}>
-                              <span style={{ fontWeight: 500 }}>เหตุผล:</span> {item.reason}
-                            </div>
-                          )}
-                          {item.symptoms && (
-                            <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)', marginTop: '2px' }}>
-                              <span style={{ fontWeight: 500 }}>อาการ:</span> {item.symptoms}
-                            </div>
-                          )}
-                          {!item.reason && !item.symptoms && (
-                            <span style={{ color: 'var(--gray-400)' }}>-</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '4px 10px',
-                              borderRadius: 'var(--radius-full)',
-                              fontSize: '0.8125rem',
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
-                              ...badge.style,
-                            }}
-                          >
-                            {badge.label}
-                          </span>
-                          <div style={{ fontSize: '0.75rem', color: item.received_by ? 'var(--primary-700)' : '#9ca3af', marginTop: '4px' }}>
-                            {item.received_by ? (
-                              <span>รับ: {item.received_by}</span>
-                            ) : (
-                              <span>ยังไม่ได้รับเรื่อง</span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          {item.tracking_number ? (
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                fontFamily: 'monospace',
-                                fontSize: '0.85rem',
-                                fontWeight: 600,
-                                background: '#f1f5f9',
-                                color: '#0f172a',
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                border: '1px solid #cbd5e1',
-                              }}
-                            >
-                              {item.tracking_number}
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--gray-400)', fontSize: '0.85rem' }}>-</span>
-                          )}
-                        </td>
-                        <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
-                            className="btn btn-secondary"
-                            style={{
-                              padding: '4px 10px',
-                              fontSize: '0.8125rem',
-                              borderRadius: 'var(--radius-sm)',
-                              whiteSpace: 'nowrap',
-                            }}
-                            onClick={() => handleOpenModal(item)}
+                            className="patient-click-link font-mono"
+                            onClick={() => openVisitModal(item)}
+                            title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
                           >
-                            จัดการ
+                            {item.hn}
                           </button>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="patient-click-link"
+                            onClick={() => openVisitModal(item)}
+                            title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
+                          >
+                            {item.patient_name || '—'}
+                          </button>
+                        </td>
+                        <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
+                          {item.clinic_name || '—'}
+                        </td>
+                        <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
+                          {item.doctor_name || '—'}
+                        </td>
+                        <td style={{ maxWidth: '180px' }} title={`${item.reason || ''} / ${item.symptoms || ''}`}>
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.8125rem' }}>
+                            {item.symptoms || item.reason || '—'}
+                          </div>
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
+                          {item.phone || '—'}
+                        </td>
+
+                        {/* Stage context column */}
+                        {stage === 'receive' && (
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                            {item.request_by || 'คนไข้ (LINE)'}
+                          </td>
+                        )}
+                        {stage === 'doctor' && (
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                            <div>{item.received_by || '—'}</div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>
+                              {formatThaiDateTime(item.received_at)}
+                            </div>
+                          </td>
+                        )}
+                        {stage === 'pharmacist' && (
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                            <div style={{ fontWeight: 500 }}>{item.doctor_approved_by || 'แพทย์อนุมัติ'}</div>
+                            {item.doctor_remark && (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--primary-700)' }}>
+                                {item.doctor_remark}
+                              </div>
+                            )}
+                          </td>
+                        )}
+                        {stage === 'approved' && (
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                            <div>{item.pharmacy_approved_by || item.approve_by || 'เภสัชกร'}</div>
+                            <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>
+                              {formatThaiDateTime(item.pharmacy_approved_at || item.approve_at)}
+                            </div>
+                          </td>
+                        )}
+                        {(stage === 'today' || stage === 'all') && (
+                          <td>
+                            <span className="status-pill" style={badge.style}>
+                              {badge.label}
+                            </span>
+                            {item.tracking_number && (
+                              <div style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: 'var(--primary-700)', marginTop: '2px' }}>
+                                พัสดุ: {item.tracking_number}
+                              </div>
+                            )}
+                          </td>
+                        )}
+
+                        {/* Action buttons */}
+                        <td style={{ textAlign: 'center' }}>
+                          <div className="queue-action-group" style={{ justifyContent: 'center' }}>
+                            {stage === 'receive' && (
+                              <button
+                                type="button"
+                                className="btn-queue-action btn-queue-receive"
+                                onClick={() => handleReceive(item)}
+                              >
+                                รับเรื่อง
+                              </button>
+                            )}
+
+                            {stage === 'doctor' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-queue-action btn-queue-approve"
+                                  onClick={() => handleDoctorApprove(item)}
+                                >
+                                  แพทย์อนุมัติ
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-queue-action btn-queue-reject"
+                                  onClick={() => openRejectModal(item, 'doctor')}
+                                >
+                                  ไม่อนุมัติ
+                                </button>
+                              </>
+                            )}
+
+                            {stage === 'pharmacist' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn-queue-action btn-queue-approve"
+                                  onClick={() => handlePharmacyApprove(item)}
+                                >
+                                  ยาส่งได้
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn-queue-action btn-queue-reject"
+                                  onClick={() => openRejectModal(item, 'pharmacist')}
+                                >
+                                  ยาส่งไม่ได้
+                                </button>
+                              </>
+                            )}
+
+                            {stage === 'approved' && (
+                              <button
+                                type="button"
+                                className="btn-queue-action btn-queue-deliver"
+                                onClick={() => openDeliveryModal(item)}
+                              >
+                                จัดส่งยา
+                              </button>
+                            )}
+
+                            {/* View Clinical Details */}
+                            <button
+                              type="button"
+                              className="btn-queue-action btn-queue-view"
+                              onClick={() => openVisitModal(item)}
+                              title="ดูรายละเอียดการตรวจใน HOSxP"
+                            >
+                              ประวัติ
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -565,29 +777,27 @@ export default function RequestTelemedPage() {
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="table-footer" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ color: 'var(--gray-600)', fontSize: '0.875rem' }}>
-                แสดงลำดับที่ {(page - 1) * limit + 1} ถึง {Math.min(page * limit, pagination.total)} จากทั้งหมด {pagination.total} รายการ
-              </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <div className="table-pagination">
+              <span className="pagination-info">
+                แสดง {data.length} รายการ จากทั้งหมด {pagination.total} รายการ
+              </span>
+              <div className="pagination-controls">
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary btn-sm"
                   disabled={page <= 1}
-                  onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                  style={{ padding: '6px 14px' }}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
-                  ก่อนหน้า
+                  ย้อนกลับ
                 </button>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600, padding: '0 8px' }}>
+                <span className="pagination-pages">
                   หน้า {page} / {pagination.totalPages}
                 </span>
                 <button
                   type="button"
-                  className="btn btn-secondary"
+                  className="btn btn-secondary btn-sm"
                   disabled={page >= pagination.totalPages}
-                  onClick={() => setPage((prev) => Math.min(prev + 1, pagination.totalPages))}
-                  style={{ padding: '6px 14px' }}
+                  onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 >
                   ถัดไป
                 </button>
@@ -597,464 +807,461 @@ export default function RequestTelemedPage() {
         </div>
       </div>
 
-      {/* Modal จัดการคำขอ (Workflow Modal) */}
-      {selectedItem && (
-        <div
-          className="modal-overlay"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px',
-          }}
-          onClick={() => setSelectedItem(null)}
-        >
-          <div
-            className="modal-content"
-            style={{
-              background: '#ffffff',
-              borderRadius: 'var(--radius-lg)',
-              maxWidth: '720px',
-              width: '100%',
-              maxHeight: '92vh',
-              overflowY: 'auto',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+      {/* ========================================================================
+          Patient Clinical Visit Detail Modal (from HOSxP oapp -> vn)
+          ======================================================================== */}
+      {visitModalItem && (
+        <div className="visit-modal-backdrop" onClick={() => setVisitModalItem(null)}>
+          <div className="visit-modal-container" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div
-              style={{
-                padding: '20px 24px',
-                borderBottom: '1px solid var(--gray-200)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, color: 'var(--gray-900)' }}>
-                  จัดการคำขอยื่นความจำนง Telemed
-                </h3>
-                <span style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-                  รหัสคำขอ #{selectedItem.id} (oapp_id: {selectedItem.oapp_id}) • วันที่ยื่น: {formatThaiDateTime(selectedItem.created_at)}
-                </span>
+            <div className="visit-modal-header">
+              <div className="visit-modal-title-row">
+                <div className="visit-modal-title">
+                  รายละเอียดการรับบริการครั้งที่มีการนัดหมาย
+                </div>
+                {visitDetail?.vn && (
+                  <span className="badge badge-primary font-mono">
+                    VN: {visitDetail.vn}
+                  </span>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() => setSelectedItem(null)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  color: 'var(--gray-500)',
-                  padding: '4px 8px',
-                }}
+                className="visit-modal-close-btn"
+                onClick={() => setVisitModalItem(null)}
+                aria-label="ปิด"
               >
                 ✕
               </button>
             </div>
 
-            {/* Modal Feedback Alert */}
-            {feedback.message && (
-              <div
-                style={{
-                  margin: '16px 24px 0',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: '0.9rem',
-                  background: feedback.type === 'success' ? '#dcfce7' : '#fee2e2',
-                  color: feedback.type === 'success' ? '#166534' : '#991b1b',
-                  border: `1px solid ${feedback.type === 'success' ? '#bbf7d0' : '#fecaca'}`,
-                }}
-              >
-                {feedback.message}
-              </div>
-            )}
-
             {/* Modal Body */}
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-              {/* Status Bar */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 18px',
-                  background: '#f8fafc',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--gray-200)',
-                }}
-              >
-                <span style={{ fontWeight: 600, color: 'var(--gray-700)' }}>สถานะปัจจุบัน</span>
-                {(() => {
-                  const badge = getStatusBadgeConfig(selectedItem.status);
-                  return (
-                    <span
-                      style={{
-                        padding: '5px 14px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.875rem',
-                        fontWeight: 700,
-                        ...badge.style,
-                      }}
-                    >
-                      {badge.label}
-                    </span>
-                  );
-                })()}
-              </div>
-
-              {/* 1. Patient Info */}
-              <div>
-                <h4 style={{ margin: '0 0 10px', fontSize: '1rem', color: 'var(--primary-700)', borderBottom: '2px solid var(--primary-100)', paddingBottom: '6px' }}>
-                  ข้อมูลผู้ป่วยและการนัดหมาย
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', fontSize: '0.9rem' }}>
-                  <div>
-                    <span style={{ color: 'var(--gray-500)' }}>ชื่อผู้ป่วย:</span>{' '}
-                    <strong>{selectedItem.patient_name || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--gray-500)' }}>HN:</span>{' '}
-                    <strong style={{ color: '#3730a3' }}>{selectedItem.hn}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--gray-500)' }}>เบอร์โทรศัพท์:</span>{' '}
-                    <strong>{selectedItem.phone || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--gray-500)' }}>วันนัดหมาย:</span>{' '}
-                    <strong>{formatThaiDate(selectedItem.nextdate)}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--gray-500)' }}>คลินิก:</span>{' '}
-                    <strong>{selectedItem.clinic_name || '-'}</strong>
-                  </div>
-                  <div>
-                    <span style={{ color: 'var(--gray-500)' }}>แพทย์:</span>{' '}
-                    <strong>{selectedItem.doctor_name || '-'}</strong>
-                  </div>
+            <div className="visit-modal-body">
+              {/* Quick Patient Banner */}
+              <div className="patient-quick-banner">
+                <div className="quick-banner-item">
+                  <span className="label">ผู้ป่วย / HN</span>
+                  <span className="value">
+                    {visitModalItem.patient_name} (HN: {visitModalItem.hn})
+                  </span>
+                </div>
+                <div className="quick-banner-item">
+                  <span className="label">อายุ</span>
+                  <span className="value">
+                    {visitDetail?.visit?.age_y !== undefined
+                      ? `${visitDetail.visit.age_y} ปี ${visitDetail.visit.age_m || 0} เดือน`
+                      : '—'}
+                  </span>
+                </div>
+                <div className="quick-banner-item">
+                  <span className="label">วันเวลานัดตรวจ</span>
+                  <span className="value">
+                    {formatThaiDate(visitModalItem.nextdate)} ({visitModalItem.clinic_name || 'ไม่ระบุคลินิก'})
+                  </span>
+                </div>
+                <div className="quick-banner-item">
+                  <span className="label">แพทย์ผู้นัด</span>
+                  <span className="value">{visitModalItem.doctor_name || '—'}</span>
                 </div>
               </div>
 
-              {/* 2. Address */}
-              <div>
-                <h4 style={{ margin: '0 0 10px', fontSize: '1rem', color: 'var(--primary-700)', borderBottom: '2px solid var(--primary-100)', paddingBottom: '6px' }}>
-                  ที่อยู่สำหรับจัดส่งยา / เวชภัณฑ์
-                </h4>
-                <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                  <div>{selectedItem.address || 'ไม่ระบุที่อยู่'}</div>
-                  {selectedItem.postcode && (
-                    <div style={{ marginTop: '4px', fontWeight: 600, color: 'var(--gray-700)' }}>
-                      รหัสไปรษณีย์: {selectedItem.postcode}
-                    </div>
-                  )}
+              {visitLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px' }}>
+                  <svg className="spin-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                  </svg>
+                  <p style={{ marginTop: '10px', color: 'var(--gray-600)' }}>
+                    กำลังดึงข้อมูลเวชระเบียนจาก HOSxP...
+                  </p>
                 </div>
-              </div>
-
-              {/* 3. Reason & Symptoms */}
-              <div>
-                <h4 style={{ margin: '0 0 10px', fontSize: '1rem', color: 'var(--primary-700)', borderBottom: '2px solid var(--primary-100)', paddingBottom: '6px' }}>
-                  เหตุผลความจำนงและอาการ
-                </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', fontSize: '0.9rem' }}>
-                  <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--gray-700)', marginBottom: '4px' }}>
-                      เหตุผลที่ยื่นความจำนง:
-                    </div>
-                    <div style={{ color: 'var(--gray-800)' }}>{selectedItem.reason || '-'}</div>
-                  </div>
-                  <div style={{ background: '#f8fafc', padding: '12px 16px', borderRadius: 'var(--radius-md)' }}>
-                    <div style={{ fontWeight: 600, color: 'var(--gray-700)', marginBottom: '4px' }}>
-                      อาการของผู้ป่วย:
-                    </div>
-                    <div style={{ color: 'var(--gray-800)' }}>{selectedItem.symptoms || '-'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. WORKFLOW ACTION PANEL (อยู่ล่างสุด) */}
-              <div
-                style={{
-                  background: '#f8fafc',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '20px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '16px',
-                  marginTop: '10px',
-                }}
-              >
-                <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '10px' }}>
-                  <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--gray-800)' }}>
-                    การดำเนินงานและอัปเดตสถานะ
-                  </h4>
-                </div>
-
-                {/* ขั้นตอนที่ 1: การรับเรื่อง */}
-                <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px', color: 'var(--gray-800)' }}>
-                    ขั้นตอนที่ 1: การรับเรื่อง
-                  </div>
-                  {selectedItem.received_by ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
-                      <div style={{ fontSize: '0.9rem', color: '#166534', background: '#f0fdf4', padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid #bbf7d0' }}>
-                        <strong>รับเรื่องโดย:</strong> {selectedItem.received_by} ({formatThaiDateTime(selectedItem.received_at)})
-                      </div>
-                      <span style={{ fontSize: '0.8rem', color: '#15803d', fontWeight: 600 }}>รับเรื่องแล้ว</span>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                      <span style={{ fontSize: '0.875rem', color: '#d97706' }}>
-                        ยังไม่มีผู้รับเรื่องนี้ กรุณากดปุ่มเพื่อรับเรื่องเข้าดำเนินการ
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={handleReceive}
-                        disabled={actionLoading}
-                        style={{ padding: '8px 18px', fontSize: '0.875rem', fontWeight: 600 }}
-                      >
-                        กดรับเรื่อง
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* ขั้นตอนที่ 2: ตรวจสอบและ Approve / Not Approve (แสดงต่อเมื่อกดรับเรื่องแล้วเท่านั้น) */}
-                {selectedItem.received_by && (
-                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--gray-800)' }}>
-                        ขั้นตอนที่ 2: ตรวจสอบความพร้อมการรับยา (Approve)
-                      </div>
-                    </div>
-
-                    {(!selectedItem.approve || selectedItem.approve === 'PENDING') ? (
-                      <div>
-                        {!rejecting ? (
-                          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                            <button
-                              type="button"
-                              className="btn btn-success"
-                              onClick={() => handleApprove('Y')}
-                              disabled={actionLoading}
-                              style={{
-                                padding: '8px 16px',
-                                fontSize: '0.875rem',
-                                background: '#16a34a',
-                                borderColor: '#16a34a',
-                                color: '#ffffff',
-                                borderRadius: 'var(--radius-sm)',
-                              }}
-                            >
-                              อนุมัติ (สามารถจัดส่งได้)
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-danger"
-                              onClick={() => setRejecting(true)}
-                              disabled={actionLoading}
-                              style={{
-                                padding: '8px 16px',
-                                fontSize: '0.875rem',
-                                background: '#dc2626',
-                                borderColor: '#dc2626',
-                                color: '#ffffff',
-                                borderRadius: 'var(--radius-sm)',
-                              }}
-                            >
-                              ไม่อนุมัติ (ไม่สามารถจัดส่งได้)
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '6px' }}>
-                            <label style={{ fontSize: '0.85rem', fontWeight: 600, color: '#dc2626' }}>
-                              ระบุเหตุผลที่ไม่อนุมัติ / หมายเหตุแจ้งผู้ป่วย:
-                            </label>
-                            <textarea
-                              className="form-control"
-                              rows={3}
-                              placeholder="เช่น ผู้ป่วยมียาเดิมเหลือ, แพทย์ต้องการตรวจซ้ำที่โรงพยาบาล, มีนัดเจาะเลือด..."
-                              value={rejectRemark}
-                              onChange={(e) => setRejectRemark(e.target.value)}
-                              style={{
-                                borderRadius: 'var(--radius-sm)',
-                                border: '1px solid var(--gray-300)',
-                                padding: '8px 12px',
-                                fontSize: '0.875rem',
-                              }}
-                            />
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button
-                                type="button"
-                                className="btn btn-danger"
-                                onClick={() => handleApprove('N')}
-                                disabled={actionLoading}
-                                style={{
-                                  padding: '6px 16px',
-                                  fontSize: '0.875rem',
-                                  background: '#dc2626',
-                                  borderColor: '#dc2626',
-                                  color: '#ffffff',
-                                }}
-                              >
-                                ยืนยันไม่อนุมัติ
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                onClick={() => setRejecting(false)}
-                                disabled={actionLoading}
-                                style={{ padding: '6px 14px', fontSize: '0.875rem' }}
-                              >
-                                ยกเลิก
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div>
-                        {selectedItem.approve === 'Y' ? (
-                          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: '#166534', fontSize: '0.9rem' }}>
-                            <div><strong>อนุมัติแล้ว (สามารถจัดส่งได้)</strong></div>
-                            <div style={{ fontSize: '0.8rem', color: '#15803d', marginTop: '4px' }}>
-                              ผู้อนุมัติ: {selectedItem.approve_by || '-'} ({formatThaiDateTime(selectedItem.approve_at)})
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ background: '#fef2f2', border: '1px solid #fecaca', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: '#991b1b', fontSize: '0.9rem' }}>
-                            <div><strong>ไม่อนุมัติ (ไม่สามารถจัดส่งได้)</strong></div>
-                            <div style={{ fontSize: '0.85rem', color: '#7f1d1d', marginTop: '4px' }}>
-                              <strong>เหตุผล:</strong> {selectedItem.remark || 'ไม่ระบุเหตุผล'}
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: '#b91c1c', marginTop: '2px' }}>
-                              ผู้พิจารณา: {selectedItem.approve_by || '-'} ({formatThaiDateTime(selectedItem.approve_at)})
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ขั้นตอนที่ 3: รอส่งยา & ใส่ Tracking Number (แสดงเมื่อ approve = Y เท่านั้น) */}
-                {selectedItem.approve === 'Y' && (
-                  <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 'var(--radius-md)', padding: '14px 16px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--gray-800)' }}>
-                        ขั้นตอนที่ 3: จัดส่งยาและบันทึก Tracking Number
-                      </div>
-                      {selectedItem.tracking_number && !isEditingTracking && (
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingTracking(true)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--primary-600)',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                          }}
-                        >
-                          แก้ไขเลขพัสดุ
-                        </button>
+              ) : visitError ? (
+                <div className="submit-error-alert">{visitError}</div>
+              ) : (
+                <>
+                  {/* 1. Vital Signs & Chief Complaint */}
+                  <div className="clinical-card">
+                    <div className="clinical-card-header">
+                      <span>สัญญาณชีพและการตรวจร่างกาย (ครั้งที่มาตรวจ)</span>
+                      {visitDetail?.visit?.vstdate && (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--gray-500)', marginLeft: 'auto' }}>
+                          วันที่ตรวจ: {formatThaiDate(visitDetail.visit.vstdate)}
+                        </span>
                       )}
                     </div>
+                    <div className="clinical-card-body">
+                      {visitDetail?.visit ? (
+                        <>
+                          <div className="vitals-cards-grid">
+                            <div className="vital-stat-card">
+                              <span className="v-label">ความดันโลหิต (BP)</span>
+                              <span className="v-value">
+                                {visitDetail.visit.bps && visitDetail.visit.bpd
+                                  ? `${visitDetail.visit.bps}/${visitDetail.visit.bpd}`
+                                  : '—'}
+                              </span>
+                              <span className="v-unit">mmHg</span>
+                            </div>
+                            <div className="vital-stat-card">
+                              <span className="v-label">ชีพจร (Pulse)</span>
+                              <span className="v-value">{visitDetail.visit.pulse || visitDetail.visit.hr || '—'}</span>
+                              <span className="v-unit">ครั้ง/นาที</span>
+                            </div>
+                            <div className="vital-stat-card">
+                              <span className="v-label">อุณหภูมิ (Temp)</span>
+                              <span className="v-value">{visitDetail.visit.temperature || '—'}</span>
+                              <span className="v-unit">°C</span>
+                            </div>
+                            <div className="vital-stat-card">
+                              <span className="v-label">หายใจ (RR)</span>
+                              <span className="v-value">{visitDetail.visit.rr || '—'}</span>
+                              <span className="v-unit">ครั้ง/นาที</span>
+                            </div>
+                            <div className="vital-stat-card">
+                              <span className="v-label">น้ำหนัก (BW)</span>
+                              <span className="v-value">{visitDetail.visit.bw || '—'}</span>
+                              <span className="v-unit">กก.</span>
+                            </div>
+                            <div className="vital-stat-card">
+                              <span className="v-label">ส่วนสูง</span>
+                              <span className="v-value">{visitDetail.visit.height || '—'}</span>
+                              <span className="v-unit">ซม.</span>
+                            </div>
+                            <div className="vital-stat-card">
+                              <span className="v-label">ดัชนีมวลกาย (BMI)</span>
+                              <span className="v-value">{visitDetail.visit.bmi || '—'}</span>
+                              <span className="v-unit">kg/m²</span>
+                            </div>
+                          </div>
 
-                    {isEditingTracking ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                          <input
-                            type="text"
-                            className="form-control"
-                            placeholder="ระบุเลขพัสดุไปรษณีย์ เช่น ED123456789TH"
-                            value={trackingInput}
-                            onChange={(e) => setTrackingInput(e.target.value)}
-                            style={{
-                              flex: '1 1 240px',
-                              borderRadius: 'var(--radius-sm)',
-                              border: '1px solid var(--gray-300)',
-                              padding: '8px 12px',
-                              fontSize: '0.9rem',
-                              fontFamily: 'monospace',
-                            }}
-                          />
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={handleSaveTracking}
-                            disabled={actionLoading}
-                            style={{ padding: '8px 18px', fontSize: '0.875rem' }}
-                          >
-                            บันทึกจัดส่งเรียบร้อย
-                          </button>
-                          {selectedItem.tracking_number && (
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              onClick={() => {
-                                setIsEditingTracking(false);
-                                setTrackingInput(selectedItem.tracking_number);
-                              }}
-                              style={{ padding: '8px 14px', fontSize: '0.875rem' }}
-                            >
-                              ยกเลิก
-                            </button>
-                          )}
+                          {/* CC & PE */}
+                          <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {visitDetail.visit.cc && (
+                              <div style={{ fontSize: '0.875rem' }}>
+                                <strong>อาการสำคัญ (CC):</strong> {visitDetail.visit.cc}
+                              </div>
+                            )}
+                            {visitDetail.visit.pe && (
+                              <div style={{ fontSize: '0.875rem' }}>
+                                <strong>ตรวจร่างกาย (PE):</strong> {visitDetail.visit.pe}
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>
+                          {visitDetail?.message || 'ไม่พบข้อมูลสัญญาณชีพสำหรับนัดหมายนี้'}
                         </div>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--gray-500)' }}>
-                          เมื่อบันทึกแล้ว สถานะจะเปลี่ยนเป็น "จัดส่งเรียบร้อย" และคนไข้จะเห็นเลขพัสดุใน LINE OA ทันที
-                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 2. Diagnoses */}
+                  <div className="clinical-card">
+                    <div className="clinical-card-header">การวินิจฉัยโรค (Diagnoses)</div>
+                    <div className="clinical-card-body">
+                      {visitDetail?.visit?.diagnosis_concat ? (
+                        <div className="diag-list">
+                          {parseLines(visitDetail.visit.diagnosis_concat).map((line, dIdx) => {
+                            const isPdx = line.includes('(PDX)');
+                            const cleanLine = line.replace('(PDX)', '').trim();
+                            return (
+                              <div key={dIdx} className="diag-item">
+                                {isPdx && <span className="pdx-badge">PDX โรคหลัก</span>}
+                                <span style={{ fontWeight: isPdx ? 600 : 400 }}>{cleanLine}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ color: 'var(--gray-500)' }}>ไม่พบข้อมูลการวินิจฉัย</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 3. Prescribed Medications */}
+                  <div className="clinical-card">
+                    <div className="clinical-card-header">รายการยาเดิมที่ได้รับ (Prescribed Drugs)</div>
+                    <div className="clinical-card-body">
+                      {visitDetail?.visit?.drug_concat ? (
+                        <div className="meds-items-list">
+                          {parseLines(visitDetail.visit.drug_concat).map((medLine, mIdx) => {
+                            const parts = medLine.split('#');
+                            const medInfo = parts[0] ? parts[0].trim() : medLine;
+                            const qty = parts[1] ? parts[1].trim() : '';
+
+                            return (
+                              <div key={mIdx} className="med-item-row">
+                                <div style={{ flex: 1 }}>
+                                  <div className="med-item-name">{medInfo}</div>
+                                </div>
+                                {qty && <div className="med-item-qty">{qty} เม็ด/หน่วย</div>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div style={{ color: 'var(--gray-500)' }}>ไม่พบรายการยาในการตรวจครั้งนี้</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 4. Non-drug items */}
+                  {visitDetail?.visit?.nondrug_concat && (
+                    <div className="clinical-card">
+                      <div className="clinical-card-header">เวชภัณฑ์ / อื่นๆ (Non-drug Items)</div>
+                      <div className="clinical-card-body">
+                        <div className="diag-list">
+                          {parseLines(visitDetail.visit.nondrug_concat).map((line, ndIdx) => (
+                            <div key={ndIdx} className="diag-item">
+                              {line}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    ) : (
-                      <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', padding: '10px 14px', borderRadius: 'var(--radius-sm)', color: '#0369a1', fontSize: '0.9rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span><strong>เลขพัสดุ (Tracking Number):</strong></span>
-                          <span style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '1rem', background: '#ffffff', padding: '2px 8px', borderRadius: '4px', border: '1px solid #7dd3fc' }}>
-                            {selectedItem.tracking_number}
-                          </span>
-                        </div>
-                        {selectedItem.delivery_at && (
-                          <div style={{ fontSize: '0.8rem', color: '#0284c7', marginTop: '4px' }}>
-                            บันทึกจัดส่งเมื่อ: {formatThaiDateTime(selectedItem.delivery_at)}
+                    </div>
+                  )}
+
+                  {/* 5. X-Ray Report */}
+                  {visitDetail?.visit?.xray_report && (
+                    <div className="clinical-card">
+                      <div className="clinical-card-header">ผลเอกซเรย์ (X-Ray Report)</div>
+                      <div className="clinical-card-body">
+                        <pre className="xray-text-box">{visitDetail.visit.xray_report}</pre>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 6. Current Telemed Request Details */}
+                  <div className="clinical-card">
+                    <div className="clinical-card-header">ข้อมูลคำขอรับยาไม่พบแพทย์ปัจจุบัน</div>
+                    <div className="clinical-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div>
+                        <strong>เหตุผลความจำเป็น:</strong> {visitModalItem.reason || '—'}
+                      </div>
+                      <div>
+                        <strong>อาการปัจจุบัน:</strong> {visitModalItem.symptoms || '—'}
+                      </div>
+                      <div>
+                        <strong>ที่อยู่จัดส่งยา:</strong> {visitModalItem.address || '—'} {visitModalItem.postcode || ''}
+                      </div>
+                      <div>
+                        <strong>เบอร์โทรศัพท์:</strong> {visitModalItem.phone || '—'}
+                      </div>
+                      <div style={{ borderTop: '1px solid var(--gray-100)', paddingTop: '8px', marginTop: '4px', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                        <div>ผู้ลงทะเบียน: {visitModalItem.request_by || 'คนไข้ (LINE)'}</div>
+                        {visitModalItem.received_by && (
+                          <div>ผู้รับเรื่อง: {visitModalItem.received_by} ({formatThaiDateTime(visitModalItem.received_at)})</div>
+                        )}
+                        {visitModalItem.doctor_approved_by && (
+                          <div>แพทย์ผู้อนุมัติ: {visitModalItem.doctor_approved_by} {visitModalItem.doctor_remark ? `(${visitModalItem.doctor_remark})` : ''}</div>
+                        )}
+                        {visitModalItem.pharmacy_approved_by && (
+                          <div>เภสัชกร: {visitModalItem.pharmacy_approved_by} {visitModalItem.pharmacy_remark ? `(${visitModalItem.pharmacy_remark})` : ''}</div>
+                        )}
+                        {visitModalItem.tracking_number && (
+                          <div style={{ fontWeight: 600, color: 'var(--primary-700)' }}>
+                            เลขพัสดุ: {visitModalItem.tracking_number} ({formatThaiDateTime(visitModalItem.delivery_at)})
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
-                )}
-              </div>
-
+                </>
+              )}
             </div>
 
-            {/* Modal Footer */}
-            <div
-              style={{
-                padding: '16px 24px',
-                borderTop: '1px solid var(--gray-200)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-              }}
-            >
+            {/* Modal Footer with Actions */}
+            <div className="visit-modal-footer">
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => setSelectedItem(null)}
+                onClick={() => setVisitModalItem(null)}
               >
-                ปิด
+                ปิดหน้าต่าง
               </button>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {stage === 'receive' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => handleReceive(visitModalItem)}
+                  >
+                    รับเรื่อง
+                  </button>
+                )}
+
+                {stage === 'doctor' && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => openRejectModal(visitModalItem, 'doctor')}
+                    >
+                      แพทย์ไม่อนุมัติ
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => handleDoctorApprove(visitModalItem)}
+                    >
+                      แพทย์อนุมัติ
+                    </button>
+                  </>
+                )}
+
+                {stage === 'pharmacist' && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={() => openRejectModal(visitModalItem, 'pharmacist')}
+                    >
+                      ยาส่งไม่ได้
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => handlePharmacyApprove(visitModalItem)}
+                    >
+                      ยาส่งได้ (อนุมัติ)
+                    </button>
+                  </>
+                )}
+
+                {stage === 'approved' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => openDeliveryModal(visitModalItem)}
+                  >
+                    จัดส่งยา / บันทึกเลขพัสดุ
+                  </button>
+                )}
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================
+          Reject Reason Modal (Mandatory Remark)
+          ======================================================================== */}
+      {rejectModalItem && (
+        <div className="dialog-modal-overlay" onClick={() => setRejectModalItem(null)}>
+          <div className="dialog-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-modal-header">
+              {rejectTargetRole === 'doctor'
+                ? 'ระบุเหตุผลที่แพทย์ไม่อนุมัติ'
+                : 'ระบุเหตุผลที่เภสัชกรไม่อนุมัติ (ยาส่งไม่ได้)'}
+            </div>
+            <form onSubmit={handleConfirmReject}>
+              <div className="dialog-modal-body">
+                <div style={{ fontSize: '0.875rem', color: 'var(--gray-700)' }}>
+                  ผู้ป่วย: <strong>{rejectModalItem.patient_name}</strong> (HN: {rejectModalItem.hn})
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="reject-reason-input" className="form-label font-bold">
+                    เหตุผลความจำเป็น <span style={{ color: 'var(--error-600)' }}>* (บังคับกรอก)</span>
+                  </label>
+                  <textarea
+                    id="reject-reason-input"
+                    className="form-input"
+                    rows={4}
+                    placeholder={
+                      rejectTargetRole === 'doctor'
+                        ? 'เช่น ต้องเจาะเลือดตรวจค่าน้ำตาลก่อนรับยา, หรือ แพทย์ต้องการตรวจร่างกายคนไข้โดยตรง'
+                        : 'เช่น มียาแช่เย็นไม่สามารถจัดส่งทางไปรษณีย์ได้, หรือ ต้องปรับขนาดยา'
+                    }
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginTop: '4px' }}>
+                    รายการนี้จะถูกย้ายไปยังเมนู “ผู้ยื่นความจำนงทั้งหมด” ในสถานะไม่อนุมัติ
+                  </span>
+                </div>
+
+                {rejectError && <div className="submit-error-alert">{rejectError}</div>}
+              </div>
+
+              <div className="dialog-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={rejectSubmitting}
+                  onClick={() => setRejectModalItem(null)}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-danger"
+                  disabled={rejectSubmitting || !rejectReason.trim()}
+                >
+                  {rejectSubmitting ? 'กำลังบันทึก...' : 'ยืนยันไม่อนุมัติ'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================
+          Delivery Modal (Tracking Number)
+          ======================================================================== */}
+      {deliveryModalItem && (
+        <div className="dialog-modal-overlay" onClick={() => setDeliveryModalItem(null)}>
+          <div className="dialog-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-modal-header">บันทึกการจัดส่งยาทางไปรษณีย์</div>
+            <form onSubmit={handleConfirmDelivery}>
+              <div className="dialog-modal-body">
+                <div style={{ fontSize: '0.875rem', color: 'var(--gray-700)' }}>
+                  <div>ผู้ป่วย: <strong>{deliveryModalItem.patient_name}</strong> (HN: {deliveryModalItem.hn})</div>
+                  <div style={{ marginTop: '4px', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                    ที่อยู่: {deliveryModalItem.address} {deliveryModalItem.postcode} (โทร: {deliveryModalItem.phone})
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="delivery-tracking-input" className="form-label font-bold">
+                    หมายเลขพัสดุ (Tracking Number) <span style={{ color: 'var(--error-600)' }}>*</span>
+                  </label>
+                  <input
+                    id="delivery-tracking-input"
+                    type="text"
+                    className="form-input font-mono"
+                    placeholder="เช่น ED123456789TH"
+                    value={deliveryTracking}
+                    onChange={(e) => setDeliveryTracking(e.target.value)}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                {deliveryError && <div className="submit-error-alert">{deliveryError}</div>}
+              </div>
+
+              <div className="dialog-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={deliverySubmitting}
+                  onClick={() => setDeliveryModalItem(null)}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={deliverySubmitting || !deliveryTracking.trim()}
+                >
+                  {deliverySubmitting ? 'กำลังบันทึก...' : 'บันทึกจัดส่งเรียบร้อย'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
