@@ -1,5 +1,5 @@
 const express = require('express');
-const { pool_vhos } = require('../config/database');
+const { pool_vhos, pool_hos } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
@@ -309,6 +309,257 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (conn) conn.release();
+  }
+});
+
+// GET /api/request-telemed/patient-appointments/:hn — Get patient profile and upcoming appointments from HOSxP
+router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
+  const hn = (req.params.hn || '').trim();
+  if (!hn) {
+    return res.status(400).json({ error: 'กรุณาระบุเลข HN' });
+  }
+
+  let connHos;
+  let connVhos;
+  try {
+    connHos = await pool_hos.getConnection();
+    connVhos = await pool_vhos.getConnection();
+
+    // 1. Query patient profile from HOSxP
+    const ptQuery = `
+      SELECT p.hn, p.pname, p.fname, p.lname, p.addrpart, p.moopart, p.po_code,
+             p.hometel, p.informtel, p.cid,
+             tmb.name as tmb_name, amp.name as amp_name, chw.name as chw_name
+      FROM patient p
+      LEFT JOIN thaiaddress tmb ON tmb.addressid = CONCAT(p.chwpart, p.amppart, p.tmbpart)
+      LEFT JOIN thaiaddress amp ON amp.addressid = CONCAT(p.chwpart, p.amppart, '00')
+      LEFT JOIN thaiaddress chw ON chw.addressid = CONCAT(p.chwpart, '0000')
+      WHERE p.hn = ? LIMIT 1
+    `;
+    const ptRows = await connHos.query(ptQuery, [hn]);
+    if (!ptRows || ptRows.length === 0) {
+      return res.status(404).json({ error: `ไม่พบข้อมูลผู้ป่วยสำหรับ HN ${hn} ในระบบ HOSxP` });
+    }
+
+    const pt = ptRows[0];
+    const cleanAreaName = (name) => (name ? name.replace(/^(ต\.|ตำบล|อ\.|อำเภอ|จ\.|จังหวัด)/, '').trim() : '');
+    const addrParts = [];
+    if (pt.addrpart) addrParts.push(`บ้านเลขที่ ${pt.addrpart}`);
+    if (pt.moopart && pt.moopart !== '-' && pt.moopart !== '0') addrParts.push(`หมู่ ${pt.moopart}`);
+    if (pt.tmb_name) addrParts.push(`ต.${cleanAreaName(pt.tmb_name)}`);
+    if (pt.amp_name) addrParts.push(`อ.${cleanAreaName(pt.amp_name)}`);
+    if (pt.chw_name) addrParts.push(`จ.${cleanAreaName(pt.chw_name)}`);
+
+    const patientProfile = {
+      hn: pt.hn,
+      cid: pt.cid || '',
+      fullname: `${pt.pname || ''}${pt.fname || ''} ${pt.lname || ''}`.trim(),
+      address: addrParts.join(' '),
+      postcode: pt.po_code || '',
+      phone: (pt.informtel || pt.hometel || '').trim(),
+    };
+
+    // 2. Query upcoming appointments from HOSxP oapp (nextdate >= CURDATE())
+    const oappQuery = `
+      SELECT 
+        o.oapp_id,
+        o.vstdate, 
+        o.nextdate, 
+        o.nexttime, 
+        o.endtime,
+        c.name AS clinic_name, 
+        d.name AS doctor_name, 
+        o.note,
+        o.app_cause
+      FROM oapp o
+      LEFT JOIN clinic c ON c.clinic = o.clinic
+      LEFT JOIN doctor d ON d.code = o.doctor
+      WHERE o.hn = ? 
+        AND o.nextdate >= CURDATE()
+      ORDER BY o.nextdate ASC, o.nexttime ASC
+    `;
+    const apptRows = await connHos.query(oappQuery, [hn]);
+
+    // 3. Query existing requests in virtualhos.req_telemed for this HN
+    const reqQuery = `
+      SELECT id, oapp_id, hn, status, approve, tracking_number, reason, symptoms, address, postcode, phone, request_by, created_at
+      FROM virtualhos.req_telemed
+      WHERE hn = ?
+    `;
+    const reqRows = await connVhos.query(reqQuery, [hn]);
+    const reqMap = {};
+    for (const r of reqRows) {
+      reqMap[Number(r.oapp_id)] = serializeRow(r);
+    }
+
+    // Helper to format time range (e.g. 09.00 - 10.00 น.)
+    const formatTimeRange = (nextTimeStr, endTimeStr) => {
+      if (!nextTimeStr) return '';
+      const [sH, sM] = String(nextTimeStr).split(':').map(Number);
+      const startH = isNaN(sH) ? 0 : sH;
+      const startM = isNaN(sM) ? 0 : sM;
+
+      let endH;
+      let endM;
+      if (endTimeStr && endTimeStr !== '00:00:00') {
+        const [eH, eM] = String(endTimeStr).split(':').map(Number);
+        endH = isNaN(eH) ? (startH + 1) % 24 : eH;
+        endM = isNaN(eM) ? startM : eM;
+        if (endM === 29) endM = 30;
+        else if (endM === 59) {
+          endM = 0;
+          endH = (endH + 1) % 24;
+        }
+      } else {
+        endH = (startH + 1) % 24;
+        endM = startM;
+      }
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${pad(startH)}.${pad(startM)} - ${pad(endH)}.${pad(endM)} น.`;
+    };
+
+    const appointments = apptRows.map((row) => {
+      const oappIdNum = Number(row.oapp_id);
+      const existingReq = reqMap[oappIdNum] || null;
+      return {
+        oappId: oappIdNum,
+        vstdate: row.vstdate,
+        nextdate: row.nextdate,
+        nexttime: row.nexttime,
+        endtime: row.endtime,
+        timeRange: formatTimeRange(row.nexttime, row.endtime),
+        clinicName: row.clinic_name || 'ไม่ระบุคลินิก',
+        doctorName: row.doctor_name || 'ไม่ระบุแพทย์',
+        note: row.note || '',
+        appCause: row.app_cause || '',
+        existingRequest: existingReq,
+      };
+    });
+
+    res.json({
+      patient: patientProfile,
+      appointments,
+    });
+  } catch (err) {
+    console.error('Error fetching patient appointments:', err.message);
+    res.status(500).json({ error: 'Internal server error', message: err.message });
+  } finally {
+    if (connHos) connHos.release();
+    if (connVhos) connVhos.release();
+  }
+});
+
+// POST /api/request-telemed/register — Create a new telemed request from staff
+router.post('/register', authenticateToken, async (req, res) => {
+  const { oapp_id, hn, reason, symptoms, address, postcode, phone } = req.body;
+
+  if (!oapp_id) {
+    return res.status(400).json({ error: 'กรุณาระบุรหัสการนัดหมาย (oapp_id)' });
+  }
+  if (!hn) {
+    return res.status(400).json({ error: 'กรุณาระบุเลข HN' });
+  }
+  if (!reason || !reason.trim()) {
+    return res.status(400).json({ error: 'กรุณาระบุเหตุผลความจำเป็น' });
+  }
+  if (!symptoms || !symptoms.trim()) {
+    return res.status(400).json({ error: 'กรุณาระบุอาการปัจจุบัน' });
+  }
+  if (!address || !address.trim()) {
+    return res.status(400).json({ error: 'กรุณาระบุที่อยู่สำหรับจัดส่งยา' });
+  }
+  if (!postcode || !postcode.trim()) {
+    return res.status(400).json({ error: 'กรุณาระบุรหัสไปรษณีย์' });
+  }
+  if (!phone || !phone.trim()) {
+    return res.status(400).json({ error: 'กรุณาระบุหมายเลขโทรศัพท์' });
+  }
+
+  let connHos;
+  let connVhos;
+  try {
+    connVhos = await pool_vhos.getConnection();
+
+    // 1. Check if a request already exists for this oapp_id and hn in virtualhos.req_telemed
+    const checkSql = `SELECT id, status, approve, tracking_number FROM virtualhos.req_telemed WHERE oapp_id = ? AND hn = ? LIMIT 1`;
+    const existing = await connVhos.query(checkSql, [oapp_id, hn]);
+    if (existing && existing.length > 0) {
+      return res.status(409).json({
+        error: `มีการยื่นคำขอสำหรับนัดหมายนี้แล้ว (สถานะปัจจุบัน: ${existing[0].status})`,
+        data: serializeRow(existing[0]),
+      });
+    }
+
+    connHos = await pool_hos.getConnection();
+
+    // 2. Fetch oapp details to verify appointment
+    const oappSql = `
+      SELECT o.oapp_id, o.nextdate, c.name AS clinic_name, d.name AS doctor_name
+      FROM oapp o
+      LEFT JOIN clinic c ON c.clinic = o.clinic
+      LEFT JOIN doctor d ON d.code = o.doctor
+      WHERE o.oapp_id = ? AND o.hn = ? LIMIT 1
+    `;
+    const oappRows = await connHos.query(oappSql, [oapp_id, hn]);
+    if (!oappRows || oappRows.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลการนัดหมายนี้ในระบบ HOSxP' });
+    }
+    const oapp = oappRows[0];
+
+    // 3. Fetch patient name
+    const ptSql = `SELECT pname, fname, lname FROM patient WHERE hn = ? LIMIT 1`;
+    const ptRows = await connHos.query(ptSql, [hn]);
+    const patientName = ptRows && ptRows.length > 0
+      ? `${ptRows[0].pname || ''}${ptRows[0].fname || ''} ${ptRows[0].lname || ''}`.trim()
+      : null;
+
+    // 4. Check if patient has line_user_id in virtualhos.lineid
+    let lineUserId = null;
+    try {
+      const lineRows = await connVhos.query(`SELECT line_user_id FROM lineid WHERE hn = ? LIMIT 1`, [hn]);
+      if (lineRows && lineRows.length > 0 && lineRows[0].line_user_id) {
+        lineUserId = lineRows[0].line_user_id;
+      }
+    } catch {
+      // Ignore if lineid query fails
+    }
+
+    // 5. Staff recorder identifier
+    const requestBy = req.user?.displayName || req.user?.name || req.user?.username || 'เจ้าหน้าที่';
+
+    // 6. Insert into virtualhos.req_telemed
+    const insertSql = `
+      INSERT INTO virtualhos.req_telemed 
+      (oapp_id, hn, line_user_id, patient_name, nextdate, clinic_name, doctor_name, reason, symptoms, address, postcode, phone, status, approve, request_by, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'รอตรวจสอบ', 'PENDING', ?, NOW())
+    `;
+    const insertRes = await connVhos.query(insertSql, [
+      oapp_id,
+      hn,
+      lineUserId,
+      patientName,
+      oapp.nextdate,
+      oapp.clinic_name || null,
+      oapp.doctor_name || null,
+      reason.trim(),
+      symptoms.trim(),
+      address.trim(),
+      postcode.trim(),
+      phone.trim(),
+      requestBy,
+    ]);
+
+    res.status(201).json({
+      success: true,
+      id: Number(insertRes.insertId),
+      message: 'บันทึกคำขอรับยาไม่พบแพทย์เรียบร้อยแล้ว',
+    });
+  } catch (err) {
+    console.error('Error registering req_telemed:', err.message);
+    res.status(500).json({ error: 'Internal server error', message: err.message });
+  } finally {
+    if (connHos) connHos.release();
+    if (connVhos) connVhos.release();
   }
 });
 

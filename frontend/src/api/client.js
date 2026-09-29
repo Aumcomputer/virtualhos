@@ -169,6 +169,15 @@ export const api = {
       body: JSON.stringify({ tracking_number }),
     }),
 
+  getPatientAppointments: (hn) =>
+    request(`/request-telemed/patient-appointments/${encodeURIComponent(hn)}`),
+
+  registerTelemedRequest: (payload) =>
+    request('/request-telemed/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
   // System version & updates
   getSystemVersion: () => request('/system/version'),
   checkSystemUpdate: () => request('/system/check-update'),

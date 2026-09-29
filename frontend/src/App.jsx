@@ -10,6 +10,7 @@ import TelemedCasesPage from './pages/TelemedCasesPage';
 import TelemedDashboardPage from './pages/TelemedDashboardPage';
 import PrescreeningPage from './pages/PrescreeningPage';
 import RequestTelemedPage from './pages/RequestTelemedPage';
+import RegisterTelemedPage from './pages/RegisterTelemedPage';
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="telemed-no-doctor" element={<TelemedCasesPage type="combined" />} />
             <Route path="telemed-appointments" element={<TelemedCasesPage type="appointments" />} />
             <Route path="prescreening" element={<PrescreeningPage />} />
+            <Route path="request-telemed/register" element={<RegisterTelemedPage />} />
             <Route path="request-telemed" element={<RequestTelemedPage />} />
           </Route>
         </Routes>
