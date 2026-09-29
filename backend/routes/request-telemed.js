@@ -678,11 +678,11 @@ router.get('/:id/visit-detail', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/request-telemed/patient-appointments/:hn — Get patient profile and upcoming appointments from HOSxP
+// GET /api/request-telemed/patient-appointments/:hn — Get patient profile and upcoming appointments from HOSxP (supports HN or CID)
 router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
   const rawHn = (req.params.hn || '').trim();
   if (!rawHn) {
-    return res.status(400).json({ error: 'กรุณาระบุเลข HN' });
+    return res.status(400).json({ error: 'กรุณาระบุเลข HN หรือ เลขบัตรประชาชน (CID)' });
   }
 
   let connHos;
@@ -692,8 +692,9 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
     connVhos = await pool_vhos.getConnection();
 
     // 1. Query patient profile from HOSxP
-    // Support searching by raw HN or trimmed leading zeros
+    // Support searching by raw HN, trimmed leading zeros, or 13-digit CID
     const strippedHn = rawHn.replace(/^0+/, '') || rawHn;
+    const cleanDigits = rawHn.replace(/[^0-9]/g, '');
     const ptQuery = `
       SELECT p.hn, p.pname, p.fname, p.lname, p.addrpart, p.moopart, p.po_code,
              p.hometel, p.informtel, p.cid,
@@ -702,26 +703,26 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
       LEFT JOIN thaiaddress tmb ON tmb.addressid = CONCAT(p.chwpart, p.amppart, p.tmbpart)
       LEFT JOIN thaiaddress amp ON amp.addressid = CONCAT(p.chwpart, p.amppart, '00')
       LEFT JOIN thaiaddress chw ON chw.addressid = CONCAT(p.chwpart, '0000')
-      WHERE p.hn = ? OR TRIM(LEADING '0' FROM p.hn) = ?
+      WHERE p.hn = ? OR TRIM(LEADING '0' FROM p.hn) = ? OR p.cid = ? OR (LENGTH(?) = 13 AND p.cid = ?)
       LIMIT 1
     `;
     let ptRows = [];
     try {
-      ptRows = await connHos.query(ptQuery, [rawHn, strippedHn]);
+      ptRows = await connHos.query(ptQuery, [rawHn, strippedHn, rawHn, cleanDigits, cleanDigits]);
     } catch (addrErr) {
       console.warn('[req_telemed] Address join failed, falling back to simple patient query:', addrErr.message);
       const simplePtQuery = `
         SELECT p.hn, p.pname, p.fname, p.lname, p.addrpart, p.moopart, p.po_code,
                p.hometel, p.informtel, p.cid
         FROM patient p
-        WHERE p.hn = ? OR TRIM(LEADING '0' FROM p.hn) = ?
+        WHERE p.hn = ? OR TRIM(LEADING '0' FROM p.hn) = ? OR p.cid = ? OR (LENGTH(?) = 13 AND p.cid = ?)
         LIMIT 1
       `;
-      ptRows = await connHos.query(simplePtQuery, [rawHn, strippedHn]);
+      ptRows = await connHos.query(simplePtQuery, [rawHn, strippedHn, rawHn, cleanDigits, cleanDigits]);
     }
 
     if (!ptRows || ptRows.length === 0) {
-      return res.status(404).json({ error: `ไม่พบข้อมูลผู้ป่วยสำหรับ HN ${rawHn} ในระบบ HOSxP` });
+      return res.status(404).json({ error: `ไม่พบข้อมูลผู้ป่วยสำหรับ "${rawHn}" ในระบบ HOSxP` });
     }
 
     const pt = ptRows[0];

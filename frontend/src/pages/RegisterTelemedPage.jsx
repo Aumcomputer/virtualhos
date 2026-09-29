@@ -77,9 +77,9 @@ export default function RegisterTelemedPage() {
 
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    const cleanHn = hnInput.trim();
-    if (!cleanHn) {
-      setSearchError('กรุณากรอกเลข HN ที่ต้องการค้นหา');
+    const cleanSearch = hnInput.trim();
+    if (!cleanSearch) {
+      setSearchError('กรุณากรอกเลข HN หรือ เลขประจำตัวประชาชน (CID) ที่ต้องการค้นหา');
       return;
     }
 
@@ -232,14 +232,14 @@ export default function RegisterTelemedPage() {
           <form className="hn-search-form" onSubmit={handleSearch}>
             <div className="hn-search-input-group">
               <label htmlFor="hn-search-input" className="form-label font-bold">
-                เลขประจำตัวผู้ป่วย (HN)
+                เลขประจำตัวผู้ป่วย (HN) หรือ เลขบัตรประชาชน (CID)
               </label>
               <div className="hn-input-btn-row">
                 <input
                   id="hn-search-input"
                   className="form-input font-mono"
                   type="text"
-                  placeholder="กรอกเลข HN เช่น 123456"
+                  placeholder="กรอกเลข HN หรือ เลขบัตรประชาชน 13 หลัก"
                   value={hnInput}
                   onChange={(e) => setHnInput(e.target.value)}
                   disabled={searching}
