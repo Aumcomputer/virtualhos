@@ -608,7 +608,6 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                       {renderSortArrow('doctor_name')}
                     </div>
                   </th>
-                  <th>อาการ / เหตุผล</th>
                   <th>เบอร์โทร</th>
 
                   {/* Stage-specific context column */}
@@ -633,7 +632,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={hasActionColumn ? 11 : 10} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={hasActionColumn ? 10 : 9} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -644,7 +643,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={hasActionColumn ? 11 : 10} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={hasActionColumn ? 10 : 9} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           {meta.emptyText}
@@ -724,14 +723,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                           </div>
                         </td>
 
-                        {/* 8. Symptoms / Reason */}
-                        <td>
-                          <div className="symptoms-text-box" title={`${item.reason || ''}${item.symptoms ? ' | อาการ: ' + item.symptoms : ''}`}>
-                            {item.symptoms || item.reason || '—'}
-                          </div>
-                        </td>
-
-                        {/* 9. Phone Number */}
+                        {/* 8. Phone Number */}
                         <td>
                           {item.phone ? (
                             <a
