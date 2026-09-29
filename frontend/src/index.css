@@ -2708,6 +2708,76 @@ a {
   width: 100%;
 }
 
+/* Appointment Date Policy & Disallowed Card Styles */
+.appt-date-policy-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-top: 10px;
+  margin-bottom: 14px;
+  color: #1e40af;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.appt-date-policy-notice svg {
+  flex-shrink: 0;
+  color: #2563eb;
+}
+
+.reg-appt-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reg-appt-disallowed-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+.reg-appt-card.date-disallowed {
+  background: #fbfbfb;
+  border-color: #e5e7eb;
+  opacity: 0.72;
+}
+
+.reg-appt-card.date-disallowed:hover {
+  border-color: #d1d5db;
+  box-shadow: none;
+  transform: none;
+}
+
+.disallowed-req-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fee2e2;
+  padding: 5px 10px;
+  border-radius: 6px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.disallowed-req-note svg {
+  flex-shrink: 0;
+  color: #dc2626;
+}
+
 /* Step 3: Registration Form */
 .form-step-card {
   margin-top: 24px;

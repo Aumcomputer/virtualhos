@@ -55,6 +55,21 @@ function serializeRow(row) {
   return item;
 }
 
+function formatToYMD(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const year = val.getFullYear();
+    const month = String(val.getMonth() + 1).padStart(2, '0');
+    const day = String(val.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  const s = String(val).trim();
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  return s;
+}
+
+
 // GET /api/request-telemed — List requests with stage, filters, search, sorting, and pagination
 router.get('/', authenticateToken, async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
@@ -804,13 +819,26 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
       return `${pad(startH)}.${pad(startM)} - ${pad(endH)}.${pad(endM)} น.`;
     };
 
+    const maxApptDate = process.env.TELEMED_MAX_APPT_DATE ? process.env.TELEMED_MAX_APPT_DATE.trim() : null;
+
     const appointments = apptRows.map((row) => {
       const oappIdNum = Number(row.oapp_id);
       const existingReq = reqMap[oappIdNum] || null;
+      const nextDateFormatted = formatToYMD(row.nextdate);
+      let isDateAllowed = true;
+      let dateDisallowedReason = null;
+      if (maxApptDate && nextDateFormatted && nextDateFormatted > maxApptDate) {
+        isDateAllowed = false;
+        dateDisallowedReason = `วันนัดหมายเกินกำหนด (เปิดรับเฉพาะนัดหมายไม่เกิน ${maxApptDate})`;
+      }
+
       return {
         oappId: oappIdNum,
         vstdate: row.vstdate,
         nextdate: row.nextdate,
+        nextdateFormatted: nextDateFormatted,
+        isDateAllowed,
+        dateDisallowedReason,
         nexttime: row.nexttime,
         endtime: row.endtime,
         timeRange: formatTimeRange(row.nexttime, row.endtime),
@@ -825,6 +853,7 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
     res.json({
       patient: patientProfile,
       appointments,
+      maxApptDate,
     });
   } catch (err) {
     console.error('Error fetching patient appointments:', err);
@@ -897,6 +926,15 @@ router.post('/register', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'ไม่พบข้อมูลการนัดหมายนี้ในระบบ HOSxP' });
     }
     const oapp = oappRows[0];
+
+    // Verify appointment date restriction
+    const maxApptDate = process.env.TELEMED_MAX_APPT_DATE ? process.env.TELEMED_MAX_APPT_DATE.trim() : null;
+    const apptDateFormatted = formatToYMD(oapp.nextdate);
+    if (maxApptDate && apptDateFormatted && apptDateFormatted > maxApptDate) {
+      return res.status(400).json({
+        error: `ไม่สามารถลงทะเบียนได้ เนื่องจากวันนัดหมาย (${apptDateFormatted}) เกินกำหนดที่เปิดรับ (เปิดรับเฉพาะนัดหมายไม่เกิน ${maxApptDate})`,
+      });
+    }
 
     // 3. Fetch patient name
     let patientName = null;

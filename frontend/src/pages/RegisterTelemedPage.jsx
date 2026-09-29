@@ -6,6 +6,20 @@ import { useAuth } from '../context/AuthContext';
 function formatThaiDate(dateStr) {
   if (!dateStr) return '—';
   try {
+    const cleanStr = String(dateStr).split('T')[0];
+    const parts = cleanStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const monthIndex = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const thaiMonths = [
+        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+      ];
+      if (!isNaN(year) && monthIndex >= 0 && monthIndex < 12 && !isNaN(day)) {
+        return `${day} ${thaiMonths[monthIndex]} ${year + 543}`;
+      }
+    }
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     const thaiMonths = [
@@ -30,6 +44,7 @@ export default function RegisterTelemedPage() {
   // Loaded data
   const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [maxApptDate, setMaxApptDate] = useState(null);
 
   // Selection & form states
   const [selectedAppt, setSelectedAppt] = useState(null);
@@ -66,6 +81,7 @@ export default function RegisterTelemedPage() {
       const res = await api.getPatientAppointments(cleanHn);
       setPatient(res.patient);
       setAppointments(res.appointments || []);
+      setMaxApptDate(res.maxApptDate || null);
     } catch (err) {
       setSearchError(err.message || 'ไม่สามารถค้นหาข้อมูลผู้ป่วยได้');
     } finally {
@@ -74,7 +90,7 @@ export default function RegisterTelemedPage() {
   };
 
   const handleSelectAppt = (appt) => {
-    if (appt.existingRequest) return;
+    if (appt.existingRequest || appt.isDateAllowed === false) return;
 
     setSelectedAppt(appt);
     setReason('');
@@ -172,6 +188,7 @@ export default function RegisterTelemedPage() {
     setPatient(null);
     setAppointments([]);
     setSelectedAppt(null);
+    setMaxApptDate(null);
     setSearchError('');
     setSubmitError('');
     setSubmitSuccess(null);
@@ -281,8 +298,21 @@ export default function RegisterTelemedPage() {
             {/* Appointments Section */}
             <div className="appointments-section-container">
               <div className="step-badge-label">
-                ขั้นตอนที่ 2 : เลือกรายการนัดหมายล่วงหน้า (ที่ยังไม่ถึงกำหนด)
+                ขั้นตอนที่ 2 : เลือกรายการนัดหมายล่วงหน้า {maxApptDate ? `(เปิดรับเฉพาะนัดหมายไม่เกิน ${formatThaiDate(maxApptDate)})` : '(ที่ยังไม่ถึงกำหนด)'}
               </div>
+
+              {maxApptDate && (
+                <div className="appt-date-policy-notice">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>
+                    เงื่อนไขการรับยา: เปิดรับเฉพาะรายการนัดหมายที่มีกำหนด<strong>ไม่เกินวันที่ {formatThaiDate(maxApptDate)}</strong> เท่านั้น (ใบนัดที่เกินกำหนดจะไม่สามารถเลือกได้)
+                  </span>
+                </div>
+              )}
 
               {appointments.length === 0 ? (
                 <div className="no-appointment-alert">
@@ -303,22 +333,36 @@ export default function RegisterTelemedPage() {
                   {appointments.map((appt) => {
                     const isSelected = selectedAppt?.oappId === appt.oappId;
                     const hasReq = Boolean(appt.existingRequest);
+                    const isDisallowed = appt.isDateAllowed === false;
+                    const isDisabled = hasReq || isDisallowed;
+
+                    let cardClass = 'reg-appt-card';
+                    if (isSelected) cardClass += ' selected';
+                    if (isDisabled) cardClass += ' disabled';
+                    if (isDisallowed) cardClass += ' date-disallowed';
 
                     return (
                       <div
                         key={appt.oappId}
-                        className={`reg-appt-card ${isSelected ? 'selected' : ''} ${hasReq ? 'disabled' : ''}`}
+                        className={cardClass}
                         onClick={() => {
-                          if (!hasReq) handleSelectAppt(appt);
+                          if (!isDisabled) handleSelectAppt(appt);
                         }}
                       >
                         <div className="reg-appt-header">
                           <div className="reg-appt-date font-bold">
                             {formatThaiDate(appt.nextdate)}
                           </div>
-                          {appt.timeRange && (
-                            <span className="reg-appt-time-badge">{appt.timeRange}</span>
-                          )}
+                          <div className="reg-appt-header-badges">
+                            {isDisallowed && (
+                              <span className="reg-appt-disallowed-badge" title={appt.dateDisallowedReason || 'วันนัดหมายเกินกำหนด'}>
+                                เกินกำหนดเปิดรับ
+                              </span>
+                            )}
+                            {appt.timeRange && (
+                              <span className="reg-appt-time-badge">{appt.timeRange}</span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="reg-appt-details">
@@ -349,6 +393,15 @@ export default function RegisterTelemedPage() {
                             <div className="existing-req-badge">
                               <span className="status-dot"></span>
                               ยื่นคำขอแล้ว ({appt.existingRequest.status || 'รอตรวจสอบ'})
+                            </div>
+                          ) : isDisallowed ? (
+                            <div className="disallowed-req-note" title={appt.dateDisallowedReason || ''}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              <span>ไม่สามารถเลือกได้ (เปิดรับเฉพาะนัดหมายไม่เกิน {formatThaiDate(maxApptDate)})</span>
                             </div>
                           ) : isSelected ? (
                             <div className="selected-indicator">
