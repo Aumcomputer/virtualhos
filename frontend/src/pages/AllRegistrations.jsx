@@ -29,7 +29,7 @@ export default function AllRegistrations() {
       setData(result.data);
       setPagination(result.pagination);
     } catch (err) {
-      console.error('Failed to fetch data');
+      console.error('Failed to fetch data', err);
     } finally {
       setLoading(false);
     }
@@ -48,6 +48,10 @@ export default function AllRegistrations() {
   }, [search]);
 
   const totalHealthId = data.filter((r) => r.has_health_id).length;
+
+  const handlePhoneUpdated = (id, newPhone) => {
+    setData((prev) => prev.map((item) => (item.id === id ? { ...item, phone: newPhone } : item)));
+  };
 
   return (
     <>
@@ -93,7 +97,7 @@ export default function AllRegistrations() {
             </div>
           </div>
 
-          <DataTable data={data} loading={loading} />
+          <DataTable data={data} loading={loading} onPhoneUpdated={handlePhoneUpdated} />
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (

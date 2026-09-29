@@ -58,6 +58,12 @@ export const api = {
     return request(`/lineid/today?${params}`);
   },
 
+  updateLineIdPhone: (id, phone) =>
+    request(`/lineid/${id}/phone`, {
+      method: 'PUT',
+      body: JSON.stringify({ phone }),
+    }),
+
   createTelemedLink: (hn, cid, patient_name, channel = 'line') =>
     request('/create-link', {
       method: 'POST',

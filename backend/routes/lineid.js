@@ -109,4 +109,38 @@ router.get('/today', authenticateToken, async (req, res) => {
   }
 });
 
+// PUT /api/lineid/:id/phone — update mobile phone number
+router.put('/:id/phone', authenticateToken, async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const { phone } = req.body;
+
+  if (!id || isNaN(id)) {
+    return res.status(400).json({ error: 'Invalid ID' });
+  }
+
+  const cleanPhone = typeof phone === 'string' ? phone.trim() : '';
+
+  let conn;
+  try {
+    conn = await pool_vhos.getConnection();
+    const result = await conn.query('UPDATE lineid SET mobile_no = ? WHERE id = ?', [cleanPhone, id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Record not found' });
+    }
+
+    res.json({
+      success: true,
+      id,
+      phone: cleanPhone,
+      message: 'อัปเดตเบอร์โทรศัพท์เรียบร้อยแล้ว',
+    });
+  } catch (err) {
+    console.error('Error updating lineid mobile_no:', err.message);
+    res.status(500).json({ error: 'Internal server error', message: err.message });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
 module.exports = router;

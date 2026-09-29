@@ -35,7 +35,7 @@ export default function TodayRegistrations() {
       setData(result.data);
       setTotal(result.total);
     } catch (err) {
-      console.error('Failed to fetch today data');
+      console.error('Failed to fetch today data', err);
     } finally {
       setLoading(false);
     }
@@ -47,6 +47,10 @@ export default function TodayRegistrations() {
 
   const totalHealthId = data.filter((r) => r.has_health_id).length;
   const isToday = selectedDate === getTodayStr();
+
+  const handlePhoneUpdated = (id, newPhone) => {
+    setData((prev) => prev.map((item) => (item.id === id ? { ...item, phone: newPhone } : item)));
+  };
 
   return (
     <>
@@ -109,7 +113,7 @@ export default function TodayRegistrations() {
             </div>
           </div>
 
-          <DataTable data={data} loading={loading} />
+          <DataTable data={data} loading={loading} onPhoneUpdated={handlePhoneUpdated} />
 
           {data.length > 0 && (
             <div className="table-footer">

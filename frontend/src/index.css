@@ -2331,3 +2331,74 @@ a {
   color: var(--gray-400);
   margin-top: 20px;
 }
+
+/* ========================================================================
+   Phone Edit in DataTable
+   ======================================================================== */
+.phone-cell {
+  white-space: nowrap;
+}
+
+.phone-content-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-edit-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background: var(--primary-50);
+  color: var(--primary-600);
+  border: 1px solid var(--primary-200);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  line-height: 1.4;
+}
+
+.btn-edit-phone:hover {
+  background: var(--primary-100);
+  color: var(--primary-700);
+  border-color: var(--primary-300);
+}
+
+.btn-edit-phone svg {
+  flex-shrink: 0;
+}
+
+.edit-phone-modal-content {
+  max-width: 440px;
+}
+
+.patient-info-summary {
+  background: var(--gray-50);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.875rem;
+}
+
+.patient-info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.patient-info-item .label {
+  color: var(--gray-500);
+  font-size: 0.8125rem;
+}
+
+.patient-info-item .value {
+  font-weight: 600;
+  color: var(--gray-800);
+}
