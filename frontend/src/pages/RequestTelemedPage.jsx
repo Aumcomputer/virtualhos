@@ -700,22 +700,14 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
                         {/* 5. Patient Name */}
                         <td>
-                          <div className="patient-cell-wrapper">
-                            <div className="patient-avatar-dot">
-                              {getPatientInitials(item.patient_name)}
-                            </div>
-                            <div className="patient-meta">
-                              <button
-                                type="button"
-                                className="patient-name-btn"
-                                onClick={() => openVisitModal(item)}
-                                title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
-                              >
-                                {item.patient_name || '—'}
-                              </button>
-                              <span className="patient-sub-cue">คลิกดูประวัติการตรวจ</span>
-                            </div>
-                          </div>
+                          <button
+                            type="button"
+                            className="patient-name-btn"
+                            onClick={() => openVisitModal(item)}
+                            title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
+                          >
+                            {item.patient_name || '—'}
+                          </button>
                         </td>
 
                         {/* 6. Clinic Name */}
@@ -989,9 +981,6 @@ export default function RequestTelemedPage({ stage = 'all' }) {
               {/* Quick Patient Banner */}
               <div className="patient-quick-banner">
                 <div className="patient-banner-left">
-                  <div className="patient-banner-avatar">
-                    {getPatientInitials(visitModalItem.patient_name)}
-                  </div>
                   <div className="patient-banner-name-block">
                     <div className="patient-banner-name">
                       {visitModalItem.patient_name}
