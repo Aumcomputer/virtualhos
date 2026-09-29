@@ -542,15 +542,24 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary btn-refresh"
                 onClick={() => fetchData()}
-                title="รีเฟรชข้อมูล"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                title="Refresh"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 12px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 500,
+                  height: '38px',
+                  borderRadius: 'var(--radius-sm)',
+                }}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                 </svg>
-                <span>รีเฟรช</span>
+                <span>Refresh</span>
               </button>
             </div>
           </div>
