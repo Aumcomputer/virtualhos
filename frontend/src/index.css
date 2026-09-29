@@ -3203,10 +3203,10 @@ a {
 .visit-modal-container {
   background: white;
   border-radius: var(--radius-lg);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  width: 100%;
-  max-width: 900px;
-  max-height: 90vh;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  width: 95vw;
+  max-width: 1180px;
+  max-height: 92vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3214,12 +3214,13 @@ a {
 }
 
 .visit-modal-header {
-  padding: 16px 20px;
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--gray-200);
+  padding: 14px 20px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .visit-modal-title-row {
@@ -3229,7 +3230,7 @@ a {
 }
 
 .visit-modal-title {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   color: var(--gray-900);
 }
@@ -3253,136 +3254,227 @@ a {
 }
 
 .visit-modal-body {
-  padding: 20px;
+  padding: 16px 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
+  flex: 1;
 }
 
-/* Patient quick info strip inside modal */
+/* Patient quick banner */
 .patient-quick-banner {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: var(--radius-md);
-  padding: 14px 16px;
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
   gap: 12px;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
 }
 
-.quick-banner-item {
+.patient-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.patient-banner-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+  color: #0369a1;
+  font-weight: 700;
+  font-size: 0.875rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1.5px solid #7dd3fc;
+}
+
+.patient-banner-name-block {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.quick-banner-item .label {
-  color: var(--gray-500);
+.patient-banner-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.patient-banner-sub {
   font-size: 0.75rem;
-  font-weight: 500;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 1px;
 }
 
-.quick-banner-item .value {
-  color: var(--gray-900);
-  font-weight: 600;
+.patient-banner-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
-/* Vitals grid */
+.patient-banner-badge-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+}
+
+/* Vitals Cards Grid - Compact Horizontal */
 .vitals-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 860px) {
+  .vitals-cards-grid {
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  }
 }
 
 .vital-stat-card {
   background: white;
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-md);
-  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 8px;
   text-align: center;
   display: flex;
   flex-direction: column;
+  align-items: center;
   justify-content: center;
+  min-height: 52px;
 }
 
 .vital-stat-card .v-label {
-  font-size: 0.75rem;
-  color: var(--gray-500);
-  font-weight: 500;
-  margin-bottom: 4px;
+  font-size: 0.6875rem;
+  color: #64748b;
+  font-weight: 600;
+  white-space: nowrap;
+  margin-bottom: 2px;
 }
 
 .vital-stat-card .v-value {
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-weight: 700;
-  color: var(--gray-900);
+  color: #0f172a;
+  line-height: 1.2;
 }
 
 .vital-stat-card .v-unit {
   font-size: 0.6875rem;
-  color: var(--gray-400);
+  color: #94a3b8;
   font-weight: 400;
+  margin-left: 2px;
+}
+
+/* CC & PE Note Strip */
+.vitals-notes-box {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px dashed #cbd5e1;
+  font-size: 0.8125rem;
+  color: #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 2-Column Clinical Dashboard Grid */
+.clinical-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .clinical-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Clinical sections */
 .clinical-card {
-  border: 1px solid var(--gray-200);
+  border: 1px solid #e2e8f0;
   border-radius: var(--radius-md);
   overflow: hidden;
+  background: white;
 }
 
 .clinical-card-header {
-  background: var(--gray-50);
-  border-bottom: 1px solid var(--gray-200);
-  padding: 10px 14px;
-  font-size: 0.875rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 9px 14px;
+  font-size: 0.8125rem;
   font-weight: 700;
-  color: var(--gray-800);
+  color: #334155;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+}
+
+.clinical-card-header .header-title-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .clinical-card-body {
-  padding: 14px;
-  font-size: 0.875rem;
+  padding: 12px 14px;
+  font-size: 0.8125rem;
 }
 
 /* Diagnosis tags */
 .diag-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .diag-item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: var(--gray-50);
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--gray-200);
-  font-size: 0.875rem;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  font-size: 0.8125rem;
 }
 
 .pdx-badge {
-  background: var(--primary-100);
-  color: var(--primary-700);
-  border: 1px solid var(--primary-200);
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
   font-size: 0.6875rem;
   font-weight: 700;
-  padding: 1px 6px;
-  border-radius: var(--radius-full);
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
 }
 
-/* Medication list in modal */
+/* Prescription drugs items list */
 .meds-items-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 2px;
 }
 
 .med-item-row {
@@ -3390,31 +3482,126 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #fdfdfd;
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-sm);
-  gap: 12px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  gap: 10px;
+  transition: all var(--transition-fast);
+}
+
+.med-item-row:hover {
+  background: #f8fafc;
+  border-color: #93c5fd;
+}
+
+.med-item-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.med-item-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #94a3b8;
+  min-width: 18px;
+  padding-top: 1px;
 }
 
 .med-item-name {
   font-weight: 600;
-  color: var(--gray-900);
-}
-
-.med-item-usage {
+  color: #0f172a;
   font-size: 0.8125rem;
-  color: var(--gray-600);
-  margin-top: 2px;
+  word-break: break-word;
+  line-height: 1.4;
 }
 
 .med-item-qty {
   font-weight: 700;
-  font-size: 0.875rem;
-  color: var(--primary-700);
-  background: var(--primary-50);
+  font-size: 0.75rem;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
   padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  border-radius: 5px;
   white-space: nowrap;
+}
+
+/* Current Request Details */
+.req-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.req-highlight-box {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 0.8125rem;
+  color: #92400e;
+  line-height: 1.45;
+}
+
+.req-highlight-box strong {
+  color: #78350f;
+}
+
+.req-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.req-info-row .label {
+  color: #64748b;
+  font-weight: 600;
+  min-width: 84px;
+  flex-shrink: 0;
+}
+
+.req-info-row .val {
+  color: #0f172a;
+  flex: 1;
+}
+
+.audit-trail-timeline {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.audit-trail-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audit-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #94a3b8;
+  flex-shrink: 0;
+}
+
+.audit-dot.success {
+  background: #10b981;
+}
+
+.audit-dot.error {
+  background: #ef4444;
 }
 
 /* X-Ray Report text box */
@@ -3423,25 +3610,26 @@ a {
   color: #e2e8f0;
   font-family: monospace;
   font-size: 0.8125rem;
-  line-height: 1.6;
-  padding: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 180px;
+  max-height: 150px;
   overflow-y: auto;
 }
 
 /* Modal Footer Actions */
 .visit-modal-footer {
-  padding: 14px 20px;
-  background: var(--gray-50);
-  border-top: 1px solid var(--gray-200);
+  padding: 12px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  flex-shrink: 0;
 }
 
 /* Dialog prompt modal (for reject & tracking) */

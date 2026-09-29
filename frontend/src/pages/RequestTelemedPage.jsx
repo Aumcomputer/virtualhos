@@ -988,29 +988,49 @@ export default function RequestTelemedPage({ stage = 'all' }) {
             <div className="visit-modal-body">
               {/* Quick Patient Banner */}
               <div className="patient-quick-banner">
-                <div className="quick-banner-item">
-                  <span className="label">ผู้ป่วย / HN</span>
-                  <span className="value">
-                    {visitModalItem.patient_name} (HN: {visitModalItem.hn})
-                  </span>
+                <div className="patient-banner-left">
+                  <div className="patient-banner-avatar">
+                    {getPatientInitials(visitModalItem.patient_name)}
+                  </div>
+                  <div className="patient-banner-name-block">
+                    <div className="patient-banner-name">
+                      {visitModalItem.patient_name}
+                    </div>
+                    <div className="patient-banner-sub">
+                      <span className="font-mono" style={{ fontWeight: 600, color: 'var(--primary-700)' }}>
+                        HN: {visitModalItem.hn}
+                      </span>
+                      {visitDetail?.visit?.age_y !== undefined && (
+                        <span>• อายุ {visitDetail.visit.age_y} ปี {visitDetail.visit.age_m || 0} เดือน</span>
+                      )}
+                      {visitDetail?.vn && (
+                        <span>• VN: {visitDetail.vn}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="quick-banner-item">
-                  <span className="label">อายุ</span>
-                  <span className="value">
-                    {visitDetail?.visit?.age_y !== undefined
-                      ? `${visitDetail.visit.age_y} ปี ${visitDetail.visit.age_m || 0} เดือน`
-                      : '—'}
-                  </span>
-                </div>
-                <div className="quick-banner-item">
-                  <span className="label">วันเวลานัดตรวจ</span>
-                  <span className="value">
-                    {formatThaiDate(visitModalItem.nextdate)} ({visitModalItem.clinic_name || 'ไม่ระบุคลินิก'})
-                  </span>
-                </div>
-                <div className="quick-banner-item">
-                  <span className="label">แพทย์ผู้นัด</span>
-                  <span className="value">{visitModalItem.doctor_name || '—'}</span>
+
+                <div className="patient-banner-right">
+                  <div className="patient-banner-badge-group">
+                    <span className="appt-date-badge">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                        <line x1="16" y1="2" x2="16" y2="6" />
+                        <line x1="8" y1="2" x2="8" y2="6" />
+                        <line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      <span>นัดตรวจ: {formatThaiDate(visitModalItem.nextdate)} ({visitModalItem.clinic_name || 'ไม่ระบุคลินิก'})</span>
+                    </span>
+                  </div>
+
+                  <div className="doctor-name-badge">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
+                      <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
+                      <circle cx="20" cy="10" r="2"/>
+                    </svg>
+                    <span>{formatDoctorName(visitModalItem.doctor_name)}</span>
+                  </div>
                 </div>
               </div>
 
@@ -1027,191 +1047,307 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                 <div className="submit-error-alert">{visitError}</div>
               ) : (
                 <>
-                  {/* 1. Vital Signs & Chief Complaint */}
+                  {/* 1. Vital Signs & Physical Exam (สัญญาณชีพและการตรวจร่างกาย) */}
                   <div className="clinical-card">
                     <div className="clinical-card-header">
-                      <span>สัญญาณชีพและการตรวจร่างกาย (ครั้งที่มาตรวจ)</span>
+                      <div className="header-title-left">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                        </svg>
+                        <span>สัญญาณชีพและการตรวจร่างกาย (ครั้งที่มาตรวจ)</span>
+                      </div>
                       {visitDetail?.visit?.vstdate && (
-                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--gray-500)', marginLeft: 'auto' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--gray-500)' }}>
                           วันที่ตรวจ: {formatThaiDate(visitDetail.visit.vstdate)}
                         </span>
                       )}
                     </div>
-                    <div className="clinical-card-body">
+                    <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
                       {visitDetail?.visit ? (
                         <>
                           <div className="vitals-cards-grid">
                             <div className="vital-stat-card">
-                              <span className="v-label">ความดันโลหิต (BP)</span>
-                              <span className="v-value">
-                                {visitDetail.visit.bps && visitDetail.visit.bpd
-                                  ? `${visitDetail.visit.bps}/${visitDetail.visit.bpd}`
-                                  : '—'}
-                              </span>
-                              <span className="v-unit">mmHg</span>
+                              <span className="v-label">BP (ความดัน)</span>
+                              <div className="v-value-group">
+                                <span className="v-value">
+                                  {visitDetail.visit.bps && visitDetail.visit.bpd
+                                    ? `${visitDetail.visit.bps}/${visitDetail.visit.bpd}`
+                                    : '—'}
+                                </span>
+                                <span className="v-unit">mmHg</span>
+                              </div>
                             </div>
                             <div className="vital-stat-card">
-                              <span className="v-label">ชีพจร (Pulse)</span>
-                              <span className="v-value">{visitDetail.visit.pulse || visitDetail.visit.hr || '—'}</span>
-                              <span className="v-unit">ครั้ง/นาที</span>
+                              <span className="v-label">Pulse (ชีพจร)</span>
+                              <div className="v-value-group">
+                                <span className="v-value">{visitDetail.visit.pulse || visitDetail.visit.hr || '—'}</span>
+                                <span className="v-unit">/นาที</span>
+                              </div>
                             </div>
                             <div className="vital-stat-card">
-                              <span className="v-label">อุณหภูมิ (Temp)</span>
-                              <span className="v-value">{visitDetail.visit.temperature || '—'}</span>
-                              <span className="v-unit">°C</span>
+                              <span className="v-label">Temp (อุณหภูมิ)</span>
+                              <div className="v-value-group">
+                                <span className="v-value">{visitDetail.visit.temperature || '—'}</span>
+                                <span className="v-unit">°C</span>
+                              </div>
                             </div>
                             <div className="vital-stat-card">
-                              <span className="v-label">หายใจ (RR)</span>
-                              <span className="v-value">{visitDetail.visit.rr || '—'}</span>
-                              <span className="v-unit">ครั้ง/นาที</span>
+                              <span className="v-label">RR (การหายใจ)</span>
+                              <div className="v-value-group">
+                                <span className="v-value">{visitDetail.visit.rr || '—'}</span>
+                                <span className="v-unit">/นาที</span>
+                              </div>
                             </div>
                             <div className="vital-stat-card">
-                              <span className="v-label">น้ำหนัก (BW)</span>
-                              <span className="v-value">{visitDetail.visit.bw || '—'}</span>
-                              <span className="v-unit">กก.</span>
+                              <span className="v-label">BW (น้ำหนัก)</span>
+                              <div className="v-value-group">
+                                <span className="v-value">{visitDetail.visit.bw || '—'}</span>
+                                <span className="v-unit">กก.</span>
+                              </div>
                             </div>
                             <div className="vital-stat-card">
                               <span className="v-label">ส่วนสูง</span>
-                              <span className="v-value">{visitDetail.visit.height || '—'}</span>
-                              <span className="v-unit">ซม.</span>
+                              <div className="v-value-group">
+                                <span className="v-value">{visitDetail.visit.height || '—'}</span>
+                                <span className="v-unit">ซม.</span>
+                              </div>
                             </div>
                             <div className="vital-stat-card">
-                              <span className="v-label">ดัชนีมวลกาย (BMI)</span>
-                              <span className="v-value">{visitDetail.visit.bmi || '—'}</span>
-                              <span className="v-unit">kg/m²</span>
+                              <span className="v-label">BMI (ดัชนีมวลกาย)</span>
+                              <div className="v-value-group">
+                                <span className="v-value">{visitDetail.visit.bmi || '—'}</span>
+                                <span className="v-unit">kg/m²</span>
+                              </div>
                             </div>
                           </div>
 
-                          {/* CC & PE */}
-                          <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {visitDetail.visit.cc && (
-                              <div style={{ fontSize: '0.875rem' }}>
-                                <strong>อาการสำคัญ (CC):</strong> {visitDetail.visit.cc}
-                              </div>
-                            )}
-                            {visitDetail.visit.pe && (
-                              <div style={{ fontSize: '0.875rem' }}>
-                                <strong>ตรวจร่างกาย (PE):</strong> {visitDetail.visit.pe}
-                              </div>
-                            )}
-                          </div>
+                          {(visitDetail.visit.cc || visitDetail.visit.pe) && (
+                            <div className="vitals-notes-box">
+                              {visitDetail.visit.cc && (
+                                <div><strong>อาการสำคัญ (CC):</strong> {visitDetail.visit.cc}</div>
+                              )}
+                              {visitDetail.visit.pe && (
+                                <div><strong>ตรวจร่างกาย (PE):</strong> {visitDetail.visit.pe}</div>
+                              )}
+                            </div>
+                          )}
                         </>
                       ) : (
-                        <div style={{ color: 'var(--gray-500)', fontSize: '0.875rem' }}>
+                        <div style={{ color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
                           {visitDetail?.message || 'ไม่พบข้อมูลสัญญาณชีพสำหรับนัดหมายนี้'}
                         </div>
                       )}
                     </div>
                   </div>
 
-                  {/* 2. Diagnoses */}
-                  <div className="clinical-card">
-                    <div className="clinical-card-header">การวินิจฉัยโรค (Diagnoses)</div>
-                    <div className="clinical-card-body">
-                      {visitDetail?.visit?.diagnosis_concat ? (
-                        <div className="diag-list">
-                          {parseLines(visitDetail.visit.diagnosis_concat).map((line, dIdx) => {
-                            const isPdx = line.includes('(PDX)');
-                            const cleanLine = line.replace('(PDX)', '').trim();
-                            return (
-                              <div key={dIdx} className="diag-item">
-                                {isPdx && <span className="pdx-badge">PDX โรคหลัก</span>}
-                                <span style={{ fontWeight: isPdx ? 600 : 400 }}>{cleanLine}</span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div style={{ color: 'var(--gray-500)' }}>ไม่พบข้อมูลการวินิจฉัย</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 3. Prescribed Medications */}
-                  <div className="clinical-card">
-                    <div className="clinical-card-header">รายการยาเดิมที่ได้รับ (Prescribed Drugs)</div>
-                    <div className="clinical-card-body">
-                      {visitDetail?.visit?.drug_concat ? (
-                        <div className="meds-items-list">
-                          {parseLines(visitDetail.visit.drug_concat).map((medLine, mIdx) => {
-                            const parts = medLine.split('#');
-                            const medInfo = parts[0] ? parts[0].trim() : medLine;
-                            const qty = parts[1] ? parts[1].trim() : '';
-
-                            return (
-                              <div key={mIdx} className="med-item-row">
-                                <div style={{ flex: 1 }}>
-                                  <div className="med-item-name">{medInfo}</div>
-                                </div>
-                                {qty && <div className="med-item-qty">{qty} เม็ด/หน่วย</div>}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div style={{ color: 'var(--gray-500)' }}>ไม่พบรายการยาในการตรวจครั้งนี้</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* 4. Non-drug items */}
-                  {visitDetail?.visit?.nondrug_concat && (
-                    <div className="clinical-card">
-                      <div className="clinical-card-header">เวชภัณฑ์ / อื่นๆ (Non-drug Items)</div>
-                      <div className="clinical-card-body">
-                        <div className="diag-list">
-                          {parseLines(visitDetail.visit.nondrug_concat).map((line, ndIdx) => (
-                            <div key={ndIdx} className="diag-item">
-                              {line}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 5. X-Ray Report */}
-                  {visitDetail?.visit?.xray_report && (
-                    <div className="clinical-card">
-                      <div className="clinical-card-header">ผลเอกซเรย์ (X-Ray Report)</div>
-                      <div className="clinical-card-body">
-                        <pre className="xray-text-box">{visitDetail.visit.xray_report}</pre>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 6. Current Telemed Request Details */}
-                  <div className="clinical-card">
-                    <div className="clinical-card-header">ข้อมูลคำขอรับยาไม่พบแพทย์ปัจจุบัน</div>
-                    <div className="clinical-card-body" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div>
-                        <strong>เหตุผลความจำเป็น:</strong> {visitModalItem.reason || '—'}
-                      </div>
-                      <div>
-                        <strong>อาการปัจจุบัน:</strong> {visitModalItem.symptoms || '—'}
-                      </div>
-                      <div>
-                        <strong>ที่อยู่จัดส่งยา:</strong> {visitModalItem.address || '—'} {visitModalItem.postcode || ''}
-                      </div>
-                      <div>
-                        <strong>เบอร์โทรศัพท์:</strong> {visitModalItem.phone || '—'}
-                      </div>
-                      <div style={{ borderTop: '1px solid var(--gray-100)', paddingTop: '8px', marginTop: '4px', fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-                        <div>ผู้ลงทะเบียน: {visitModalItem.request_by || 'คนไข้ (LINE)'}</div>
-                        {visitModalItem.received_by && (
-                          <div>ผู้รับเรื่อง: {visitModalItem.received_by} ({formatThaiDateTime(visitModalItem.received_at)})</div>
-                        )}
-                        {visitModalItem.doctor_approved_by && (
-                          <div>แพทย์ผู้อนุมัติ: {visitModalItem.doctor_approved_by} {visitModalItem.doctor_remark ? `(${visitModalItem.doctor_remark})` : ''}</div>
-                        )}
-                        {visitModalItem.pharmacy_approved_by && (
-                          <div>เภสัชกร: {visitModalItem.pharmacy_approved_by} {visitModalItem.pharmacy_remark ? `(${visitModalItem.pharmacy_remark})` : ''}</div>
-                        )}
-                        {visitModalItem.tracking_number && (
-                          <div style={{ fontWeight: 600, color: 'var(--primary-700)' }}>
-                            เลขพัสดุ: {visitModalItem.tracking_number} ({formatThaiDateTime(visitModalItem.delivery_at)})
+                  {/* 2-Column Clinical Dashboard Grid */}
+                  <div className="clinical-dashboard-grid">
+                    {/* Left Column: Meds & Diagnoses */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* Prescribed Drugs */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <div className="header-title-left">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/>
+                              <path d="m8.5 8.5 7 7"/>
+                            </svg>
+                            <span>รายการยาเดิมที่ได้รับ (Prescribed Drugs)</span>
                           </div>
-                        )}
+                          {visitDetail?.visit?.drug_concat && (
+                            <span className="badge badge-primary font-mono" style={{ fontSize: '0.6875rem' }}>
+                              {parseLines(visitDetail.visit.drug_concat).length} รายการ
+                            </span>
+                          )}
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
+                          {visitDetail?.visit?.drug_concat ? (
+                            <div className="meds-items-list">
+                              {parseLines(visitDetail.visit.drug_concat).map((medLine, mIdx) => {
+                                const parts = medLine.split('#');
+                                const medInfo = parts[0] ? parts[0].trim() : medLine;
+                                const qty = parts[1] ? parts[1].trim() : '';
+
+                                return (
+                                  <div key={mIdx} className="med-item-row">
+                                    <div className="med-item-left">
+                                      <span className="med-item-num">#{mIdx + 1}</span>
+                                      <div className="med-item-name">{medInfo}</div>
+                                    </div>
+                                    {qty && <span className="med-item-qty">{qty} เม็ด/หน่วย</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem', padding: '6px 0' }}>
+                              — ไม่พบรายการยาในการตรวจครั้งนี้ —
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Diagnoses */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <div className="header-title-left">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                              <polyline points="14 2 14 8 20 8"/>
+                              <line x1="16" y1="13" x2="8" y2="13"/>
+                              <line x1="16" y1="17" x2="8" y2="17"/>
+                              <polyline points="10 9 9 9 8 9"/>
+                            </svg>
+                            <span>การวินิจฉัยโรค (Diagnoses)</span>
+                          </div>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
+                          {visitDetail?.visit?.diagnosis_concat && visitDetail.visit.diagnosis_concat.trim() ? (
+                            <div className="diag-list">
+                              {parseLines(visitDetail.visit.diagnosis_concat).map((line, dIdx) => {
+                                const isPdx = line.includes('(PDX)');
+                                const cleanLine = line.replace('(PDX)', '').trim();
+                                return (
+                                  <div key={dIdx} className="diag-item">
+                                    {isPdx && <span className="pdx-badge">PDX โรคหลัก</span>}
+                                    <span style={{ fontWeight: isPdx ? 600 : 400, color: 'var(--gray-800)' }}>
+                                      {cleanLine}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem', padding: '4px 0' }}>
+                              — ไม่พบข้อมูลการวินิจฉัยโรคในการตรวจครั้งนี้ —
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Non-drug Items (Only if exists) */}
+                      {visitDetail?.visit?.nondrug_concat && visitDetail.visit.nondrug_concat.trim() && (
+                        <div className="clinical-card">
+                          <div className="clinical-card-header">
+                            <div className="header-title-left">
+                              <span>เวชภัณฑ์ / อื่นๆ (Non-drug Items)</span>
+                            </div>
+                          </div>
+                          <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
+                            <div className="diag-list">
+                              {parseLines(visitDetail.visit.nondrug_concat).map((line, ndIdx) => (
+                                <div key={ndIdx} className="diag-item">
+                                  {line}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* X-Ray Report (Only if exists) */}
+                      {visitDetail?.visit?.xray_report && visitDetail.visit.xray_report.trim() && (
+                        <div className="clinical-card">
+                          <div className="clinical-card-header">
+                            <div className="header-title-left">
+                              <span>ผลเอกซเรย์ (X-Ray Report)</span>
+                            </div>
+                          </div>
+                          <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
+                            <pre className="xray-text-box">{visitDetail.visit.xray_report}</pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column: Current Telemed Request Details */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <div className="header-title-left">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="1" y="3" width="15" height="13" />
+                              <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                              <circle cx="5.5" cy="18.5" r="2.5" />
+                              <circle cx="18.5" cy="18.5" r="2.5" />
+                            </svg>
+                            <span>ข้อมูลคำขอรับยาไม่พบแพทย์ปัจจุบัน</span>
+                          </div>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '12px 14px' }}>
+                          <div className="req-detail-section">
+                            {/* Reason Highlight */}
+                            <div className="req-highlight-box">
+                              <strong>เหตุผลความจำเป็น: </strong>
+                              {visitModalItem.reason || '—'}
+                            </div>
+
+                            {visitModalItem.symptoms && (
+                              <div className="req-info-row">
+                                <span className="label">อาการปัจจุบัน:</span>
+                                <span className="val">{visitModalItem.symptoms}</span>
+                              </div>
+                            )}
+
+                            <div className="req-info-row">
+                              <span className="label">ที่อยู่จัดส่งยา:</span>
+                              <span className="val">
+                                {visitModalItem.address || '—'} {visitModalItem.postcode || ''}
+                              </span>
+                            </div>
+
+                            <div className="req-info-row">
+                              <span className="label">เบอร์โทรศัพท์:</span>
+                              <span className="val">
+                                {visitModalItem.phone ? (
+                                  <a href={`tel:${visitModalItem.phone}`} className="phone-link" style={{ padding: 0 }}>
+                                    {formatPhone(visitModalItem.phone)}
+                                  </a>
+                                ) : (
+                                  '—'
+                                )}
+                              </span>
+                            </div>
+
+                            {/* Audit Trail Timeline */}
+                            <div className="audit-trail-timeline">
+                              <div className="audit-trail-item">
+                                <span className="audit-dot"></span>
+                                <span>ผู้ยื่นคำขอ: <strong>{visitModalItem.request_by || 'คนไข้ (LINE OA)'}</strong> ({formatThaiDateTime(visitModalItem.created_at)})</span>
+                              </div>
+
+                              {visitModalItem.received_by && (
+                                <div className="audit-trail-item">
+                                  <span className="audit-dot success"></span>
+                                  <span>รับเรื่องโดย: <strong>{visitModalItem.received_by}</strong> ({formatThaiDateTime(visitModalItem.received_at)})</span>
+                                </div>
+                              )}
+
+                              {visitModalItem.doctor_approved_by && (
+                                <div className="audit-trail-item">
+                                  <span className={`audit-dot ${visitModalItem.status && visitModalItem.status.includes('ไม่อนุมัติ') ? 'error' : 'success'}`}></span>
+                                  <span>แพทย์: <strong>{visitModalItem.doctor_approved_by}</strong> {visitModalItem.doctor_remark ? `(หมายเหตุ: ${visitModalItem.doctor_remark})` : ''}</span>
+                                </div>
+                              )}
+
+                              {visitModalItem.pharmacy_approved_by && (
+                                <div className="audit-trail-item">
+                                  <span className={`audit-dot ${visitModalItem.status && visitModalItem.status.includes('ไม่อนุมัติ') ? 'error' : 'success'}`}></span>
+                                  <span>เภสัชกร: <strong>{visitModalItem.pharmacy_approved_by}</strong> {visitModalItem.pharmacy_remark ? `(หมายเหตุ: ${visitModalItem.pharmacy_remark})` : ''}</span>
+                                </div>
+                              )}
+
+                              {visitModalItem.tracking_number && (
+                                <div className="audit-trail-item">
+                                  <span className="audit-dot success"></span>
+                                  <span style={{ fontWeight: 600, color: '#6d28d9' }}>
+                                    เลขพัสดุ: {visitModalItem.tracking_number} ({formatThaiDateTime(visitModalItem.delivery_at)})
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
