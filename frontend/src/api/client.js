@@ -25,8 +25,13 @@ async function request(url, options = {}) {
     if (response.status === 401 && window.location.pathname !== '/login' && url !== '/login') {
       window.location.href = '/login';
     }
-    const error = new Error(data.error || 'Request failed');
+    const errorMessage =
+      data.error && data.error !== 'Internal server error'
+        ? data.error
+        : (data.message || data.error || 'Request failed');
+    const error = new Error(errorMessage);
     error.status = response.status;
+    error.data = data;
     throw error;
   }
 

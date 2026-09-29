@@ -4,6 +4,23 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Safely ensure request_by column exists in virtualhos.req_telemed (if user has ALTER privilege)
+(async () => {
+  let conn;
+  try {
+    conn = await pool_vhos.getConnection();
+    await conn.query(`
+      ALTER TABLE virtualhos.req_telemed 
+      ADD COLUMN IF NOT EXISTS request_by VARCHAR(100) DEFAULT NULL COMMENT 'ผู้บันทึกคำขอ (เจ้าหน้าที่หรือคนไข้)'
+    `);
+    console.log('[req_telemed] Ensured request_by column exists in virtualhos.req_telemed');
+  } catch (err) {
+    // Non-fatal if DB user does not have ALTER permission or already exists
+  } finally {
+    if (conn) conn.release();
+  }
+})();
+
 /**
  * Normalizes status string to match both with and without emoji
  */
@@ -314,8 +331,8 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
 
 // GET /api/request-telemed/patient-appointments/:hn — Get patient profile and upcoming appointments from HOSxP
 router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
-  const hn = (req.params.hn || '').trim();
-  if (!hn) {
+  const rawHn = (req.params.hn || '').trim();
+  if (!rawHn) {
     return res.status(400).json({ error: 'กรุณาระบุเลข HN' });
   }
 
@@ -326,6 +343,8 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
     connVhos = await pool_vhos.getConnection();
 
     // 1. Query patient profile from HOSxP
+    // Support searching by raw HN or trimmed leading zeros
+    const strippedHn = rawHn.replace(/^0+/, '') || rawHn;
     const ptQuery = `
       SELECT p.hn, p.pname, p.fname, p.lname, p.addrpart, p.moopart, p.po_code,
              p.hometel, p.informtel, p.cid,
@@ -334,14 +353,31 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
       LEFT JOIN thaiaddress tmb ON tmb.addressid = CONCAT(p.chwpart, p.amppart, p.tmbpart)
       LEFT JOIN thaiaddress amp ON amp.addressid = CONCAT(p.chwpart, p.amppart, '00')
       LEFT JOIN thaiaddress chw ON chw.addressid = CONCAT(p.chwpart, '0000')
-      WHERE p.hn = ? LIMIT 1
+      WHERE p.hn = ? OR TRIM(LEADING '0' FROM p.hn) = ?
+      LIMIT 1
     `;
-    const ptRows = await connHos.query(ptQuery, [hn]);
+    let ptRows = [];
+    try {
+      ptRows = await connHos.query(ptQuery, [rawHn, strippedHn]);
+    } catch (addrErr) {
+      console.warn('[req_telemed] Address join failed, falling back to simple patient query:', addrErr.message);
+      const simplePtQuery = `
+        SELECT p.hn, p.pname, p.fname, p.lname, p.addrpart, p.moopart, p.po_code,
+               p.hometel, p.informtel, p.cid
+        FROM patient p
+        WHERE p.hn = ? OR TRIM(LEADING '0' FROM p.hn) = ?
+        LIMIT 1
+      `;
+      ptRows = await connHos.query(simplePtQuery, [rawHn, strippedHn]);
+    }
+
     if (!ptRows || ptRows.length === 0) {
-      return res.status(404).json({ error: `ไม่พบข้อมูลผู้ป่วยสำหรับ HN ${hn} ในระบบ HOSxP` });
+      return res.status(404).json({ error: `ไม่พบข้อมูลผู้ป่วยสำหรับ HN ${rawHn} ในระบบ HOSxP` });
     }
 
     const pt = ptRows[0];
+    const canonicalHn = pt.hn;
+
     const cleanAreaName = (name) => (name ? name.replace(/^(ต\.|ตำบล|อ\.|อำเภอ|จ\.|จังหวัด)/, '').trim() : '');
     const addrParts = [];
     if (pt.addrpart) addrParts.push(`บ้านเลขที่ ${pt.addrpart}`);
@@ -351,7 +387,7 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
     if (pt.chw_name) addrParts.push(`จ.${cleanAreaName(pt.chw_name)}`);
 
     const patientProfile = {
-      hn: pt.hn,
+      hn: canonicalHn,
       cid: pt.cid || '',
       fullname: `${pt.pname || ''}${pt.fname || ''} ${pt.lname || ''}`.trim(),
       address: addrParts.join(' '),
@@ -374,22 +410,38 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
       FROM oapp o
       LEFT JOIN clinic c ON c.clinic = o.clinic
       LEFT JOIN doctor d ON d.code = o.doctor
-      WHERE o.hn = ? 
+      WHERE (o.hn = ? OR o.hn = ?) 
         AND o.nextdate >= CURDATE()
       ORDER BY o.nextdate ASC, o.nexttime ASC
     `;
-    const apptRows = await connHos.query(oappQuery, [hn]);
+    let apptRows = [];
+    try {
+      apptRows = await connHos.query(oappQuery, [canonicalHn, rawHn]);
+    } catch (apptErr) {
+      console.warn('[req_telemed] oapp join query failed, trying simpler oapp query:', apptErr.message);
+      const simpleOapp = `
+        SELECT oapp_id, vstdate, nextdate, nexttime, endtime, note, app_cause
+        FROM oapp
+        WHERE (hn = ? OR hn = ?) AND nextdate >= CURDATE()
+        ORDER BY nextdate ASC, nexttime ASC
+      `;
+      apptRows = await connHos.query(simpleOapp, [canonicalHn, rawHn]);
+    }
 
     // 3. Query existing requests in virtualhos.req_telemed for this HN
-    const reqQuery = `
-      SELECT id, oapp_id, hn, status, approve, tracking_number, reason, symptoms, address, postcode, phone, request_by, created_at
-      FROM virtualhos.req_telemed
-      WHERE hn = ?
-    `;
-    const reqRows = await connVhos.query(reqQuery, [hn]);
     const reqMap = {};
-    for (const r of reqRows) {
-      reqMap[Number(r.oapp_id)] = serializeRow(r);
+    try {
+      const reqQuery = `
+        SELECT id, oapp_id, hn, status, approve, tracking_number, reason, symptoms, address, postcode, phone, created_at
+        FROM virtualhos.req_telemed
+        WHERE hn = ? OR hn = ?
+      `;
+      const reqRows = await connVhos.query(reqQuery, [canonicalHn, rawHn]);
+      for (const r of reqRows) {
+        reqMap[Number(r.oapp_id)] = serializeRow(r);
+      }
+    } catch (reqErr) {
+      console.warn('[req_telemed] Querying virtualhos.req_telemed error (ignored):', reqErr.message);
     }
 
     // Helper to format time range (e.g. 09.00 - 10.00 น.)
@@ -441,8 +493,8 @@ router.get('/patient-appointments/:hn', authenticateToken, async (req, res) => {
       appointments,
     });
   } catch (err) {
-    console.error('Error fetching patient appointments:', err.message);
-    res.status(500).json({ error: 'Internal server error', message: err.message });
+    console.error('Error fetching patient appointments:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (connHos) connHos.release();
     if (connVhos) connVhos.release();
@@ -480,9 +532,9 @@ router.post('/register', authenticateToken, async (req, res) => {
   try {
     connVhos = await pool_vhos.getConnection();
 
-    // 1. Check if a request already exists for this oapp_id and hn in virtualhos.req_telemed
-    const checkSql = `SELECT id, status, approve, tracking_number FROM virtualhos.req_telemed WHERE oapp_id = ? AND hn = ? LIMIT 1`;
-    const existing = await connVhos.query(checkSql, [oapp_id, hn]);
+    // 1. Check if a request already exists for this oapp_id in virtualhos.req_telemed
+    const checkSql = `SELECT id, status, approve, tracking_number FROM virtualhos.req_telemed WHERE oapp_id = ? LIMIT 1`;
+    const existing = await connVhos.query(checkSql, [oapp_id]);
     if (existing && existing.length > 0) {
       return res.status(409).json({
         error: `มีการยื่นคำขอสำหรับนัดหมายนี้แล้ว (สถานะปัจจุบัน: ${existing[0].status})`,
@@ -498,25 +550,41 @@ router.post('/register', authenticateToken, async (req, res) => {
       FROM oapp o
       LEFT JOIN clinic c ON c.clinic = o.clinic
       LEFT JOIN doctor d ON d.code = o.doctor
-      WHERE o.oapp_id = ? AND o.hn = ? LIMIT 1
+      WHERE o.oapp_id = ? LIMIT 1
     `;
-    const oappRows = await connHos.query(oappSql, [oapp_id, hn]);
+    let oappRows = [];
+    try {
+      oappRows = await connHos.query(oappSql, [oapp_id]);
+    } catch {
+      oappRows = await connHos.query(`SELECT oapp_id, nextdate FROM oapp WHERE oapp_id = ? LIMIT 1`, [oapp_id]);
+    }
+
     if (!oappRows || oappRows.length === 0) {
       return res.status(404).json({ error: 'ไม่พบข้อมูลการนัดหมายนี้ในระบบ HOSxP' });
     }
     const oapp = oappRows[0];
 
     // 3. Fetch patient name
-    const ptSql = `SELECT pname, fname, lname FROM patient WHERE hn = ? LIMIT 1`;
-    const ptRows = await connHos.query(ptSql, [hn]);
-    const patientName = ptRows && ptRows.length > 0
-      ? `${ptRows[0].pname || ''}${ptRows[0].fname || ''} ${ptRows[0].lname || ''}`.trim()
-      : null;
+    let patientName = null;
+    try {
+      const strippedHn = hn.replace(/^0+/, '') || hn;
+      const ptSql = `SELECT pname, fname, lname FROM patient WHERE hn = ? OR TRIM(LEADING '0' FROM hn) = ? LIMIT 1`;
+      const ptRows = await connHos.query(ptSql, [hn, strippedHn]);
+      if (ptRows && ptRows.length > 0) {
+        patientName = `${ptRows[0].pname || ''}${ptRows[0].fname || ''} ${ptRows[0].lname || ''}`.trim();
+      }
+    } catch (ptErr) {
+      console.warn('[req_telemed] Error fetching patient name:', ptErr.message);
+    }
 
     // 4. Check if patient has line_user_id in virtualhos.lineid
     let lineUserId = null;
     try {
-      const lineRows = await connVhos.query(`SELECT line_user_id FROM lineid WHERE hn = ? LIMIT 1`, [hn]);
+      const strippedHn = hn.replace(/^0+/, '') || hn;
+      const lineRows = await connVhos.query(
+        `SELECT line_user_id FROM lineid WHERE hn = ? OR hn = ? LIMIT 1`,
+        [hn, strippedHn]
+      );
       if (lineRows && lineRows.length > 0 && lineRows[0].line_user_id) {
         lineUserId = lineRows[0].line_user_id;
       }
@@ -527,36 +595,68 @@ router.post('/register', authenticateToken, async (req, res) => {
     // 5. Staff recorder identifier
     const requestBy = req.user?.displayName || req.user?.name || req.user?.username || 'เจ้าหน้าที่';
 
-    // 6. Insert into virtualhos.req_telemed
-    const insertSql = `
-      INSERT INTO virtualhos.req_telemed 
-      (oapp_id, hn, line_user_id, patient_name, nextdate, clinic_name, doctor_name, reason, symptoms, address, postcode, phone, status, approve, request_by, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'รอตรวจสอบ', 'PENDING', ?, NOW())
-    `;
-    const insertRes = await connVhos.query(insertSql, [
-      oapp_id,
-      hn,
-      lineUserId,
-      patientName,
-      oapp.nextdate,
-      oapp.clinic_name || null,
-      oapp.doctor_name || null,
-      reason.trim(),
-      symptoms.trim(),
-      address.trim(),
-      postcode.trim(),
-      phone.trim(),
-      requestBy,
-    ]);
+    // 6. Insert into virtualhos.req_telemed (with defensive fallback if request_by column does not exist)
+    try {
+      const insertSql = `
+        INSERT INTO virtualhos.req_telemed 
+        (oapp_id, hn, line_user_id, patient_name, nextdate, clinic_name, doctor_name, reason, symptoms, address, postcode, phone, status, approve, request_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'รอตรวจสอบ', 'PENDING', ?, NOW())
+      `;
+      const insertRes = await connVhos.query(insertSql, [
+        oapp_id,
+        hn,
+        lineUserId,
+        patientName,
+        oapp.nextdate,
+        oapp.clinic_name || null,
+        oapp.doctor_name || null,
+        reason.trim(),
+        symptoms.trim(),
+        address.trim(),
+        postcode.trim(),
+        phone.trim(),
+        requestBy,
+      ]);
 
-    res.status(201).json({
-      success: true,
-      id: Number(insertRes.insertId),
-      message: 'บันทึกคำขอรับยาไม่พบแพทย์เรียบร้อยแล้ว',
-    });
+      return res.status(201).json({
+        success: true,
+        id: Number(insertRes.insertId),
+        message: 'บันทึกคำขอรับยาไม่พบแพทย์เรียบร้อยแล้ว',
+      });
+    } catch (insertErr) {
+      if (insertErr.message && insertErr.message.includes('request_by')) {
+        console.warn('[req_telemed] Falling back to insert without request_by column:', insertErr.message);
+        const fallbackSql = `
+          INSERT INTO virtualhos.req_telemed 
+          (oapp_id, hn, line_user_id, patient_name, nextdate, clinic_name, doctor_name, reason, symptoms, address, postcode, phone, status, approve, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'รอตรวจสอบ', 'PENDING', NOW())
+        `;
+        const insertRes = await connVhos.query(fallbackSql, [
+          oapp_id,
+          hn,
+          lineUserId,
+          patientName,
+          oapp.nextdate,
+          oapp.clinic_name || null,
+          oapp.doctor_name || null,
+          reason.trim(),
+          symptoms.trim(),
+          address.trim(),
+          postcode.trim(),
+          phone.trim(),
+        ]);
+
+        return res.status(201).json({
+          success: true,
+          id: Number(insertRes.insertId),
+          message: 'บันทึกคำขอรับยาไม่พบแพทย์เรียบร้อยแล้ว',
+        });
+      }
+      throw insertErr;
+    }
   } catch (err) {
-    console.error('Error registering req_telemed:', err.message);
-    res.status(500).json({ error: 'Internal server error', message: err.message });
+    console.error('Error registering req_telemed:', err);
+    res.status(500).json({ error: err.message || 'Internal server error' });
   } finally {
     if (connHos) connHos.release();
     if (connVhos) connVhos.release();
