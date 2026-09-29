@@ -3486,18 +3486,12 @@ a {
   margin-left: 2px;
 }
 
-/* CC & PE Cards Grid */
+/* CC & PE Cards (Stack vertically: CC on top, PE below) */
 .clinical-cc-pe-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin-top: 10px;
-}
-
-@media (max-width: 768px) {
-  .clinical-cc-pe-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .cc-pe-card {

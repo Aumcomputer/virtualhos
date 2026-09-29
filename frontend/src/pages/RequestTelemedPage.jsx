@@ -1221,16 +1221,36 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                             <div className="clinical-card">
                               <div className="clinical-card-header">
                                 <div className="header-title-left">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0891b2" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                                  </svg>
                                   <span>เวชภัณฑ์ / อื่นๆ (Non-drug Items)</span>
                                 </div>
+                                <span className="badge badge-primary font-mono" style={{ fontSize: '0.6875rem' }}>
+                                  {parseLines(visitDetail.visit.nondrug_concat).length} รายการ
+                                </span>
                               </div>
-                              <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
-                                <div className="diag-list">
-                                  {parseLines(visitDetail.visit.nondrug_concat).map((line, ndIdx) => (
-                                    <div key={ndIdx} className="diag-item">
-                                      {line}
-                                    </div>
-                                  ))}
+                              <div className="clinical-card-body" style={{ padding: '4px 8px' }}>
+                                <div className="meds-compact-table-wrap">
+                                  <table className="meds-compact-table">
+                                    <tbody>
+                                      {parseLines(visitDetail.visit.nondrug_concat).map((itemLine, ndIdx) => {
+                                        const parts = itemLine.split('#');
+                                        const itemName = parts[0] ? parts[0].trim() : itemLine;
+                                        const qty = parts[1] ? parts[1].trim() : '';
+
+                                        return (
+                                          <tr key={ndIdx}>
+                                            <td className="med-col-num">#{ndIdx + 1}</td>
+                                            <td className="med-col-name">{itemName}</td>
+                                            <td className="med-col-qty">{qty ? `${qty} หน่วย` : ''}</td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
                                 </div>
                               </div>
                             </div>
