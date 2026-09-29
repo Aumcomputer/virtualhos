@@ -661,6 +661,29 @@ a {
   color: var(--gray-400);
 }
 
+.search-clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+}
+
+.search-clear-btn:hover {
+  color: var(--gray-700);
+  background: var(--gray-200);
+}
+
 .date-picker-group {
   display: flex;
   align-items: center;
@@ -2828,7 +2851,7 @@ a {
 .th-sort-wrapper {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
 }
 
 .sort-indicator {
@@ -2842,102 +2865,267 @@ a {
   color: var(--gray-300);
 }
 
-/* Clickable patient link */
-.patient-click-link {
+/* Telemed Workflow Table Specifics */
+.telemed-workflow-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.telemed-workflow-table th {
+  background: #f8fafc;
+  padding: 12px 14px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: 0.02em;
+  border-bottom: 2px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.telemed-workflow-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+
+.telemed-workflow-table tbody tr {
+  transition: background-color var(--transition-fast);
+}
+
+.telemed-workflow-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* HN Badge Button */
+.hn-badge-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  font-family: var(--font-mono, 'SF Mono', Consolas, monospace);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.hn-badge-btn:hover {
+  background: #dbeafe;
+  border-color: #93c5fd;
+  color: #1e40af;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Patient Name Cell */
+.patient-cell-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.patient-avatar-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e0f2fe 0%, #dbeafe 100%);
+  color: #0369a1;
+  font-weight: 700;
+  font-size: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid #bae6fd;
+}
+
+.patient-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.patient-name-btn {
   background: none;
   border: none;
   padding: 0;
   font-family: inherit;
-  font-size: inherit;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: var(--primary-600);
+  color: #0f172a;
   cursor: pointer;
   text-align: left;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  white-space: nowrap;
   transition: color var(--transition-fast);
 }
 
-.patient-click-link:hover {
-  color: var(--primary-800);
+.patient-name-btn:hover {
+  color: #0284c7;
   text-decoration: underline;
 }
 
-/* Row action buttons */
-.queue-action-group {
+.patient-sub-cue {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+/* Appointment Date Badge */
+.appt-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 6px;
+  color: #047857;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Request Date Cell */
+.req-date-cell {
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.req-date-main {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #334155;
+}
+
+.req-date-sub {
+  font-size: 0.6875rem;
+  color: #94a3b8;
+}
+
+/* Doctor Name Cell */
+.doctor-name-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: #334155;
+  font-weight: 500;
+}
+
+/* Phone Cell */
+.phone-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #475569;
+  text-decoration: none;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8125rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.phone-link:hover {
+  background: #f1f5f9;
+  color: #0284c7;
+  text-decoration: none;
+}
+
+/* Symptoms / Reason Box */
+.symptoms-text-box {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8125rem;
+  color: #475569;
+}
+
+/* Modern Action Buttons */
+.queue-action-group {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   flex-wrap: nowrap;
 }
 
-.btn-queue-action {
+.btn-action-pill {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  border-radius: var(--radius-sm);
+  gap: 5px;
+  padding: 5px 11px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
   cursor: pointer;
   white-space: nowrap;
   transition: all var(--transition-fast);
   border: 1px solid transparent;
+  line-height: 1.4;
+  outline: none;
 }
 
-.btn-queue-receive {
-  background: var(--primary-50);
-  color: var(--primary-700);
-  border-color: var(--primary-200);
-}
-.btn-queue-receive:hover {
-  background: var(--primary-600);
-  color: white;
-  border-color: var(--primary-600);
+.btn-action-pill svg {
+  flex-shrink: 0;
 }
 
-.btn-queue-approve {
-  background: var(--success-50);
-  color: var(--success-700);
-  border-color: var(--success-200);
+.btn-action-receive {
+  background: #2563eb;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2);
 }
-.btn-queue-approve:hover {
-  background: var(--success-600);
-  color: white;
-  border-color: var(--success-600);
-}
-
-.btn-queue-reject {
-  background: var(--error-50);
-  color: var(--error-700);
-  border-color: var(--error-200);
-}
-.btn-queue-reject:hover {
-  background: var(--error-600);
-  color: white;
-  border-color: var(--error-600);
+.btn-action-receive:hover {
+  background: #1d4ed8;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.3);
 }
 
-.btn-queue-deliver {
-  background: #ede9fe;
-  color: #6d28d9;
-  border-color: #ddd6fe;
+.btn-action-approve {
+  background: #059669;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(5, 150, 105, 0.2);
 }
-.btn-queue-deliver:hover {
+.btn-action-approve:hover {
+  background: #047857;
+  box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);
+}
+
+.btn-action-reject {
+  background: #ffffff;
+  color: #dc2626;
+  border-color: #fecaca;
+}
+.btn-action-reject:hover {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.btn-action-deliver {
   background: #7c3aed;
-  color: white;
-  border-color: #7c3aed;
+  color: #ffffff;
+  box-shadow: 0 1px 2px rgba(124, 58, 237, 0.2);
+}
+.btn-action-deliver:hover {
+  background: #6d28d9;
+  box-shadow: 0 2px 4px rgba(124, 58, 237, 0.3);
 }
 
-.btn-queue-view {
-  background: var(--gray-100);
-  color: var(--gray-700);
-  border-color: var(--gray-200);
+.btn-action-history {
+  background: #ffffff;
+  color: #475569;
+  border-color: #cbd5e1;
 }
-.btn-queue-view:hover {
-  background: var(--gray-200);
-  color: var(--gray-900);
+.btn-action-history:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
 }
 
 /* Stage summary pills bar */

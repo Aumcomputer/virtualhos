@@ -34,6 +34,48 @@ function formatThaiDateTime(dateTimeStr) {
   }
 }
 
+function formatThaiTime(dateTimeStr) {
+  if (!dateTimeStr) return '';
+  try {
+    const d = new Date(dateTimeStr);
+    if (isNaN(d.getTime())) return '';
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${hours}:${mins}`;
+  } catch {
+    return '';
+  }
+}
+
+function formatDoctorName(raw) {
+  if (!raw) return '—';
+  if (raw.includes(',')) {
+    const parts = raw.split(',').map((s) => s.trim());
+    if (parts.length === 2 && parts[1]) {
+      return `${parts[1]} ${parts[0]}`;
+    }
+  }
+  return raw;
+}
+
+function formatPhone(phone) {
+  if (!phone) return '—';
+  const clean = String(phone).replace(/\D/g, '');
+  if (clean.length === 10) {
+    return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6)}`;
+  }
+  if (clean.length === 9) {
+    return `${clean.slice(0, 2)}-${clean.slice(2, 5)}-${clean.slice(5)}`;
+  }
+  return phone;
+}
+
+function getPatientInitials(name) {
+  if (!name) return 'ผป';
+  const clean = name.replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|น\.ส\.)\s*/, '').trim();
+  return clean ? clean.slice(0, 2) : 'ผป';
+}
+
 function getStatusBadgeConfig(status) {
   const str = String(status || '').trim();
   if (str.includes('รอตรวจสอบ')) {
@@ -462,32 +504,38 @@ export default function RequestTelemedPage({ stage = 'all' }) {
           </NavLink>
         </div>
 
-        {/* Filter & Search Bar */}
-        <div className="telemed-card filter-card">
-          <div className="filter-row">
-            <div className="search-box-wrapper" style={{ flex: 1 }}>
+        {/* Table Card containing Toolbar & Data Table */}
+        <div className="table-card">
+          {/* Table Toolbar */}
+          <div className="table-toolbar">
+            <div className="search-box" style={{ maxWidth: '420px' }}>
               <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input
                 type="text"
-                className="form-input search-input"
+                className="search-input"
                 placeholder="ค้นหา HN, ชื่อผู้ป่วย, เบอร์โทร, คลินิก, แพทย์, เลขพัสดุ..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
               {search && (
-                <button type="button" className="search-clear-btn" onClick={() => setSearch('')}>
+                <button
+                  type="button"
+                  className="search-clear-btn"
+                  onClick={() => setSearch('')}
+                  title="ล้างการค้นหา"
+                >
                   ✕
                 </button>
               )}
             </div>
 
-            {stage === 'all' && (
-              <div className="status-filter-wrapper">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {stage === 'all' && (
                 <select
-                  className="form-select"
+                  className="filter-select"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -499,22 +547,26 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   <option value="จัดส่งเรียบร้อย">จัดส่งเรียบร้อย</option>
                   <option value="ไม่อนุมัติ">ไม่อนุมัติ / ยาส่งไม่ได้</option>
                 </select>
-              </div>
-            )}
+              )}
 
-            <button type="button" className="btn btn-secondary" onClick={() => fetchData()} title="รีเฟรชข้อมูล">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-              </svg>
-              รีเฟรช
-            </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => fetchData()}
+                title="รีเฟรชข้อมูล"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>รีเฟรช</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* Data Table */}
-        <div className="telemed-card table-card">
-          <div className="table-responsive">
-            <table className="telemed-table">
+          {/* Data Table Wrapper */}
+          <div className="data-table-wrapper">
+            <table className="data-table telemed-workflow-table">
               <thead>
                 <tr>
                   <th style={{ width: '45px', textAlign: 'center' }}>#</th>
@@ -571,30 +623,30 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                     </th>
                   )}
 
-                  <th style={{ textAlign: 'center', minWidth: '150px' }}>การดำเนินการ</th>
+                  <th style={{ textAlign: 'center', minWidth: '160px' }}>การดำเนินการ</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '40px' }}>
-                      <div className="loading-spinner-wrapper">
-                        <svg className="spin-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                      <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
+                        <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                         </svg>
-                        <span style={{ marginLeft: '10px' }}>กำลังโหลดข้อมูล...</span>
+                        <span style={{ fontSize: '0.875rem' }}>กำลังโหลดข้อมูล...</span>
                       </div>
                     </td>
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={11} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
-                        <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '4px' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           {meta.emptyText}
                         </div>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
-                          {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างตัวกรอง' : 'เมื่อมีรายการคำขอใหม่จะแสดงในตารางนี้'}
+                          {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างช่องค้นหา' : 'เมื่อมีรายการคำขอใหม่จะแสดงในตารางนี้'}
                         </div>
                       </div>
                     </td>
@@ -605,81 +657,143 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                     const badge = getStatusBadgeConfig(item.status);
 
                     return (
-                      <tr key={item.id} className="table-row-hover">
-                        <td style={{ textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8125rem' }}>
+                      <tr key={item.id}>
+                        {/* 1. Row index */}
+                        <td style={{ textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
                           {rowNumber}
                         </td>
-                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.8125rem' }}>
-                          {formatThaiDateTime(item.created_at)}
+
+                        {/* 2. Request Date */}
+                        <td>
+                          <div className="req-date-cell">
+                            <span className="req-date-main">{formatThaiDate(item.created_at)}</span>
+                            {formatThaiTime(item.created_at) && (
+                              <span className="req-date-sub">{formatThaiTime(item.created_at)} น.</span>
+                            )}
+                          </div>
                         </td>
-                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600, fontSize: '0.875rem' }}>
-                          {formatThaiDate(item.nextdate)}
+
+                        {/* 3. Appointment Date */}
+                        <td>
+                          <span className="appt-date-badge">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                              <line x1="16" y1="2" x2="16" y2="6" />
+                              <line x1="8" y1="2" x2="8" y2="6" />
+                              <line x1="3" y1="10" x2="21" y2="10" />
+                            </svg>
+                            <span>{formatThaiDate(item.nextdate)}</span>
+                          </span>
                         </td>
+
+                        {/* 4. HN Badge Button */}
                         <td>
                           <button
                             type="button"
-                            className="patient-click-link font-mono"
+                            className="hn-badge-btn"
                             onClick={() => openVisitModal(item)}
                             title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
                           >
                             {item.hn}
                           </button>
                         </td>
+
+                        {/* 5. Patient Name */}
                         <td>
-                          <button
-                            type="button"
-                            className="patient-click-link"
-                            onClick={() => openVisitModal(item)}
-                            title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
-                          >
-                            {item.patient_name || '—'}
-                          </button>
+                          <div className="patient-cell-wrapper">
+                            <div className="patient-avatar-dot">
+                              {getPatientInitials(item.patient_name)}
+                            </div>
+                            <div className="patient-meta">
+                              <button
+                                type="button"
+                                className="patient-name-btn"
+                                onClick={() => openVisitModal(item)}
+                                title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
+                              >
+                                {item.patient_name || '—'}
+                              </button>
+                              <span className="patient-sub-cue">คลิกดูประวัติการตรวจ</span>
+                            </div>
+                          </div>
                         </td>
-                        <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
+
+                        {/* 6. Clinic Name */}
+                        <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)', whiteSpace: 'nowrap' }}>
                           {item.clinic_name || '—'}
                         </td>
-                        <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
-                          {item.doctor_name || '—'}
+
+                        {/* 7. Doctor Name */}
+                        <td>
+                          <div className="doctor-name-badge">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M4.8 2.3A.3.3 0 1 0 5 2H4a2 2 0 0 0-2 2v5a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6V4a2 2 0 0 0-2-2h-1a.2.2 0 1 0 .3.3"/>
+                              <path d="M8 15v1a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/>
+                              <circle cx="20" cy="10" r="2"/>
+                            </svg>
+                            <span>{formatDoctorName(item.doctor_name)}</span>
+                          </div>
                         </td>
-                        <td style={{ maxWidth: '180px' }} title={`${item.reason || ''} / ${item.symptoms || ''}`}>
-                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.8125rem' }}>
+
+                        {/* 8. Symptoms / Reason */}
+                        <td>
+                          <div className="symptoms-text-box" title={`${item.reason || ''}${item.symptoms ? ' | อาการ: ' + item.symptoms : ''}`}>
                             {item.symptoms || item.reason || '—'}
                           </div>
                         </td>
-                        <td style={{ whiteSpace: 'nowrap', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
-                          {item.phone || '—'}
+
+                        {/* 9. Phone Number */}
+                        <td>
+                          {item.phone ? (
+                            <a href={`tel:${item.phone}`} className="phone-link" title="โทรออก">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                              </svg>
+                              <span>{formatPhone(item.phone)}</span>
+                            </a>
+                          ) : (
+                            <span style={{ color: 'var(--gray-400)', fontSize: '0.8125rem' }}>—</span>
+                          )}
                         </td>
 
-                        {/* Stage context column */}
+                        {/* 10. Stage context column */}
                         {stage === 'receive' && (
-                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-                            {item.request_by || 'คนไข้ (LINE)'}
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)', whiteSpace: 'nowrap' }}>
+                            <span className="badge badge-neutral">{item.request_by || 'คนไข้ (LINE)'}</span>
                           </td>
                         )}
                         {stage === 'doctor' && (
-                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-                            <div>{item.received_by || '—'}</div>
-                            <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>
-                              {formatThaiDateTime(item.received_at)}
-                            </div>
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
+                            <div style={{ fontWeight: 600 }}>{item.received_by || '—'}</div>
+                            {item.received_at && (
+                              <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)', marginTop: '2px' }}>
+                                {formatThaiDateTime(item.received_at)}
+                              </div>
+                            )}
                           </td>
                         )}
                         {stage === 'pharmacist' && (
-                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-                            <div style={{ fontWeight: 500 }}>{item.doctor_approved_by || 'แพทย์อนุมัติ'}</div>
+                          <td style={{ fontSize: '0.8125rem' }}>
+                            <div style={{ fontWeight: 600, color: '#047857' }}>
+                              {item.doctor_approved_by || 'แพทย์อนุมัติ'}
+                            </div>
                             {item.doctor_remark && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--primary-700)' }}>
-                                {item.doctor_remark}
+                              <div style={{ fontSize: '0.75rem', color: 'var(--primary-700)', marginTop: '2px' }}>
+                                หมายเหตุ: {item.doctor_remark}
                               </div>
                             )}
                           </td>
                         )}
                         {stage === 'approved' && (
-                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
-                            <div>{item.pharmacy_approved_by || item.approve_by || 'เภสัชกร'}</div>
-                            <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)' }}>
-                              {formatThaiDateTime(item.pharmacy_approved_at || item.approve_at)}
+                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
+                            <div style={{ fontWeight: 600, color: '#047857' }}>
+                              {item.pharmacy_approved_by || item.approve_by || 'เภสัชกร'}
                             </div>
+                            {(item.pharmacy_approved_at || item.approve_at) && (
+                              <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)', marginTop: '2px' }}>
+                                {formatThaiDateTime(item.pharmacy_approved_at || item.approve_at)}
+                              </div>
+                            )}
                           </td>
                         )}
                         {(stage === 'today' || stage === 'all') && (
@@ -688,23 +802,26 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                               {badge.label}
                             </span>
                             {item.tracking_number && (
-                              <div style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: 'var(--primary-700)', marginTop: '2px' }}>
-                                พัสดุ: {item.tracking_number}
+                              <div style={{ fontSize: '0.6875rem', fontFamily: 'monospace', color: '#6d28d9', marginTop: '3px', fontWeight: 600 }}>
+                                📦 {item.tracking_number}
                               </div>
                             )}
                           </td>
                         )}
 
-                        {/* Action buttons */}
+                        {/* 11. Action Buttons */}
                         <td style={{ textAlign: 'center' }}>
-                          <div className="queue-action-group" style={{ justifyContent: 'center' }}>
+                          <div className="queue-action-group">
                             {stage === 'receive' && (
                               <button
                                 type="button"
-                                className="btn-queue-action btn-queue-receive"
+                                className="btn-action-pill btn-action-receive"
                                 onClick={() => handleReceive(item)}
                               >
-                                รับเรื่อง
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                <span>รับเรื่อง</span>
                               </button>
                             )}
 
@@ -712,17 +829,24 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                               <>
                                 <button
                                   type="button"
-                                  className="btn-queue-action btn-queue-approve"
+                                  className="btn-action-pill btn-action-approve"
                                   onClick={() => handleDoctorApprove(item)}
                                 >
-                                  แพทย์อนุมัติ
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  <span>แพทย์อนุมัติ</span>
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-queue-action btn-queue-reject"
+                                  className="btn-action-pill btn-action-reject"
                                   onClick={() => openRejectModal(item, 'doctor')}
                                 >
-                                  ไม่อนุมัติ
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                  <span>ไม่อนุมัติ</span>
                                 </button>
                               </>
                             )}
@@ -731,17 +855,24 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                               <>
                                 <button
                                   type="button"
-                                  className="btn-queue-action btn-queue-approve"
+                                  className="btn-action-pill btn-action-approve"
                                   onClick={() => handlePharmacyApprove(item)}
                                 >
-                                  ยาส่งได้
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <polyline points="20 6 9 17 4 12" />
+                                  </svg>
+                                  <span>ยาส่งได้</span>
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn-queue-action btn-queue-reject"
+                                  className="btn-action-pill btn-action-reject"
                                   onClick={() => openRejectModal(item, 'pharmacist')}
                                 >
-                                  ยาส่งไม่ได้
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                  <span>ส่งไม่ได้</span>
                                 </button>
                               </>
                             )}
@@ -749,21 +880,34 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                             {stage === 'approved' && (
                               <button
                                 type="button"
-                                className="btn-queue-action btn-queue-deliver"
+                                className="btn-action-pill btn-action-deliver"
                                 onClick={() => openDeliveryModal(item)}
                               >
-                                จัดส่งยา
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <rect x="1" y="3" width="15" height="13" />
+                                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                                  <circle cx="5.5" cy="18.5" r="2.5" />
+                                  <circle cx="18.5" cy="18.5" r="2.5" />
+                                </svg>
+                                <span>จัดส่งยา</span>
                               </button>
                             )}
 
-                            {/* View Clinical Details */}
+                            {/* View Clinical Details (All stages) */}
                             <button
                               type="button"
-                              className="btn-queue-action btn-queue-view"
+                              className="btn-action-pill btn-action-history"
                               onClick={() => openVisitModal(item)}
                               title="ดูรายละเอียดการตรวจใน HOSxP"
                             >
-                              ประวัติ
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                                <line x1="16" y1="13" x2="8" y2="13" />
+                                <line x1="16" y1="17" x2="8" y2="17" />
+                                <polyline points="10 9 9 9 8 9" />
+                              </svg>
+                              <span>ประวัติ</span>
                             </button>
                           </div>
                         </td>
@@ -775,13 +919,18 @@ export default function RequestTelemedPage({ stage = 'all' }) {
             </table>
           </div>
 
-          {/* Pagination */}
-          {pagination.totalPages > 1 && (
-            <div className="table-pagination">
-              <span className="pagination-info">
-                แสดง {data.length} รายการ จากทั้งหมด {pagination.total} รายการ
-              </span>
-              <div className="pagination-controls">
+          {/* Table Footer & Pagination */}
+          <div className="table-footer" style={{ padding: '14px 20px', borderTop: '1px solid var(--gray-100)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+              {pagination.total > 0 ? (
+                <>แสดง {((page - 1) * limit) + 1} - {Math.min(page * limit, pagination.total)} จากทั้งหมด <strong>{pagination.total}</strong> รายการ</>
+              ) : (
+                '0 รายการ'
+              )}
+            </div>
+
+            {pagination.totalPages > 1 && (
+              <div className="pagination-controls" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
@@ -790,7 +939,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                 >
                   ย้อนกลับ
                 </button>
-                <span className="pagination-pages">
+                <span className="pagination-pages" style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
                   หน้า {page} / {pagination.totalPages}
                 </span>
                 <button
@@ -802,8 +951,8 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   ถัดไป
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
