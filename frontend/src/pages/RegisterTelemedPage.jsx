@@ -32,6 +32,20 @@ function formatThaiDate(dateStr) {
   }
 }
 
+function formatToYMD(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    const year = val.getFullYear();
+    const month = String(val.getMonth() + 1).padStart(2, '0');
+    const day = String(val.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  const s = String(val).trim();
+  const match = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  return s;
+}
+
 export default function RegisterTelemedPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -90,7 +104,10 @@ export default function RegisterTelemedPage() {
   };
 
   const handleSelectAppt = (appt) => {
-    if (appt.existingRequest || appt.isDateAllowed === false) return;
+    const thresholdDate = maxApptDate || '2026-10-14';
+    const apptYMD = formatToYMD(appt.nextdate);
+    const isDisallowed = appt.isDateAllowed === false || (Boolean(thresholdDate) && Boolean(apptYMD) && apptYMD > thresholdDate);
+    if (appt.existingRequest || isDisallowed) return;
 
     setSelectedAppt(appt);
     setReason('');
@@ -333,7 +350,9 @@ export default function RegisterTelemedPage() {
                   {appointments.map((appt) => {
                     const isSelected = selectedAppt?.oappId === appt.oappId;
                     const hasReq = Boolean(appt.existingRequest);
-                    const isDisallowed = appt.isDateAllowed === false;
+                    const thresholdDate = maxApptDate || '2026-10-14';
+                    const apptYMD = formatToYMD(appt.nextdate);
+                    const isDisallowed = appt.isDateAllowed === false || (Boolean(thresholdDate) && Boolean(apptYMD) && apptYMD > thresholdDate);
                     const isDisabled = hasReq || isDisallowed;
 
                     let cardClass = 'reg-appt-card';
@@ -395,13 +414,13 @@ export default function RegisterTelemedPage() {
                               ยื่นคำขอแล้ว ({appt.existingRequest.status || 'รอตรวจสอบ'})
                             </div>
                           ) : isDisallowed ? (
-                            <div className="disallowed-req-note" title={appt.dateDisallowedReason || ''}>
+                            <div className="disallowed-req-note" title={appt.dateDisallowedReason || `วันนัดหมายเกินกำหนด (เปิดรับเฉพาะนัดหมายไม่เกิน ${formatThaiDate(thresholdDate)})`}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <circle cx="12" cy="12" r="10" />
                                 <line x1="12" y1="8" x2="12" y2="12" />
                                 <line x1="12" y1="16" x2="12.01" y2="16" />
                               </svg>
-                              <span>ไม่สามารถเลือกได้ (เปิดรับเฉพาะนัดหมายไม่เกิน {formatThaiDate(maxApptDate)})</span>
+                              <span>เกินกำหนดเปิดรับ (ไม่สามารถเลือกรอบนี้ได้)</span>
                             </div>
                           ) : isSelected ? (
                             <div className="selected-indicator">
