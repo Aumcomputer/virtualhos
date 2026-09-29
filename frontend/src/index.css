@@ -3505,25 +3505,21 @@ a {
 }
 
 .cc-pe-card.cc-card {
-  border-left: 4px solid #0284c7;
   background: #f8fafc;
 }
 
 .cc-pe-card.cc-card:hover {
   background: #f0f9ff;
   border-color: #bae6fd;
-  border-left-color: #0284c7;
 }
 
 .cc-pe-card.pe-card {
-  border-left: 4px solid #059669;
   background: #f8fafc;
 }
 
 .cc-pe-card.pe-card:hover {
   background: #f0fdf4;
   border-color: #bbf7d0;
-  border-left-color: #059669;
 }
 
 .cc-pe-header {
