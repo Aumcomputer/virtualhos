@@ -118,8 +118,14 @@ router.get('/', authenticateToken, async (req, res) => {
       // 5. รายการที่อนุมัติ: ผ่านการอนุมัติแล้ว รอจัดส่ง
       whereConditions.push("(status LIKE '%สามารถจัดส่งได้%' AND (tracking_number IS NULL OR tracking_number = ''))");
     } else if (stage === 'today') {
-      // 7. "รับยาไม่พบแพทย์"วันนี้: ดึงเฉพาะคำขอใน virtualhos.req_telemed ที่มีนัดหมายวันนี้
-      whereConditions.push('DATE(nextdate) = CURDATE()');
+      // 7. "รับยาไม่พบแพทย์"วันนี้: ดึงเฉพาะคำขอใน virtualhos.req_telemed ที่มีนัดหมายตามวันที่เลือก (ค่าเริ่มต้นวันนี้)
+      const targetDate = (req.query.date || req.query.startDate || '').trim();
+      if (targetDate) {
+        whereConditions.push('DATE(nextdate) = ?');
+        params.push(targetDate);
+      } else {
+        whereConditions.push('DATE(nextdate) = CURDATE()');
+      }
     }
 
     // Search condition
@@ -153,14 +159,16 @@ router.get('/', authenticateToken, async (req, res) => {
       }
     }
 
-    // Date range filter on created_at or nextdate
-    if (startDate) {
-      whereConditions.push('DATE(created_at) >= ?');
-      params.push(startDate);
-    }
-    if (endDate) {
-      whereConditions.push('DATE(created_at) <= ?');
-      params.push(endDate);
+    // Date range filter on created_at (for stages other than today)
+    if (stage !== 'today') {
+      if (startDate) {
+        whereConditions.push('DATE(created_at) >= ?');
+        params.push(startDate);
+      }
+      if (endDate) {
+        whereConditions.push('DATE(created_at) <= ?');
+        params.push(endDate);
+      }
     }
 
     const whereClause = whereConditions.join(' AND ');

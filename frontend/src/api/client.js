@@ -148,11 +148,12 @@ export const api = {
     }),
 
   // Request Telemed (req_telemed)
-  getRequestTelemed: ({ page = 1, limit = 20, search = '', status = '', stage = '', startDate = '', endDate = '', sortBy = '', sortOrder = '' } = {}) => {
+  getRequestTelemed: ({ page = 1, limit = 20, search = '', status = '', stage = '', date = '', startDate = '', endDate = '', sortBy = '', sortOrder = '' } = {}) => {
     const params = new URLSearchParams({ page, limit });
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (stage) params.set('stage', stage);
+    if (date) params.set('date', date);
     if (startDate) params.set('startDate', startDate);
     if (endDate) params.set('endDate', endDate);
     if (sortBy) params.set('sortBy', sortBy);

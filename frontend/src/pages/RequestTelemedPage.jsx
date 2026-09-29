@@ -2,6 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import { api } from '../api/client';
 
+function getTodayStr() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 function formatThaiDate(dateStr) {
   if (!dateStr) return '—';
   try {
@@ -173,6 +181,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
   // Filters & sorting states
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [sortBy, setSortBy] = useState('created_at');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
@@ -211,6 +220,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
         search,
         status: stage === 'all' ? statusFilter : '',
         stage,
+        date: stage === 'today' ? selectedDate : '',
         sortBy,
         sortOrder,
       });
@@ -223,16 +233,16 @@ export default function RequestTelemedPage({ stage = 'all' }) {
     } finally {
       setLoading(false);
     }
-  }, [page, search, statusFilter, stage, sortBy, sortOrder]);
+  }, [page, search, statusFilter, stage, selectedDate, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // Reset page when search or stage changes
+  // Reset page when search, stage, or selectedDate changes
   useEffect(() => {
     setPage(1);
-  }, [search, stage, statusFilter]);
+  }, [search, stage, statusFilter, selectedDate]);
 
   // Clear toast after 4s
   useEffect(() => {
@@ -442,9 +452,63 @@ export default function RequestTelemedPage({ stage = 'all' }) {
       <div className="page-header">
         <div className="page-title-row">
           <div>
-            <h2 className="page-title">{meta.title}</h2>
-            <p className="page-subtitle">{meta.subtitle}</p>
+            <h2 className="page-title">
+              {stage === 'today' && selectedDate !== getTodayStr()
+                ? `“รับยาไม่พบแพทย์” วันที่ ${formatThaiDate(selectedDate)}`
+                : meta.title}
+            </h2>
+            <p className="page-subtitle">
+              {stage === 'today' && selectedDate !== getTodayStr()
+                ? `คำขอรับยาไม่พบแพทย์ที่มีวันนัดหมายตรงกับวันที่ ${formatThaiDate(selectedDate)}`
+                : meta.subtitle}
+            </p>
           </div>
+
+          {stage === 'today' && (
+            <div className="page-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="date-picker-group" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <label htmlFor="today-date-picker" style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--gray-700)', whiteSpace: 'nowrap' }}>
+                  เลือกวันที่:
+                </label>
+                <input
+                  id="today-date-picker"
+                  className="date-input"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  style={{
+                    height: '38px',
+                    padding: '6px 12px',
+                    fontSize: '0.875rem',
+                    border: '1.5px solid var(--gray-200)',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'white',
+                    color: 'var(--gray-800)',
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                  }}
+                />
+                {selectedDate !== getTodayStr() && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setSelectedDate(getTodayStr())}
+                    title="กลับไปดูวันนี้"
+                    style={{
+                      height: '38px',
+                      padding: '6px 12px',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                      borderRadius: 'var(--radius-md)',
+                    }}
+                  >
+                    วันนี้
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -644,7 +708,9 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                     <td colSpan={hasActionColumn ? 10 : 9} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
-                          {meta.emptyText}
+                          {stage === 'today' && selectedDate !== getTodayStr()
+                            ? `ไม่มีรายการคำขอรับยาไม่พบแพทย์ที่มีนัดหมายในวันที่ ${formatThaiDate(selectedDate)}`
+                            : meta.emptyText}
                         </div>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
                           {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างช่องค้นหา' : 'เมื่อมีรายการคำขอใหม่จะแสดงในตารางนี้'}
