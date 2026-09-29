@@ -1463,15 +1463,14 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                 ปิดหน้าต่าง
               </button>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap' }}>
                 {stage === 'receive' && (
                   <button
                     type="button"
                     className="btn btn-primary"
-                    style={{ padding: '8px 24px', fontSize: '0.9375rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     onClick={() => handleReceive(visitModalItem)}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
                     <span>รับเรื่อง</span>
