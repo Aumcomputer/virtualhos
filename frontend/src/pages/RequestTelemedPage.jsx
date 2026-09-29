@@ -1084,16 +1084,36 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                             </div>
                           </div>
 
-                          {(visitDetail.visit.cc || visitDetail.visit.pe) && (
-                            <div className="vitals-notes-box">
-                              {visitDetail.visit.cc && (
-                                <div><strong>อาการสำคัญ (CC):</strong> {visitDetail.visit.cc}</div>
-                              )}
-                              {visitDetail.visit.pe && (
-                                <div><strong>ตรวจร่างกาย (PE):</strong> {visitDetail.visit.pe}</div>
-                              )}
+                          {/* CC & PE (Chief Complaint & Physical Examination) */}
+                          <div className="clinical-cc-pe-grid">
+                            <div className="cc-pe-card cc-card">
+                              <div className="cc-pe-header">
+                                <span className="cc-pe-tag cc-tag">CC</span>
+                                <span className="cc-pe-title">อาการสำคัญ (Chief Complaint)</span>
+                              </div>
+                              <div className="cc-pe-body">
+                                {visitDetail.visit.cc ? (
+                                  <div className="cc-pe-text">{visitDetail.visit.cc}</div>
+                                ) : (
+                                  <div className="cc-pe-empty">— ไม่ได้ระบุข้อมูลอาการสำคัญ —</div>
+                                )}
+                              </div>
                             </div>
-                          )}
+
+                            <div className="cc-pe-card pe-card">
+                              <div className="cc-pe-header">
+                                <span className="cc-pe-tag pe-tag">PE</span>
+                                <span className="cc-pe-title">การตรวจร่างกาย (Physical Examination)</span>
+                              </div>
+                              <div className="cc-pe-body">
+                                {visitDetail.visit.pe ? (
+                                  <div className="cc-pe-text">{visitDetail.visit.pe}</div>
+                                ) : (
+                                  <div className="cc-pe-empty">— ไม่ได้ระบุข้อมูลการตรวจร่างกาย —</div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </>
                       ) : (
                         <div style={{ color: 'var(--gray-500)', fontSize: '0.8125rem' }}>

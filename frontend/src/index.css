@@ -3359,6 +3359,7 @@ a {
   flex-direction: column;
   gap: 14px;
   flex: 1;
+  min-height: 0;
 }
 
 /* Patient quick banner */
@@ -3373,6 +3374,7 @@ a {
   flex-wrap: wrap;
   gap: 12px;
   font-size: 0.8125rem;
+  flex-shrink: 0;
 }
 
 .patient-banner-left {
@@ -3478,18 +3480,101 @@ a {
   margin-left: 2px;
 }
 
-/* CC & PE Note Strip */
-.vitals-notes-box {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #f8fafc;
+/* CC & PE Cards Grid */
+.clinical-cc-pe-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .clinical-cc-pe-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cc-pe-card {
+  border: 1px solid #e2e8f0;
   border-radius: 6px;
-  border: 1px dashed #cbd5e1;
-  font-size: 0.8125rem;
-  color: #334155;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  transition: all var(--transition-fast);
+}
+
+.cc-pe-card.cc-card {
+  border-left: 4px solid #0284c7;
+  background: #f8fafc;
+}
+
+.cc-pe-card.cc-card:hover {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+  border-left-color: #0284c7;
+}
+
+.cc-pe-card.pe-card {
+  border-left: 4px solid #059669;
+  background: #f8fafc;
+}
+
+.cc-pe-card.pe-card:hover {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  border-left-color: #059669;
+}
+
+.cc-pe-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cc-pe-tag {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.cc-tag {
+  background: #0284c7;
+  color: white;
+}
+
+.pe-tag {
+  background: #059669;
+  color: white;
+}
+
+.cc-pe-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.cc-pe-body {
+  font-size: 0.8125rem;
+  color: #334155;
+  line-height: 1.5;
+  min-height: 24px;
+}
+
+.cc-pe-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #0f172a;
+  font-weight: 500;
+}
+
+.cc-pe-empty {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 0.75rem;
 }
 
 /* 2-Column Clinical Dashboard Grid */
@@ -3498,6 +3583,7 @@ a {
   grid-template-columns: 1.25fr 1fr;
   gap: 14px;
   align-items: start;
+  flex-shrink: 0;
 }
 
 @media (max-width: 900px) {
@@ -3512,6 +3598,7 @@ a {
   border-radius: var(--radius-md);
   overflow: hidden;
   background: white;
+  flex-shrink: 0;
 }
 
 .clinical-card-header {
