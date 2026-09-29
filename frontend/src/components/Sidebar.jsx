@@ -88,7 +88,7 @@ export default function Sidebar() {
           ลงทะเบียนวันนี้
         </NavLink>
 
-        {isAdmin && (
+        {(isAdmin || user?.role === 'request_telemed') && (
           <NavLink
             to="/all"
             className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}

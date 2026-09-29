@@ -26,7 +26,7 @@ export default function App() {
             }
           >
             <Route index element={<TodayRegistrations />} />
-            <Route path="all" element={<ProtectedRoute allowedRoles={['admin']}><AllRegistrations /></ProtectedRoute>} />
+            <Route path="all" element={<ProtectedRoute allowedRoles={['admin', 'request_telemed']}><AllRegistrations /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute allowedRoles={['admin']}><SettingsPage /></ProtectedRoute>} />
             <Route path="telemed-dashboard" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedDashboardPage /></ProtectedRoute>} />
             <Route path="telemed-with-doctor" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedCasesPage type="combined" /></ProtectedRoute>} />

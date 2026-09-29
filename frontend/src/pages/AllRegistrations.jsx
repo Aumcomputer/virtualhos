@@ -5,15 +5,18 @@ import { api } from '../api/client';
 import DataTable from '../components/DataTable';
 
 export default function AllRegistrations() {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const canAccess = isAdmin || user?.role === 'request_telemed';
   const navigate = useNavigate();
 
-  // Redirect non-admin users to Telemed page
+  // Redirect users without access
   useEffect(() => {
-    if (!isAdmin) {
-      navigate('/telemed-with-doctor', { replace: true });
+    if (!canAccess) {
+      navigate('/', { replace: true });
     }
-  }, [isAdmin, navigate]);
+  }, [canAccess, navigate]);
+
+  if (!canAccess) return null;
 
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
