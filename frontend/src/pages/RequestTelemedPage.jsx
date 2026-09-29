@@ -422,6 +422,8 @@ export default function RequestTelemedPage({ stage = 'all' }) {
       .filter(Boolean);
   };
 
+  const hasActionColumn = stage === 'doctor' || stage === 'pharmacist' || stage === 'approved';
+
   return (
     <>
       {/* Toast Notification */}
@@ -623,13 +625,15 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                     </th>
                   )}
 
-                  <th style={{ textAlign: 'center', minWidth: '160px' }}>การดำเนินการ</th>
+                  {hasActionColumn && (
+                    <th style={{ textAlign: 'center', minWidth: '160px' }}>การดำเนินการ</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={hasActionColumn ? 11 : 10} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -640,7 +644,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={hasActionColumn ? 11 : 10} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           {meta.emptyText}
@@ -657,7 +661,12 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                     const badge = getStatusBadgeConfig(item.status);
 
                     return (
-                      <tr key={item.id}>
+                      <tr
+                        key={item.id}
+                        className="table-row-clickable"
+                        onClick={() => openVisitModal(item)}
+                        title="คลิกเพื่อดูเหตุผล อาการ และประวัติเดิม"
+                      >
                         {/* 1. Row index */}
                         <td style={{ textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
                           {rowNumber}
@@ -686,28 +695,16 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                           </span>
                         </td>
 
-                        {/* 4. HN Badge Button */}
+                        {/* 4. HN Badge */}
                         <td>
-                          <button
-                            type="button"
-                            className="hn-badge-btn"
-                            onClick={() => openVisitModal(item)}
-                            title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
-                          >
+                          <span className="hn-badge-btn font-mono">
                             {item.hn}
-                          </button>
+                          </span>
                         </td>
 
                         {/* 5. Patient Name */}
-                        <td>
-                          <button
-                            type="button"
-                            className="patient-name-btn"
-                            onClick={() => openVisitModal(item)}
-                            title="คลิกเพื่อดูประวัติการตรวจใน HOSxP"
-                          >
-                            {item.patient_name || '—'}
-                          </button>
+                        <td style={{ fontWeight: 600, color: 'var(--gray-900)', whiteSpace: 'nowrap' }}>
+                          {item.patient_name || '—'}
                         </td>
 
                         {/* 6. Clinic Name */}
@@ -737,7 +734,12 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                         {/* 9. Phone Number */}
                         <td>
                           {item.phone ? (
-                            <a href={`tel:${item.phone}`} className="phone-link" title="โทรออก">
+                            <a
+                              href={`tel:${item.phone}`}
+                              className="phone-link"
+                              title="โทรออก"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
                               </svg>
@@ -801,108 +803,80 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                           </td>
                         )}
 
-                        {/* 11. Action Buttons */}
-                        <td style={{ textAlign: 'center' }}>
-                          <div className="queue-action-group">
-                            {stage === 'receive' && (
-                              <button
-                                type="button"
-                                className="btn-action-pill btn-action-receive"
-                                onClick={() => handleReceive(item)}
-                              >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                                <span>รับเรื่อง</span>
-                              </button>
-                            )}
+                        {/* 11. Action Buttons (Only for doctor, pharmacist, approved) */}
+                        {hasActionColumn && (
+                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                            <div className="queue-action-group">
+                              {stage === 'doctor' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn-action-pill btn-action-approve"
+                                    onClick={() => handleDoctorApprove(item)}
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                    <span>แพทย์อนุมัติ</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-action-pill btn-action-reject"
+                                    onClick={() => openRejectModal(item, 'doctor')}
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="18" y1="6" x2="6" y2="18" />
+                                      <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                    <span>ไม่อนุมัติ</span>
+                                  </button>
+                                </>
+                              )}
 
-                            {stage === 'doctor' && (
-                              <>
+                              {stage === 'pharmacist' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn-action-pill btn-action-approve"
+                                    onClick={() => handlePharmacyApprove(item)}
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12" />
+                                    </svg>
+                                    <span>ยาส่งได้</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-action-pill btn-action-reject"
+                                    onClick={() => openRejectModal(item, 'pharmacist')}
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <line x1="18" y1="6" x2="6" y2="18" />
+                                      <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                    <span>ส่งไม่ได้</span>
+                                  </button>
+                                </>
+                              )}
+
+                              {stage === 'approved' && (
                                 <button
                                   type="button"
-                                  className="btn-action-pill btn-action-approve"
-                                  onClick={() => handleDoctorApprove(item)}
+                                  className="btn-action-pill btn-action-deliver"
+                                  onClick={() => openDeliveryModal(item)}
                                 >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="20 6 9 17 4 12" />
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="1" y="3" width="15" height="13" />
+                                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                                    <circle cx="5.5" cy="18.5" r="2.5" />
+                                    <circle cx="18.5" cy="18.5" r="2.5" />
                                   </svg>
-                                  <span>แพทย์อนุมัติ</span>
+                                  <span>จัดส่งยา</span>
                                 </button>
-                                <button
-                                  type="button"
-                                  className="btn-action-pill btn-action-reject"
-                                  onClick={() => openRejectModal(item, 'doctor')}
-                                >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                  <span>ไม่อนุมัติ</span>
-                                </button>
-                              </>
-                            )}
-
-                            {stage === 'pharmacist' && (
-                              <>
-                                <button
-                                  type="button"
-                                  className="btn-action-pill btn-action-approve"
-                                  onClick={() => handlePharmacyApprove(item)}
-                                >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                  <span>ยาส่งได้</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn-action-pill btn-action-reject"
-                                  onClick={() => openRejectModal(item, 'pharmacist')}
-                                >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <line x1="18" y1="6" x2="6" y2="18" />
-                                    <line x1="6" y1="6" x2="18" y2="18" />
-                                  </svg>
-                                  <span>ส่งไม่ได้</span>
-                                </button>
-                              </>
-                            )}
-
-                            {stage === 'approved' && (
-                              <button
-                                type="button"
-                                className="btn-action-pill btn-action-deliver"
-                                onClick={() => openDeliveryModal(item)}
-                              >
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                  <rect x="1" y="3" width="15" height="13" />
-                                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-                                  <circle cx="5.5" cy="18.5" r="2.5" />
-                                  <circle cx="18.5" cy="18.5" r="2.5" />
-                                </svg>
-                                <span>จัดส่งยา</span>
-                              </button>
-                            )}
-
-                            {/* View Clinical Details (All stages) */}
-                            <button
-                              type="button"
-                              className="btn-action-pill btn-action-history"
-                              onClick={() => openVisitModal(item)}
-                              title="ดูรายละเอียดการตรวจใน HOSxP"
-                            >
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                                <line x1="16" y1="13" x2="8" y2="13" />
-                                <line x1="16" y1="17" x2="8" y2="17" />
-                                <polyline points="10 9 9 9 8 9" />
-                              </svg>
-                              <span>ประวัติ</span>
-                            </button>
-                          </div>
-                        </td>
+                              )}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })
@@ -1359,9 +1333,13 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   <button
                     type="button"
                     className="btn btn-primary"
+                    style={{ padding: '8px 24px', fontSize: '0.9375rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     onClick={() => handleReceive(visitModalItem)}
                   >
-                    รับเรื่อง
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>รับเรื่อง</span>
                   </button>
                 )}
 
