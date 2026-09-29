@@ -75,11 +75,26 @@ export default function RegisterTelemedPage() {
 
   const formRef = useRef(null);
 
+  const handleInputChange = (e) => {
+    // รับเฉพาะตัวเลข สูงสุด 13 หลัก
+    const val = e.target.value.replace(/\D/g, '').slice(0, 13);
+    setHnInput(val);
+    if (searchError) setSearchError('');
+  };
+
   const handleSearch = async (e) => {
     if (e) e.preventDefault();
-    const cleanSearch = hnInput.trim();
-    if (!cleanSearch) {
-      setSearchError('กรุณากรอกเลข HN หรือ เลขประจำตัวประชาชน (CID) ที่ต้องการค้นหา');
+    const cleanDigits = hnInput.replace(/\D/g, '');
+
+    if (!cleanDigits) {
+      setSearchError('กรุณากรอกเลข HN (7 หลัก) หรือ เลขบัตรประชาชน (13 หลัก)');
+      return;
+    }
+
+    if (cleanDigits.length !== 7 && cleanDigits.length !== 13) {
+      setSearchError(
+        `รูปแบบไม่ถูกต้อง: กรุณากรอกเลข HN 7 หลัก หรือ เลขบัตรประชาชน 13 หลัก (ปัจจุบันกรอก ${cleanDigits.length} หลัก)`
+      );
       return;
     }
 
@@ -92,7 +107,7 @@ export default function RegisterTelemedPage() {
     setSubmitError('');
 
     try {
-      const res = await api.getPatientAppointments(cleanHn);
+      const res = await api.getPatientAppointments(cleanDigits);
       setPatient(res.patient);
       setAppointments(res.appointments || []);
       setMaxApptDate(res.maxApptDate || null);
@@ -239,9 +254,11 @@ export default function RegisterTelemedPage() {
                   id="hn-search-input"
                   className="form-input font-mono"
                   type="text"
-                  placeholder="กรอกเลข HN หรือ เลขบัตรประชาชน 13 หลัก"
+                  inputMode="numeric"
+                  maxLength={13}
+                  placeholder="กรอกตัวเลข HN 7 หลัก หรือ CID 13 หลัก"
                   value={hnInput}
-                  onChange={(e) => setHnInput(e.target.value)}
+                  onChange={handleInputChange}
                   disabled={searching}
                   autoFocus
                 />
@@ -263,11 +280,29 @@ export default function RegisterTelemedPage() {
                         <circle cx="11" cy="11" r="8" />
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                       </svg>
-                      ค้นหา
+                      {hnInput.length === 7 ? 'ค้นหา (HN 7 หลัก)' : hnInput.length === 13 ? 'ค้นหา (CID 13 หลัก)' : 'ค้นหา'}
                     </>
                   )}
                 </button>
               </div>
+
+              {hnInput.length > 0 && (
+                <div style={{ marginTop: '8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {hnInput.length === 7 ? (
+                    <span className="badge badge-success" style={{ padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      ✓ รูปแบบ HN (7 หลัก)
+                    </span>
+                  ) : hnInput.length === 13 ? (
+                    <span className="badge badge-primary" style={{ padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>
+                      ✓ รูปแบบเลขบัตรประชาชน CID (13 หลัก)
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--gray-500)' }}>
+                      กรอกแล้ว {hnInput.length} หลัก (ต้องการ 7 หลักสำหรับ HN หรือ 13 หลักสำหรับ CID)
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </form>
 
