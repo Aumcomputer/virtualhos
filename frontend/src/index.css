@@ -3303,9 +3303,9 @@ a {
   background: white;
   border-radius: var(--radius-lg);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  width: 95vw;
-  max-width: 1180px;
-  max-height: 92vh;
+  width: 96vw;
+  max-width: 1440px;
+  max-height: 94vh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -3580,16 +3580,182 @@ a {
 /* 2-Column Clinical Dashboard Grid */
 .clinical-dashboard-grid {
   display: grid;
-  grid-template-columns: 1.25fr 1fr;
-  gap: 14px;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 18px;
   align-items: start;
   flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 960px) {
   .clinical-dashboard-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.clinical-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 700;
+  border: 1.5px solid transparent;
+}
+
+.column-header.left-col-header {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.column-header.right-col-header {
+  background: #faf5ff;
+  border-color: #e9d5ff;
+  color: #6b21a8;
+}
+
+.column-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.visit-date-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #15803d;
+  background: #dcfce7;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+}
+
+.clinical-col-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Appointment Details in Right Column */
+.appt-detail-highlight-card {
+  background: #ffffff;
+  border: 1.5px solid #e9d5ff;
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(124, 58, 237, 0.06);
+}
+
+.appt-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.appt-card-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #6b21a8;
+}
+
+.appt-detail-grid-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.appt-field-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.appt-field-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: #7c3aed;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.appt-field-val {
+  font-size: 0.875rem;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.clinic-pill {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #6b21a8;
+  background: #f3e8ff;
+  border: 1px solid #e9d5ff;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+}
+
+/* Compact Borderless Prescribed Drugs Table */
+.meds-compact-table-wrap {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.meds-compact-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.meds-compact-table tr {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color var(--transition-fast);
+}
+
+.meds-compact-table tr:hover {
+  background-color: #f8fafc;
+}
+
+.meds-compact-table tr:last-child {
+  border-bottom: none;
+}
+
+.meds-compact-table td {
+  padding: 7px 8px;
+  vertical-align: top;
+  font-size: 0.8125rem;
+}
+
+.med-col-num {
+  width: 24px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-align: center;
+}
+
+.med-col-name {
+  font-weight: 500;
+  color: #0f172a;
+  line-height: 1.4;
+}
+
+.med-col-qty {
+  text-align: right;
+  white-space: nowrap;
+  font-weight: 700;
+  color: #1d4ed8;
+  font-size: 0.75rem;
+  padding-left: 10px;
 }
 
 /* Clinical sections */
