@@ -810,14 +810,6 @@ export default function RequestTelemedPage({ stage = 'all' }) {
             <span className="rtm-chip-count">{summary.approved || 0}</span>
           </NavLink>
           <NavLink
-            to="/request-telemed/today"
-            className={({ isActive }) => `rtm-stage-chip ${isActive ? 'active' : ''}`}
-          >
-            <span className="rtm-chip-icon">📅</span>
-            <span>“รับยาไม่พบแพทย์” วันนี้</span>
-            <span className="rtm-chip-count">{summary.today || 0}</span>
-          </NavLink>
-          <NavLink
             to="/request-telemed/all"
             className={({ isActive }) => `rtm-stage-chip ${isActive ? 'active' : ''}`}
           >
