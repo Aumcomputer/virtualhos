@@ -505,7 +505,7 @@ export default function TelemedTodayPharmacyPage() {
                                 Number(item.paid_money) > 0 ? (
                                   <span className="tt-money tt-money-paid-active">{formatMoney(item.paid_money)}</span>
                                 ) : (
-                                  <span className="tt-money tt-money-paid-zero">0.00 (ฟรี)</span>
+                                  <span className="tt-money tt-money-paid-zero">{formatMoney(item.paid_money)}</span>
                                 )
                               ) : (
                                 '—'
