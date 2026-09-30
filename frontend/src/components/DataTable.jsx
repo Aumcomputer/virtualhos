@@ -15,16 +15,6 @@ function formatPhone(phone) {
   return phone;
 }
 
-// Format Thai CID e.g. 1-1002-00123-45-6
-function formatCid(cid) {
-  if (!cid) return '';
-  const cleaned = String(cid).replace(/\D/g, '');
-  if (cleaned.length === 13) {
-    return `${cleaned[0]}-${cleaned.slice(1, 5)}-${cleaned.slice(5, 10)}-${cleaned.slice(10, 12)}-${cleaned[12]}`;
-  }
-  return cid;
-}
-
 // Format Thai Date & Time
 function formatThaiDateTime(dateStr) {
   if (!dateStr) return { date: '-', time: '' };
@@ -105,7 +95,7 @@ export default function DataTable({ data, loading, onPhoneUpdated }) {
       return;
     }
 
-    const patientName = row.fullname || row.display_name || 'คนไข้';
+    const patientName = row.ptname_hos || row.fullname || row.display_name || 'คนไข้';
     const uniqueSendId = `${row.id}-${channel}`;
 
     try {
@@ -169,110 +159,107 @@ export default function DataTable({ data, loading, onPhoneUpdated }) {
         <table className="loa-table">
           <thead>
             <tr>
-              <th className="center" style={{ width: '48px' }}>#</th>
-              <th>ผู้ป่วย / บัญชี LINE</th>
-              <th>HN / เลขบัตรประชาชน</th>
+              <th className="center" style={{ width: '44px' }}>#</th>
+              <th className="center" style={{ width: '56px' }}>รูป</th>
+              <th>LINE Display Name</th>
+              <th>HN</th>
+              <th>ชื่อ-นามสกุล (HOSxP)</th>
               <th>เบอร์โทรศัพท์</th>
-              <th>Health ID / IAL</th>
-              <th>วันที่ลงทะเบียน</th>
-              <th className="center" style={{ width: '190px' }}>ทดสอบ Telemed</th>
+              <th className="center">IAL Level</th>
+              <th>Health ID</th>
+              <th>วันที่สมัคร</th>
+              <th className="center" style={{ minWidth: '210px' }}>ทดสอบ Telemed</th>
             </tr>
           </thead>
           <tbody>
             {data.map((row, idx) => {
               const dt = formatThaiDateTime(row.created_at);
               const displayName = row.display_name || '-';
-              const fullName = row.fullname || displayName;
-              const hasSeparateName = row.fullname && row.fullname !== row.display_name;
+              const ptName = row.ptname_hos || row.fullname || '-';
               const isLineSending = sendingId === `${row.id}-line`;
               const isMophSending = sendingId === `${row.id}-moph`;
               const isLineActive = row.has_telemed || activeSessions[`${row.hn}-line`];
               const isMophActive = row.has_telemed_moph || activeSessions[`${row.hn}-moph`];
 
               // Generate fallback initial
-              const initial = (fullName.charAt(0) || '?').toUpperCase();
+              const initial = (displayName.charAt(0) || ptName.charAt(0) || '?').toUpperCase();
 
               return (
                 <tr key={row.id}>
                   {/* # */}
                   <td className="loa-col-index">{idx + 1}</td>
 
-                  {/* Patient Profile */}
-                  <td>
-                    <div className="loa-patient-cell">
-                      <div className="loa-avatar-wrap">
-                        {row.picture_url ? (
-                          <img
-                            className="loa-avatar-img"
-                            src={row.picture_url}
-                            alt={`${displayName} avatar`}
-                            loading="lazy"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              if (e.target.nextElementSibling) {
-                                e.target.nextElementSibling.style.display = 'flex';
-                              }
-                            }}
-                          />
-                        ) : null}
-                        <div
-                          className="loa-avatar-fallback"
-                          style={{ display: row.picture_url ? 'none' : 'flex' }}
-                        >
-                          {initial}
-                        </div>
-                        <div className="loa-line-mini-badge" title="ผู้ใช้ลงทะเบียนผ่าน LINE OA">
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.48 2 2 5.82 2 10.53c0 2.93 1.76 5.51 4.45 6.98-.19.67-.7 2.45-.8 2.83-.13.48.18.47.38.34.15-.1 2.37-1.61 3.33-2.27.84.14 1.72.22 2.64.22 5.52 0 10-3.82 10-8.53S17.52 2 12 2z"/>
-                          </svg>
-                        </div>
-                      </div>
-
-                      <div className="loa-patient-meta">
-                        <div className="loa-patient-name" title={fullName}>
-                          {fullName}
-                        </div>
-                        <div className="loa-patient-line" title={`LINE: ${displayName}`}>
-                          <span>@{displayName}</span>
-                        </div>
+                  {/* Avatar */}
+                  <td className="center">
+                    <div className="loa-avatar-cell">
+                      {row.picture_url ? (
+                        <img
+                          className="loa-avatar-img"
+                          src={row.picture_url}
+                          alt={`${displayName} avatar`}
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            if (e.target.nextElementSibling) {
+                              e.target.nextElementSibling.style.display = 'flex';
+                            }
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="loa-avatar-fallback"
+                        style={{ display: row.picture_url ? 'none' : 'flex' }}
+                      >
+                        {initial}
                       </div>
                     </div>
                   </td>
 
-                  {/* HN & CID */}
+                  {/* LINE Display Name */}
                   <td>
-                    <div className="loa-id-cell">
-                      {row.hn ? (
-                        <div className="loa-hn-badge">
-                          <span>HN: {row.hn}</span>
-                          <button
-                            type="button"
-                            className="loa-copy-btn"
-                            onClick={() => handleCopyHn(row.hn)}
-                            title={copiedHn === row.hn ? 'คัดลอกแล้ว!' : 'คัดลอก HN'}
-                          >
-                            {copiedHn === row.hn ? (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            ) : (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>-</span>
-                      )}
-
-                      {row.cid ? (
-                        <span className="loa-cid-text" title="เลขบัตรประชาชน">
-                          {formatCid(row.cid)}
-                        </span>
-                      ) : null}
+                    <div className="loa-display-name-wrap" title={`LINE: ${displayName}`}>
+                      <span className="loa-line-badge-icon" title="ผู้ใช้ลงทะเบียนผ่าน LINE OA">
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2C6.48 2 2 5.82 2 10.53c0 2.93 1.76 5.51 4.45 6.98-.19.67-.7 2.45-.8 2.83-.13.48.18.47.38.34.15-.1 2.37-1.61 3.33-2.27.84.14 1.72.22 2.64.22 5.52 0 10-3.82 10-8.53S17.52 2 12 2z"/>
+                        </svg>
+                      </span>
+                      <span className="loa-display-name-text">{displayName}</span>
                     </div>
+                  </td>
+
+                  {/* HN (No CID displayed) */}
+                  <td>
+                    {row.hn ? (
+                      <div className="loa-hn-badge">
+                        <span>{row.hn}</span>
+                        <button
+                          type="button"
+                          className="loa-copy-btn"
+                          onClick={() => handleCopyHn(row.hn)}
+                          title={copiedHn === row.hn ? 'คัดลอกแล้ว!' : 'คัดลอก HN'}
+                        >
+                          {copiedHn === row.hn ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>-</span>
+                    )}
+                  </td>
+
+                  {/* ptname_hos */}
+                  <td>
+                    <span className="loa-ptname-text" title={ptName}>
+                      {ptName}
+                    </span>
                   </td>
 
                   {/* Phone */}
@@ -293,29 +280,32 @@ export default function DataTable({ data, loading, onPhoneUpdated }) {
                     </div>
                   </td>
 
-                  {/* Health ID & IAL */}
-                  <td>
-                    <div className="loa-status-cell">
-                      {row.has_health_id ? (
-                        <span className="loa-badge loa-badge-health-ok">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          ยืนยัน Health ID
-                        </span>
-                      ) : (
-                        <span className="loa-badge loa-badge-health-none">
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8' }}></span>
-                          ยังไม่ลงทะเบียน
-                        </span>
-                      )}
+                  {/* IAL Level (Dedicated Column) */}
+                  <td className="center">
+                    {row.ver ? (
+                      <span className="loa-badge-ial" title={`ระดับความน่าเชื่อถือตัวตน: IAL ${row.ver}`}>
+                        IAL {row.ver}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>-</span>
+                    )}
+                  </td>
 
-                      {row.ver ? (
-                        <span className="loa-badge-ial" title={`ระดับความน่าเชื่อถือตัวตน: IAL ${row.ver}`}>
-                          IAL {row.ver}
-                        </span>
-                      ) : null}
-                    </div>
+                  {/* Health ID */}
+                  <td>
+                    {row.has_health_id ? (
+                      <span className="loa-badge loa-badge-health-ok">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                        ยืนยัน Health ID
+                      </span>
+                    ) : (
+                      <span className="loa-badge loa-badge-health-none">
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8' }}></span>
+                        ยังไม่ลงทะเบียน
+                      </span>
+                    )}
                   </td>
 
                   {/* Registration Date */}
@@ -334,36 +324,35 @@ export default function DataTable({ data, loading, onPhoneUpdated }) {
                     </div>
                   </td>
 
-                  {/* Telemed Actions */}
+                  {/* Telemed Video Call Actions */}
                   <td className="center">
                     <div className="loa-actions-cell">
-                      {/* LINE Telemed */}
+                      {/* Video Call: Line OA */}
                       <button
                         type="button"
                         className={`loa-btn-telemed loa-btn-line ${isLineActive ? 'active' : ''}`}
                         onClick={() => handleCreateTelemedLink(row, 'line')}
                         disabled={isLineSending || !row.hn || !row.cid}
-                        title={!row.hn || !row.cid ? 'ต้องมีทั้ง HN และเลขบัตรประชาชน' : 'ทดสอบโทรผ่าน LINE OA'}
+                        title={!row.hn || !row.cid ? 'ต้องมีทั้ง HN และเลขบัตรประชาชน' : 'ทดสอบ Video Call ผ่าน Line OA'}
                       >
                         {isLineSending ? (
                           <div className="loa-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
                         ) : (
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 10.999h2C22 5.869 18.127 2 12.99 2v2C17.031 4 20 7.238 20 10.999z"/>
-                            <path d="M12.99 6v2c2.206 0 4 1.794 4 4h2c0-3.309-2.691-6-6-6z"/>
-                            <path d="M13.782 17.568c-.689-.286-1.558-.286-2.247 0l-1.393.578a1.693 1.693 0 0 1-1.637-.168l-3.39-2.542a1.693 1.693 0 0 1-.58-1.547l.4-1.464c.2-.733-.06-1.52-.65-1.97l-1.3-1a1.693 1.693 0 0 0-2.02.046L.518 9.878a1.693 1.693 0 0 0-.5 1.574c1.17 6.438 6.47 11.738 12.908 12.908a1.693 1.693 0 0 0 1.574-.5l.407-.447a1.693 1.693 0 0 0 .046-2.02l-1.171-1.425z"/>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                            <polygon points="23 7 16 12 23 17 23 7" />
+                            <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                           </svg>
                         )}
-                        <span>LINE</span>
+                        <span>Line OA</span>
                       </button>
 
-                      {/* MOPH Telemed */}
+                      {/* Video Call: หมอพร้อม */}
                       <button
                         type="button"
                         className={`loa-btn-telemed loa-btn-moph ${isMophActive ? 'active' : ''}`}
                         onClick={() => handleCreateTelemedLink(row, 'moph')}
                         disabled={isMophSending || !row.cid || !row.hn}
-                        title={!row.cid ? 'ต้องมีเลขบัตรประชาชนเพื่อทดสอบหมอพร้อม' : 'ทดสอบโทรผ่านหมอพร้อม'}
+                        title={!row.cid ? 'ต้องมีเลขบัตรประชาชนเพื่อทดสอบหมอพร้อม' : 'ทดสอบ Video Call ผ่านหมอพร้อม'}
                       >
                         {isMophSending ? (
                           <div className="loa-spinner" style={{ width: 14, height: 14, borderWidth: 2 }} />
@@ -407,8 +396,8 @@ export default function DataTable({ data, loading, onPhoneUpdated }) {
               <div className="loa-modal-body">
                 <div className="loa-patient-summary-box">
                   <div className="loa-summary-row">
-                    <span className="loa-summary-label">ชื่อ-นามสกุล</span>
-                    <span className="loa-summary-value">{editingRow.fullname || editingRow.display_name || '-'}</span>
+                    <span className="loa-summary-label">ชื่อ-นามสกุล (HOSxP)</span>
+                    <span className="loa-summary-value">{editingRow.ptname_hos || editingRow.fullname || '-'}</span>
                   </div>
                   <div className="loa-summary-row">
                     <span className="loa-summary-label">HN ผู้ป่วย</span>
@@ -416,7 +405,7 @@ export default function DataTable({ data, loading, onPhoneUpdated }) {
                   </div>
                   {editingRow.display_name && (
                     <div className="loa-summary-row">
-                      <span className="loa-summary-label">ชื่อ LINE</span>
+                      <span className="loa-summary-label">LINE Display Name</span>
                       <span className="loa-summary-value">@{editingRow.display_name}</span>
                     </div>
                   )}
