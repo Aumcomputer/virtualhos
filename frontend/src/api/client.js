@@ -202,6 +202,54 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
+  // Telemed Today (วันนัดจริง)
+  getTelemedTodayAppointments: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.date) qs.set('date', params.date);
+    if (params.search) qs.set('search', params.search);
+    const qStr = qs.toString();
+    return request(`/telemed-today/appointments${qStr ? `?${qStr}` : ''}`);
+  },
+
+  syncTelemedTodayVn: (id) =>
+    request(`/telemed-today/${id}/sync-vn`, { method: 'POST' }),
+
+  getTelemedTodayPharmacy: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.tab) qs.set('tab', params.tab);
+    if (params.search) qs.set('search', params.search);
+    const qStr = qs.toString();
+    return request(`/telemed-today/pharmacy${qStr ? `?${qStr}` : ''}`);
+  },
+
+  getTelemedTodayDetail: (id) =>
+    request(`/telemed-today/${id}/detail`),
+
+  pharmacyDispenseTelemedToday: (id, { payType }) =>
+    request(`/telemed-today/${id}/pharmacy-dispense`, {
+      method: 'POST',
+      body: JSON.stringify({ payType }),
+    }),
+
+  getTelemedTodayFinance: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set('search', params.search);
+    const qStr = qs.toString();
+    return request(`/telemed-today/finance${qStr ? `?${qStr}` : ''}`);
+  },
+
+  financePayTelemedToday: (id, payload = {}) =>
+    request(`/telemed-today/${id}/finance-pay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  deliveryTelemedToday: (id, { tracking_number }) =>
+    request(`/telemed-today/${id}/delivery`, {
+      method: 'POST',
+      body: JSON.stringify({ tracking_number }),
+    }),
+
   // System version & updates
   getSystemVersion: () => request('/system/version'),
   checkSystemUpdate: () => request('/system/check-update'),

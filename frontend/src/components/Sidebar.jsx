@@ -203,7 +203,7 @@ export default function Sidebar({ isOpen, onClose }) {
             </>
           )}
 
-          <div className="sidebar-group-title">Request Telemed</div>
+          <div className="sidebar-group-title">Pre-screening (คำขอรับยา)</div>
 
           <NavLink
             to="/request-telemed/register"
@@ -289,20 +289,48 @@ export default function Sidebar({ isOpen, onClose }) {
             <span>ผู้ยื่นความจำนงทั้งหมด</span>
           </NavLink>
 
+          <div className="sidebar-group-title">Telemed Today (วันนัดจริง)</div>
+
           <NavLink
-            to="/request-telemed/today"
+            to="/telemed-today/appointments"
             className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
             onClick={handleNavClick}
-            id="nav-request-telemed-today"
+            id="nav-telemed-today-appointments"
           >
             <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
               <line x1="8" y1="2" x2="8" y2="6" />
               <line x1="3" y1="10" x2="21" y2="10" />
-              <polyline points="9 15 12 12 15 15" />
             </svg>
-            <span>&ldquo;รับยาไม่พบแพทย์&rdquo;วันนี้</span>
+            <span>“รับยาไม่พบแพทย์” วันนี้</span>
+          </NavLink>
+
+          <NavLink
+            to="/telemed-today/pharmacy"
+            className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+            onClick={handleNavClick}
+            id="nav-telemed-today-pharmacy"
+          >
+            <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+              <path d="m8.5 8.5 7 7" />
+            </svg>
+            <span>ห้องยา</span>
+          </NavLink>
+
+          <NavLink
+            to="/telemed-today/finance"
+            className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+            onClick={handleNavClick}
+            id="nav-telemed-today-finance"
+          >
+            <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
+            <span>การเงิน</span>
           </NavLink>
 
           {isAdmin && (

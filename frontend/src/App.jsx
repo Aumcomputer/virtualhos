@@ -11,6 +11,9 @@ import TelemedDashboardPage from './pages/TelemedDashboardPage';
 import PrescreeningPage from './pages/PrescreeningPage';
 import RequestTelemedPage from './pages/RequestTelemedPage';
 import RegisterTelemedPage from './pages/RegisterTelemedPage';
+import TelemedTodayAppointmentsPage from './pages/TelemedTodayAppointmentsPage';
+import TelemedTodayPharmacyPage from './pages/TelemedTodayPharmacyPage';
+import TelemedTodayFinancePage from './pages/TelemedTodayFinancePage';
 
 export default function App() {
   return (
@@ -33,14 +36,20 @@ export default function App() {
             <Route path="telemed-no-doctor" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedCasesPage type="combined" /></ProtectedRoute>} />
             <Route path="telemed-appointments" element={<ProtectedRoute disallowedRoles={['request_telemed']}><TelemedCasesPage type="appointments" /></ProtectedRoute>} />
             <Route path="prescreening" element={<ProtectedRoute disallowedRoles={['request_telemed']}><PrescreeningPage /></ProtectedRoute>} />
+            {/* Phase 1: Pre-screening (Request Telemed) */}
             <Route path="request-telemed/register" element={<RegisterTelemedPage />} />
             <Route path="request-telemed/pending-receive" element={<RequestTelemedPage stage="receive" />} />
             <Route path="request-telemed/pending-doctor" element={<RequestTelemedPage stage="doctor" />} />
             <Route path="request-telemed/pharmacist" element={<RequestTelemedPage stage="pharmacist" />} />
             <Route path="request-telemed/approved" element={<RequestTelemedPage stage="approved" />} />
             <Route path="request-telemed/all" element={<RequestTelemedPage stage="all" />} />
-            <Route path="request-telemed/today" element={<RequestTelemedPage stage="today" />} />
+            <Route path="request-telemed/today" element={<Navigate to="/telemed-today/appointments" replace />} />
             <Route path="request-telemed" element={<Navigate to="/request-telemed/pending-receive" replace />} />
+            {/* Phase 2: วันนัดจริง (Telemed Today) */}
+            <Route path="telemed-today/appointments" element={<TelemedTodayAppointmentsPage />} />
+            <Route path="telemed-today/pharmacy" element={<TelemedTodayPharmacyPage />} />
+            <Route path="telemed-today/finance" element={<TelemedTodayFinancePage />} />
+            <Route path="telemed-today" element={<Navigate to="/telemed-today/appointments" replace />} />
           </Route>
         </Routes>
       </AuthProvider>
