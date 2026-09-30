@@ -27,6 +27,23 @@ function formatThaiDate(dateStr) {
   }
 }
 
+function formatThaiDateTime(dateTimeStr) {
+  if (!dateTimeStr) return '—';
+  try {
+    const d = new Date(dateTimeStr);
+    if (isNaN(d.getTime())) return dateTimeStr;
+    const months = [
+      '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
+    ];
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${d.getDate()} ${months[d.getMonth() + 1]} ${d.getFullYear() + 543} ${hours}:${mins} น.`;
+  } catch {
+    return dateTimeStr;
+  }
+}
+
 function formatDoctorName(raw) {
   if (!raw) return '—';
   const clean = String(raw).trim();
@@ -35,6 +52,31 @@ function formatDoctorName(raw) {
     return clean;
   }
   return `พญ./นพ. ${clean}`;
+}
+
+function formatPhone(raw) {
+  if (!raw) return '—';
+  const clean = String(raw).replace(/\D/g, '');
+  if (clean.length === 10) {
+    return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6)}`;
+  }
+  if (clean.length === 9) {
+    return `${clean.slice(0, 2)}-${clean.slice(2, 5)}-${clean.slice(5)}`;
+  }
+  return raw;
+}
+
+function formatMoney(num) {
+  const n = Number(num || 0);
+  return n.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseLines(text) {
+  if (!text) return [];
+  return String(text)
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export default function TelemedTodayAppointmentsPage() {
@@ -512,83 +554,114 @@ export default function TelemedTodayAppointmentsPage() {
                     </div>
 
                     <div className="clinical-col-content">
-                      {/* Vitals เก่า */}
+                      {/* สัญญาณชีพ (Vital Signs) ครั้งก่อน */}
                       <div className="clinical-card">
                         <div className="clinical-card-header">
                           <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>สัญญาณชีพ (Vital Signs) ครั้งก่อน</span>
                         </div>
-                        <div className="clinical-card-body" style={{ padding: '10px' }}>
+                        <div className="clinical-card-body" style={{ padding: '8px 10px' }}>
                           {detailData?.previousVisit ? (
-                            <div className="vitals-matrix-clean">
-                              <div className="vital-item">
-                                <span className="vital-label">BP</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.bps || '—'}/{detailData.previousVisit.bpd || '—'}</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BP</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">
+                                    {detailData.previousVisit.bps && detailData.previousVisit.bpd
+                                      ? `${detailData.previousVisit.bps}/${detailData.previousVisit.bpd}`
+                                      : '—'}
+                                  </span>
+                                  <span className="v-unit">mmHg</span>
+                                </div>
                               </div>
-                              <div className="vital-item">
-                                <span className="vital-label">Pulse</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.pulse || '—'}</span>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Pulse</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.previousVisit.pulse || detailData.previousVisit.hr || '—'}</span>
+                                  <span className="v-unit">/m</span>
+                                </div>
                               </div>
-                              <div className="vital-item">
-                                <span className="vital-label">Temp</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.temperature || '—'}°C</span>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Temp</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.previousVisit.temperature || '—'}</span>
+                                  <span className="v-unit">°C</span>
+                                </div>
                               </div>
-                              <div className="vital-item">
-                                <span className="vital-label">BW</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.bw || '—'} kg</span>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BW</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.previousVisit.bw || '—'}</span>
+                                  <span className="v-unit">kg</span>
+                                </div>
                               </div>
                             </div>
                           ) : (
-                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>— ไม่มีข้อมูล —</div>
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>— ไม่มีข้อมูลสัญญาณชีพ —</div>
                           )}
                         </div>
                       </div>
 
-                      {/* การวินิจฉัยเดิม */}
+                      {/* อาการสำคัญ / ประวัติ (Chief Complaint) ครั้งก่อน */}
                       <div className="clinical-card">
                         <div className="clinical-card-header">
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>การวินิจฉัยเดิม (Diagnoses)</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>อาการสำคัญ / ประวัติ (Chief Complaint) ครั้งก่อน</span>
                         </div>
-                        <div className="clinical-card-body" style={{ padding: '10px' }}>
-                          {detailData?.previousVisit?.pdx_name || detailData?.previousVisit?.pdx ? (
-                            <div style={{ fontSize: '0.8125rem', color: '#1e293b' }}>
-                              <span style={{ fontWeight: 700, color: '#0369a1' }}>{detailData.previousVisit.pdx}</span>: {detailData.previousVisit.pdx_name || detailData.previousVisit.pdx}
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.previousVisit?.cc ? (
+                            <div style={{ fontSize: '0.8125rem', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
+                              {detailData.previousVisit.cc}
                             </div>
                           ) : (
-                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>— ไม่มีข้อมูล —</div>
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>— ไม่พบข้อมูลอาการสำคัญครั้งก่อน —</div>
                           )}
                         </div>
                       </div>
 
-                      {/* ยาเดิม */}
+                      {/* การวินิจฉัยโรคครั้งก่อน (Diagnoses) */}
                       <div className="clinical-card">
                         <div className="clinical-card-header">
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>รายการยาเดิมที่ได้รับ ({detailData?.previousVisit?.drugs?.length || 0} รายการ)</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>การวินิจฉัยโรคครั้งก่อน (Diagnoses)</span>
                         </div>
-                        <div className="clinical-card-body" style={{ padding: '0' }}>
-                          {detailData?.previousVisit?.drugs && detailData.previousVisit.drugs.length > 0 ? (
-                            <table className="mini-med-table" style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                  <th style={{ padding: '6px 10px', textAlign: 'left' }}>ชื่อยา</th>
-                                  <th style={{ padding: '6px 10px', textAlign: 'right', width: '60px' }}>จำนวน</th>
-                                </tr>
-                              </thead>
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.previousVisit?.diagnosis_concat ? (
+                            <div className="diag-list">
+                              {parseLines(detailData.previousVisit.diagnosis_concat).map((line, dIdx) => (
+                                <div key={dIdx} className="diag-item">
+                                  <span>{line.replace('(PDX)', '').trim()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>— ไม่พบข้อมูลการวินิจฉัยครั้งก่อน —</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* รายการยาเดิมครั้งก่อน */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
+                            รายการยาเดิมที่ได้รับครั้งก่อน {detailData?.previousVisit?.drug_concat ? `(${parseLines(detailData.previousVisit.drug_concat).length} รายการ)` : ''}
+                          </span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '4px 8px' }}>
+                          {detailData?.previousVisit?.drug_concat ? (
+                            <table className="meds-compact-table">
                               <tbody>
-                                {detailData.previousVisit.drugs.map((d, i) => (
-                                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td style={{ padding: '6px 10px' }}>
-                                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{d.drug_name || d.name}</div>
-                                      <div style={{ color: '#64748b', fontSize: '0.6875rem' }}>{d.usage_line1 || d.drugusage}</div>
-                                    </td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
-                                      {d.qty || d.amount}
-                                    </td>
-                                  </tr>
-                                ))}
+                                {parseLines(detailData.previousVisit.drug_concat).map((medLine, mIdx) => {
+                                  const parts = medLine.split('#');
+                                  return (
+                                    <tr key={mIdx}>
+                                      <td className="med-col-num">#{mIdx + 1}</td>
+                                      <td className="med-col-name">{parts[0]?.trim() || medLine}</td>
+                                      <td className="med-col-qty">{parts[1]?.trim() ? `${parts[1].trim()} เม็ด` : ''}</td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           ) : (
-                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem', padding: '10px' }}>— ไม่มีรายการยา —</div>
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem', padding: '6px' }}>— ไม่พบรายการยาครั้งก่อน —</div>
                           )}
                         </div>
                       </div>
@@ -597,13 +670,13 @@ export default function TelemedTodayAppointmentsPage() {
 
                   {/* Right Column: Today Visit & Request Intent */}
                   <div className="clinical-col right-col">
-                    <div className="column-header right-col-header">
+                    <div className="column-header right-col-header" style={{ background: '#f8fafc', borderColor: '#e2e8f0' }}>
                       <div className="column-header-title">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2">
                           <circle cx="12" cy="12" r="10"/>
                           <polyline points="12 6 12 12 16 14"/>
                         </svg>
-                        <span>นัดหมายและยื่นความจำนงวันนี้ (Today Request)</span>
+                        <span>ข้อมูล Visit ปัจจุบัน & ยื่นความจำนงวันนี้</span>
                       </div>
                       <span className="visit-date-tag" style={{ background: '#dbeafe', color: '#1e40af' }}>
                         นัดวันที่: {formatThaiDate(detailModalItem.nextdate)}
@@ -611,7 +684,130 @@ export default function TelemedTodayAppointmentsPage() {
                     </div>
 
                     <div className="clinical-col-content">
-                      {/* รายละเอียดการยื่นความจำนง */}
+                      {/* สัญญาณชีพ (Vital Signs) วันนี้ */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>สัญญาณชีพ (Vital Signs) วันนี้</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 10px' }}>
+                          {detailData?.currentVisit ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BP</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">
+                                    {detailData.currentVisit.bps && detailData.currentVisit.bpd
+                                      ? `${detailData.currentVisit.bps}/${detailData.currentVisit.bpd}`
+                                      : '—'}
+                                  </span>
+                                  <span className="v-unit">mmHg</span>
+                                </div>
+                              </div>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Pulse</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.currentVisit.pulse || detailData.currentVisit.hr || '—'}</span>
+                                  <span className="v-unit">/m</span>
+                                </div>
+                              </div>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Temp</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.currentVisit.temperature || '—'}</span>
+                                  <span className="v-unit">°C</span>
+                                </div>
+                              </div>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BW</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.currentVisit.bw || '—'}</span>
+                                  <span className="v-unit">kg</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                              {detailData?.currentVn || detailModalItem?.vn_today ? '— ไม่มีข้อมูลสัญญาณชีพใน Visit วันนี้ —' : '— รอเวชระเบียนเปิด Visit ใน HOSxP —'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* อาการสำคัญ / ประวัติ (Chief Complaint) วันนี้ */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>อาการสำคัญ / ประวัติ (Chief Complaint) วันนี้</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.currentVisit?.cc ? (
+                            <div style={{ fontSize: '0.8125rem', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
+                              {detailData.currentVisit.cc}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>
+                              {detailData?.currentVn || detailModalItem?.vn_today ? '— ไม่พบข้อมูลอาการสำคัญในการตรวจวันนี้ —' : '— รอเปิด Visit ใน HOSxP —'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* การวินิจฉัยโรควันนี้ (Diagnoses) */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>การวินิจฉัยโรควันนี้ (Diagnoses)</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.currentVisit?.diagnosis_concat ? (
+                            <div className="diag-list">
+                              {parseLines(detailData.currentVisit.diagnosis_concat).map((line, dIdx) => (
+                                <div key={dIdx} className="diag-item">
+                                  <span>{line.replace('(PDX)', '').trim()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>
+                              {detailData?.currentVn || detailModalItem?.vn_today ? '— ยังไม่มีการบันทึกการวินิจฉัยโรคใน Visit วันนี้ —' : '— รอแพทย์บันทึกการวินิจฉัยใน HOSxP —'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ยาที่แพทย์สั่งใน Visit วันนี้ */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>
+                            💊 รายการยาที่แพทย์สั่งใน Visit วันนี้ ({detailData?.currentVn || detailModalItem?.vn_today || 'ยังไม่มี VN'})
+                            {detailData?.currentVisit?.drug_concat ? ` (${parseLines(detailData.currentVisit.drug_concat).length} รายการ)` : ''}
+                          </span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '4px 8px' }}>
+                          {detailData?.currentVisit?.drug_concat ? (
+                            <table className="meds-compact-table">
+                              <tbody>
+                                {parseLines(detailData.currentVisit.drug_concat).map((medLine, mIdx) => {
+                                  const parts = medLine.split('#');
+                                  return (
+                                    <tr key={mIdx}>
+                                      <td className="med-col-num">#{mIdx + 1}</td>
+                                      <td className="med-col-name">{parts[0]?.trim() || medLine}</td>
+                                      <td className="med-col-qty">{parts[1]?.trim() ? `${parts[1].trim()} เม็ด` : ''}</td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem', padding: '10px' }}>
+                              {detailData?.currentVn || detailModalItem?.vn_today
+                                ? '— ยังไม่มีรายการยาที่แพทย์สั่งในระบบ HOSxP ของวันนี้ —'
+                                : '— รอเวชระเบียนเปิด Visit และแพทย์สั่งยาใน HOSxP —'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* ข้อมูลการยื่นความจำนง */}
                       <div className="clinical-card">
                         <div className="clinical-card-header" style={{ background: '#f8fafc' }}>
                           <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1e293b' }}>
@@ -619,72 +815,166 @@ export default function TelemedTodayAppointmentsPage() {
                           </span>
                         </div>
                         <div className="clinical-card-body" style={{ padding: '12px 14px', fontSize: '0.8125rem' }}>
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: '#0f172a' }}>เหตุผลความจำเป็น:</strong>{' '}
-                            <span style={{ color: '#1e293b' }}>{detailModalItem.reason || detailData?.request?.reason || '—'}</span>
-                          </div>
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: '#0f172a' }}>อาการปัจจุบัน:</strong>{' '}
-                            <span style={{ color: '#1e293b' }}>{detailModalItem.symptoms || detailData?.request?.symptoms || '—'}</span>
-                          </div>
+                          {/* เหตุผลความจำเป็น */}
+                          {(detailModalItem.reason || detailData?.request?.reason) && (
+                            <div className="reason-alert-box" style={{ marginBottom: '10px' }}>
+                              <span className="reason-label font-bold" style={{ fontWeight: 700, color: '#9a3412' }}>เหตุผลความจำเป็น:</span>{' '}
+                              <span className="reason-val font-semibold" style={{ fontWeight: 600, color: '#c2410c' }}>{detailModalItem.reason || detailData?.request?.reason}</span>
+                            </div>
+                          )}
+
+                          {/* อาการปัจจุบัน */}
+                          {(detailModalItem.symptoms || detailData?.request?.symptoms) && (
+                            <div style={{ marginBottom: '8px' }}>
+                              <strong style={{ color: '#0f172a' }}>อาการปัจจุบัน:</strong>{' '}
+                              <span style={{ color: '#1e293b' }}>{detailModalItem.symptoms || detailData?.request?.symptoms}</span>
+                            </div>
+                          )}
+
+                          {/* ที่อยู่จัดส่งยา */}
                           <div style={{ marginBottom: '8px' }}>
                             <strong style={{ color: '#0f172a' }}>ที่อยู่จัดส่งยา:</strong>{' '}
                             <span style={{ color: '#1e293b' }}>{detailModalItem.address || detailData?.request?.address || '—'} {detailModalItem.postcode || detailData?.request?.postcode || ''}</span>
                           </div>
+
+                          {/* เบอร์โทรศัพท์ */}
                           <div style={{ marginBottom: '8px' }}>
                             <strong style={{ color: '#0f172a' }}>เบอร์โทรศัพท์:</strong>{' '}
-                            <span style={{ color: '#1e293b', fontFamily: 'monospace', fontWeight: 600 }}>{detailModalItem.phone || detailData?.request?.phone || '—'}</span>
+                            <span style={{ color: '#1e293b', fontFamily: 'monospace', fontWeight: 600 }}>{formatPhone(detailModalItem.phone || detailData?.request?.phone)}</span>
                           </div>
                         </div>
                       </div>
 
-                      {/* ข้อมูลยา Visit ปัจจุบัน (ถ้ามี) */}
-                      {detailData?.currentVisit?.drugs && detailData.currentVisit.drugs.length > 0 && (
-                        <div className="clinical-card">
-                          <div className="clinical-card-header">
-                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>ยาที่แพทย์สั่งใน Visit วันนี้ ({detailData.currentVisit.drugs.length} รายการ)</span>
-                          </div>
-                          <div className="clinical-card-body" style={{ padding: '0' }}>
-                            <table className="mini-med-table" style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
-                              <thead>
-                                <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                  <th style={{ padding: '6px 10px', textAlign: 'left' }}>ชื่อยา</th>
-                                  <th style={{ padding: '6px 10px', textAlign: 'right', width: '60px' }}>จำนวน</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {detailData.currentVisit.drugs.map((d, i) => (
-                                  <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                    <td style={{ padding: '6px 10px' }}>
-                                      <div style={{ fontWeight: 600, color: '#1e293b' }}>{d.drug_name || d.name}</div>
-                                      <div style={{ color: '#64748b', fontSize: '0.6875rem' }}>{d.usage_line1 || d.drugusage}</div>
-                                    </td>
-                                    <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
-                                      {d.qty || d.amount}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
+                      {/* Timeline (Phase 1 & Phase 2) */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>ประวัติและสถานะการดำเนินงาน (Timeline)</span>
                         </div>
-                      )}
-
-                      {/* Timeline */}
-                      {(detailModalItem.timeline || detailData?.request?.timeline) && (
-                        <div className="clinical-card">
-                          <div className="clinical-card-header">
-                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>ประวัติและสถานะการดำเนินงาน (Timeline)</span>
+                        <div className="clinical-card-body" style={{ padding: '12px 14px' }}>
+                          {/* ช่วงที่ 1: Pre-screening */}
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📋 ช่วงที่ 1: Pre-screening (คำขอรับยา)</span>
                           </div>
-                          <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
-                            <div style={{ fontSize: '0.75rem', color: '#475569', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                              {typeof (detailModalItem.timeline || detailData?.request?.timeline) === 'string'
-                                ? (detailModalItem.timeline || detailData?.request?.timeline)
-                                : JSON.stringify(detailModalItem.timeline || detailData?.request?.timeline, null, 2)}
+                          <div className="audit-trail-timeline" style={{ borderTop: 'none', paddingTop: 0, marginTop: 0, marginBottom: '14px' }}>
+                            <div className="audit-trail-item">
+                              <span className="audit-dot"></span>
+                              <span>ผู้ยื่นคำขอ: <strong>{(detailData?.request || detailModalItem).request_by || 'คนไข้ (LINE OA)'}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).created_at)})</span>
+                            </div>
+                            {(detailData?.request || detailModalItem).received_by && (
+                              <div className="audit-trail-item">
+                                <span className="audit-dot success"></span>
+                                <span>รับเรื่องโดย: <strong>{(detailData?.request || detailModalItem).received_by}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).received_at)})</span>
+                              </div>
+                            )}
+                            {(detailData?.request || detailModalItem).doctor_approved_by && (
+                              <div className="audit-trail-item">
+                                <span className="audit-dot success"></span>
+                                <span>แพทย์ผู้อนุมัติ: <strong>{(detailData?.request || detailModalItem).doctor_approved_by}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).doctor_approved_at || (detailData?.request || detailModalItem).updated_at)})</span>
+                              </div>
+                            )}
+                            {(detailData?.request || detailModalItem).pharmacy_approved_by && (
+                              <div className="audit-trail-item">
+                                <span className="audit-dot success"></span>
+                                <span>เภสัชผู้อนุมัติ: <strong>{(detailData?.request || detailModalItem).pharmacy_approved_by}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).pharmacy_approved_at || (detailData?.request || detailModalItem).approve_at || (detailData?.request || detailModalItem).updated_at)})</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ช่วงที่ 2: วันนัดจริง */}
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e40af', marginBottom: '8px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>🏥 ช่วงที่ 2: วันนัดจริง / ดำเนินการวันนี้ ({formatThaiDate((detailData?.request || detailModalItem).nextdate || new Date())})</span>
+                          </div>
+                          <div className="audit-trail-timeline" style={{ borderTop: 'none', paddingTop: 0, marginTop: 0 }}>
+                            {/* 2.1 เวชระเบียนเปิด Visit */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${detailData?.currentVn || (detailData?.request || detailModalItem).vn_today ? 'success' : ''}`}></span>
+                              <span>
+                                เวชระเบียนเปิด Visit:{' '}
+                                {detailData?.currentVn || (detailData?.request || detailModalItem).vn_today ? (
+                                  <>
+                                    <strong>เปิด Visit เรียบร้อย (VN: {detailData?.currentVn || (detailData?.request || detailModalItem).vn_today})</strong>
+                                    {detailData?.currentVisit?.vsttime ? ` เวลา ${detailData.currentVisit.vsttime.slice(0, 5)} น.` : ''}
+                                  </>
+                                ) : (
+                                  <span style={{ color: '#ea580c' }}>⏳ รอเวชระเบียนเปิด Visit ใน HOSxP</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.2 แพทย์สั่งยา */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${detailData?.currentVisit?.drug_concat ? 'success' : ''}`}></span>
+                              <span>
+                                แพทย์สั่งยา:{' '}
+                                {detailData?.currentVisit?.drug_concat ? (
+                                  <strong>สั่งยาเรียบร้อย ({parseLines(detailData.currentVisit.drug_concat).length} รายการ)</strong>
+                                ) : detailData?.currentVn || (detailData?.request || detailModalItem).vn_today ? (
+                                  <span style={{ color: '#ea580c' }}>⏳ รอแพทย์สั่งยาใน HOSxP</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.3 เภสัชกรจัดยา */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).pharmacy_dispense_at ? 'success' : ''}`}></span>
+                              <span>
+                                เภสัชกรตรวจสอบ/จัดยา:{' '}
+                                {(detailData?.request || detailModalItem).pharmacy_dispense_at ? (
+                                  <>
+                                    <strong>{(detailData?.request || detailModalItem).pharmacy_dispense_by || 'เภสัชกร'}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).pharmacy_dispense_at)}) —{' '}
+                                    <span style={{ fontWeight: 600, color: (detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' ? '#059669' : '#ea580c' }}>
+                                      {(detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' ? '✓ ไม่ต้องชำระเงิน' : '💰 ต้องชำระเงิน'}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span style={{ color: '#ea580c' }}>⏳ รอเภสัชกรตรวจสอบและจัดยา</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.4 การเงิน */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' || (detailData?.request || detailModalItem).finance_status === 'PAID' ? 'success' : ''}`}></span>
+                              <span>
+                                การเงิน:{' '}
+                                {(detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' ? (
+                                  <strong style={{ color: '#059669' }}>✓ ได้รับสิทธิฟรี (ไม่ต้องชำระเงิน)</strong>
+                                ) : (detailData?.request || detailModalItem).finance_status === 'PAID' ? (
+                                  <>
+                                    <strong style={{ color: '#059669' }}>✓ ชำระเงินเรียบร้อย</strong>
+                                    {(detailData?.request || detailModalItem).finance_by ? ` โดย ${(detailData?.request || detailModalItem).finance_by}` : ''}
+                                    {(detailData?.request || detailModalItem).finance_at ? ` (${formatThaiDateTime((detailData?.request || detailModalItem).finance_at)})` : ''}
+                                  </>
+                                ) : (detailData?.request || detailModalItem).pharmacy_pay_type === 'PAID' ? (
+                                  <span style={{ color: '#dc2626', fontWeight: 600 }}>⏳ รอคนไข้ชำระเงินที่การเงิน</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.5 การจัดส่งยา */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).tracking_number ? 'success' : ''}`}></span>
+                              <span>
+                                จัดส่งยา:{' '}
+                                {(detailData?.request || detailModalItem).tracking_number ? (
+                                  <>
+                                    <strong style={{ color: '#059669' }}>✓ จัดส่งเรียบร้อย</strong> (เลขพัสดุ: <span className="font-mono">{(detailData?.request || detailModalItem).tracking_number}</span>)
+                                    {(detailData?.request || detailModalItem).delivery_at ? ` เมื่อ ${formatThaiDateTime((detailData?.request || detailModalItem).delivery_at)}` : ''}
+                                  </>
+                                ) : ((detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' || (detailData?.request || detailModalItem).finance_status === 'PAID') && (detailData?.request || detailModalItem).pharmacy_dispense_at ? (
+                                  <span style={{ color: '#2563eb', fontWeight: 600 }}>📦 พร้อมจัดส่ง / รอเลขพัสดุ</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
+                                )}
+                              </span>
                             </div>
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>
