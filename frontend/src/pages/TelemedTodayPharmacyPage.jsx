@@ -292,7 +292,7 @@ export default function TelemedTodayPharmacyPage() {
             onClick={() => setTab('today')}
           >
             <span className="rtm-chip-icon">💊</span>
-            <span>รายการวันนี้ (รอตรวจ/จัดยา)</span>
+            <span>รายการวันนี้</span>
             <span className="rtm-chip-count">{summary.today_count || 0}</span>
           </button>
 
