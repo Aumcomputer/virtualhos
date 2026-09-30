@@ -398,7 +398,6 @@ export default function TelemedTodayPharmacyPage() {
                       <th style={{ textAlign: 'right' }}>ยอดรวม (บาท)</th>
                       <th style={{ textAlign: 'right' }}>เบิกได้ (บาท)</th>
                       <th style={{ textAlign: 'right', color: '#b91c1c' }}>ต้องชำระ (บาท)</th>
-                      <th style={{ textAlign: 'center', width: '140px' }}>การจัดการ</th>
                     </>
                   ) : (
                     <>
@@ -412,7 +411,7 @@ export default function TelemedTodayPharmacyPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={tab === 'today' ? 10 : 8} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -423,7 +422,7 @@ export default function TelemedTodayPharmacyPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={tab === 'today' ? 10 : 8} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยาในวันนี้' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
@@ -510,15 +509,6 @@ export default function TelemedTodayPharmacyPage() {
                               ) : (
                                 '—'
                               )}
-                            </td>
-                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                className="btn btn-primary rtm-btn-action"
-                                onClick={() => openDetailModal(item)}
-                              >
-                                🩺 ตรวจ / จัดยา
-                              </button>
                             </td>
                           </>
                         )}
