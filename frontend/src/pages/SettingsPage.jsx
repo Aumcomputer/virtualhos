@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import './SettingsPage.css';
 
 function formatDateTime(dateTimeStr) {
   if (!dateTimeStr) return '—';
@@ -15,10 +16,22 @@ function formatDateTime(dateTimeStr) {
   return `${day}/${month}/${year} ${hours}:${mins} น.`;
 }
 
+function formatDateOnly(dateTimeStr) {
+  if (!dateTimeStr) return '—';
+  const d = new Date(dateTimeStr);
+  if (isNaN(d.getTime())) return '—';
+  const day = d.getDate();
+  const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const month = months[d.getMonth()];
+  const year = d.getFullYear() + 543;
+  return `${day} ${month} ${year}`;
+}
+
 export default function SettingsPage() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
 
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'cron'
   const [adminUsers, setAdminUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -87,9 +100,9 @@ export default function SettingsPage() {
   };
 
   const ROLE_CONFIG = {
-    admin: { label: 'Admin', icon: '🛡️', badgeClass: 'role-admin' },
-    request_telemed: { label: 'Request Telemed', icon: '📦', badgeClass: 'role-request_telemed' },
-    viewer: { label: 'Viewer', icon: '👁️', badgeClass: 'role-viewer' },
+    admin: { label: 'Admin', icon: '🛡️', badgeClass: 'settings-role-admin' },
+    request_telemed: { label: 'Request Telemed', icon: '📦', badgeClass: 'settings-role-request_telemed' },
+    viewer: { label: 'Viewer', icon: '👁️', badgeClass: 'settings-role-viewer' },
   };
 
   const handleToggleRole = async (user) => {
@@ -164,289 +177,456 @@ export default function SettingsPage() {
       <div className="page-header">
         <div className="page-title-row">
           <div>
-            <h2 className="page-title">ตั้งค่าผู้ใช้งาน</h2>
-            <p className="page-subtitle">จัดการรายชื่อผู้ใช้ที่สามารถเข้าสู่ระบบหลังบ้านได้</p>
+            <h2 className="page-title">ตั้งค่าระบบและผู้ใช้งาน</h2>
+            <p className="page-subtitle">จัดการสิทธิ์บัญชีผู้ใช้ และตั้งค่าการดึงข้อมูลคัดกรองอัตโนมัติ</p>
           </div>
-          <button
-            className="btn btn-add-user"
-            onClick={() => setShowModal(true)}
-            type="button"
-            id="btn-add-admin-user"
-          >
-            <span>➕</span>
-            เพิ่มผู้ใช้งาน
-          </button>
+          {activeTab === 'users' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowModal(true)}
+              type="button"
+              id="btn-add-admin-user"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              เพิ่มผู้ใช้งาน
+            </button>
+          )}
         </div>
       </div>
 
       <div className="page-body">
-        {/* Stats */}
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-label">ผู้ใช้งานทั้งหมด</div>
-            <div className="stat-value primary">{adminUsers.length}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Admin</div>
-            <div className="stat-value accent">{totalAdmin}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Request Telemed</div>
-            <div className="stat-value" style={{ color: '#7c3aed' }}>{totalRequestTelemed}</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-label">Viewer</div>
-            <div className="stat-value">{totalViewer}</div>
-          </div>
+        {/* Navigation Tabs */}
+        <div className="settings-tabs-container">
+          <button
+            type="button"
+            className={`settings-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
+            onClick={() => setActiveTab('users')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+            <span>ผู้ใช้งานและสิทธิ์</span>
+            <span className="settings-tab-badge">{adminUsers.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`settings-tab-btn ${activeTab === 'cron' ? 'active' : ''}`}
+            onClick={() => setActiveTab('cron')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span>ระบบคัดกรองอัตโนมัติ (Cron)</span>
+          </button>
         </div>
 
-        {/* Table */}
-        <div className="table-card">
-          {loading ? (
-            <div className="loading-container">
-              <div className="spinner" />
-              <div className="loading-text">กำลังโหลดข้อมูล...</div>
-            </div>
-          ) : adminUsers.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">👤</div>
-              <div className="empty-state-title">ยังไม่มีผู้ใช้งาน</div>
-              <div className="empty-state-text">
-                กดปุ่ม &quot;เพิ่มผู้ใช้งาน&quot; เพื่อเริ่มเพิ่มผู้ใช้ที่สามารถเข้าสู่ระบบได้
+        {/* TAB 1: USERS MANAGEMENT */}
+        {activeTab === 'users' && (
+          <>
+            {/* Stats Row */}
+            <div className="settings-stats-grid">
+              <div className="settings-stat-card">
+                <div>
+                  <div className="settings-stat-label">ผู้ใช้งานทั้งหมด</div>
+                  <div className="settings-stat-value">{adminUsers.length}</div>
+                  <div className="settings-stat-sub">บัญชีที่ได้รับสิทธิ์ในระบบ</div>
+                </div>
+                <div className="settings-stat-icon blue">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="settings-stat-card">
+                <div>
+                  <div className="settings-stat-label">Admin</div>
+                  <div className="settings-stat-value" style={{ color: '#be123c' }}>{totalAdmin}</div>
+                  <div className="settings-stat-sub">สิทธิ์ผู้ดูแลระบบสูงสุด</div>
+                </div>
+                <div className="settings-stat-icon rose">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="settings-stat-card">
+                <div>
+                  <div className="settings-stat-label">Request Telemed</div>
+                  <div className="settings-stat-value" style={{ color: '#7c3aed' }}>{totalRequestTelemed}</div>
+                  <div className="settings-stat-sub">สิทธิ์จัดการคำขอและยา</div>
+                </div>
+                <div className="settings-stat-icon purple">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="settings-stat-card">
+                <div>
+                  <div className="settings-stat-label">Viewer</div>
+                  <div className="settings-stat-value" style={{ color: '#475569' }}>{totalViewer}</div>
+                  <div className="settings-stat-sub">สิทธิ์ดูรายงานอย่างเดียว</div>
+                </div>
+                <div className="settings-stat-icon slate">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </div>
               </div>
             </div>
-          ) : (
-            <div className="data-table-wrapper">
-              <table className="data-table" id="admin-users-table">
-                <thead>
-                  <tr>
-                    <th>ชื่อผู้ใช้งาน</th>
-                    <th>ชื่อ-นามสกุล</th>
-                    <th>Role</th>
-                    <th>สถานะ</th>
-                    <th>เพิ่มโดย</th>
-                    <th>วันที่เพิ่ม</th>
-                    <th>จัดการ</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {adminUsers.map((u) => (
-                    <tr key={u.id}>
-                      <td>
-                        <span className="admin-username">{u.username}</span>
-                      </td>
-                      <td>{u.display_name || '—'}</td>
-                      <td>
-                        <span className={`role-badge ${ROLE_CONFIG[u.role]?.badgeClass || 'role-viewer'}`}>
-                          {ROLE_CONFIG[u.role] ? `${ROLE_CONFIG[u.role].icon} ${ROLE_CONFIG[u.role].label}` : u.role}
-                        </span>
-                      </td>
-                      <td>
-                        <span className={`badge ${u.is_active ? 'badge-success' : 'badge-warning'}`}>
-                          {u.is_active ? '✓ Active' : '⏸ Inactive'}
-                        </span>
-                      </td>
-                      <td className="date-text">{u.created_by || '—'}</td>
-                      <td className="date-text">
-                        {u.created_at
-                          ? new Date(u.created_at).toLocaleDateString('th-TH', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })
-                          : '—'}
-                      </td>
-                      <td>
-                        <div className="admin-actions">
-                          <button
-                            className="btn-action btn-role-toggle"
-                            onClick={() => handleToggleRole(u)}
-                            disabled={actionLoading === u.id}
-                            title={`เปลี่ยนเป็น ${ROLE_CONFIG[ROLE_CYCLE[u.role] || 'viewer']?.label}`}
-                            type="button"
-                          >
-                            🔄
-                          </button>
-                          {deleteConfirmId === u.id ? (
-                            <div className="delete-confirm-inline">
-                              <button
-                                className="btn-action btn-confirm-yes"
-                                onClick={() => handleDelete(u.id)}
-                                disabled={actionLoading === u.id}
-                                type="button"
-                              >
-                                ✓ ยืนยัน
-                              </button>
-                              <button
-                                className="btn-action btn-confirm-no"
-                                onClick={() => setDeleteConfirmId(null)}
-                                type="button"
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              className="btn-action btn-delete"
-                              onClick={() => setDeleteConfirmId(u.id)}
-                              disabled={actionLoading === u.id}
-                              title="ลบผู้ใช้งาน"
-                              type="button"
-                            >
-                              🗑️
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
 
-        {/* Pre-screening Cron Settings */}
-        <div className="page-header" style={{ marginTop: '40px', paddingBottom: '10px' }}>
-          <div className="page-title-row">
-            <div>
-              <h2 className="page-title">⚙️ ตั้งค่าระบบคัดกรองอัตโนมัติ (Cron Job)</h2>
-              <p className="page-subtitle">จัดการเวลาการดึงข้อมูลและติดตามประวัติการรันระบบดึงข้อมูลนัดหมาย Telemed อัตโนมัติ</p>
-            </div>
-          </div>
-        </div>
+            {/* Users Table Card */}
+            <div className="settings-table-card">
+              <div className="settings-table-toolbar">
+                <h3 className="settings-table-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                  </svg>
+                  รายชื่อผู้ใช้งานในระบบ
+                </h3>
+              </div>
 
-        <div className="table-card" style={{ padding: '25px', marginBottom: '30px' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', alignItems: 'flex-start' }}>
-            <div style={{ flex: '1', minWidth: '300px' }}>
-              <h3 style={{ margin: '0 0 15px 0', fontSize: '1.2em', color: '#0056b3' }}>⚙️ ตั้งค่าเวลาการทำงาน</h3>
-              <p style={{ fontSize: '0.9em', color: 'var(--gray-600)', margin: '0 0 20px 0' }}>
-                ระบบจะดึงนัดหมายผู้ป่วยใน HOSxP ที่นัดตรวจ Telemed ในวันถัดไปโดยอัตโนมัติตามเวลาที่กำหนด 
-                และจะส่งลิงก์แบบคัดกรองทาง LINE OA ให้กับคนไข้
-              </p>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <label htmlFor="cron-time-input" style={{ fontSize: '0.85em', fontWeight: 'bold', marginBottom: '5px', color: 'var(--gray-700)' }}>
-                    เวลาการทำงาน (HH:mm)
-                  </label>
-                  <input
-                    id="cron-time-input"
-                    className="date-picker-input"
-                    type="time"
-                    value={cronTime}
-                    onChange={(e) => setCronTime(e.target.value)}
-                    style={{ fontSize: '1.1em', padding: '8px 12px', width: '150px' }}
-                  />
+              {loading ? (
+                <div className="loading-container">
+                  <div className="spinner" />
+                  <div className="loading-text">กำลังโหลดข้อมูลผู้ใช้งาน...</div>
                 </div>
+              ) : adminUsers.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-state-icon">👤</div>
+                  <div className="empty-state-title">ยังไม่มีผู้ใช้งาน</div>
+                  <div className="empty-state-text">
+                    กดปุ่ม &quot;เพิ่มผู้ใช้งาน&quot; เพื่อเริ่มเพิ่มผู้ใช้ที่สามารถเข้าสู่ระบบได้
+                  </div>
+                </div>
+              ) : (
+                <div className="settings-table-container">
+                  <table className="settings-table" id="admin-users-table">
+                    <thead>
+                      <tr>
+                        <th>ผู้ใช้งาน (User Profile)</th>
+                        <th>Role / สิทธิ์การใช้งาน</th>
+                        <th>สถานะ</th>
+                        <th>เพิ่มโดย</th>
+                        <th>วันที่เพิ่ม</th>
+                        <th style={{ textAlign: 'center', width: '130px' }}>จัดการ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminUsers.map((u) => {
+                        const initial = (u.display_name?.charAt(0) || u.username?.charAt(0) || '?').toUpperCase();
+                        const roleMeta = ROLE_CONFIG[u.role] || { label: u.role, icon: '👤', badgeClass: 'settings-role-viewer' };
+
+                        return (
+                          <tr key={u.id}>
+                            {/* Profile (Name & Username) */}
+                            <td>
+                              <div className="settings-user-cell">
+                                <div className="settings-user-avatar">
+                                  {initial}
+                                </div>
+                                <div className="settings-user-meta">
+                                  <span className="settings-user-name">{u.display_name || u.username}</span>
+                                  <span className="settings-user-login">@{u.username}</span>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Role Badge */}
+                            <td>
+                              <span className={`settings-role-badge ${roleMeta.badgeClass}`}>
+                                <span>{roleMeta.icon}</span>
+                                <span>{roleMeta.label}</span>
+                              </span>
+                            </td>
+
+                            {/* Status Badge */}
+                            <td>
+                              {u.is_active ? (
+                                <span className="settings-status-active">
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }}></span>
+                                  ใช้งานอยู่
+                                </span>
+                              ) : (
+                                <span className="settings-status-inactive">
+                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8' }}></span>
+                                  ปิดใช้งาน
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Created By */}
+                            <td>
+                              <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                                {u.created_by || '—'}
+                              </span>
+                            </td>
+
+                            {/* Created At */}
+                            <td>
+                              <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                                {formatDateOnly(u.created_at)}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td style={{ textAlign: 'center' }}>
+                              <div className="settings-actions-group" style={{ justifyContent: 'center' }}>
+                                {/* Toggle Role */}
+                                <button
+                                  className="settings-btn-icon"
+                                  onClick={() => handleToggleRole(u)}
+                                  disabled={actionLoading === u.id}
+                                  title={`เปลี่ยนสิทธิ์เป็น ${ROLE_CONFIG[ROLE_CYCLE[u.role] || 'viewer']?.label}`}
+                                  type="button"
+                                >
+                                  {actionLoading === u.id ? (
+                                    <div className="spinner-sm" style={{ width: 14, height: 14 }} />
+                                  ) : (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="23 4 23 10 17 10" />
+                                      <polyline points="1 20 1 14 7 14" />
+                                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                                    </svg>
+                                  )}
+                                </button>
+
+                                {/* Delete with Confirm */}
+                                {deleteConfirmId === u.id ? (
+                                  <div className="settings-delete-confirm-box">
+                                    <button
+                                      className="settings-btn-confirm-yes"
+                                      onClick={() => handleDelete(u.id)}
+                                      disabled={actionLoading === u.id}
+                                      type="button"
+                                    >
+                                      ยืนยัน
+                                    </button>
+                                    <button
+                                      className="settings-btn-confirm-no"
+                                      onClick={() => setDeleteConfirmId(null)}
+                                      type="button"
+                                    >
+                                      ✕
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <button
+                                    className="settings-btn-icon delete"
+                                    onClick={() => setDeleteConfirmId(u.id)}
+                                    disabled={actionLoading === u.id}
+                                    title="ลบผู้ใช้งาน"
+                                    type="button"
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="3 6 5 6 21 6" />
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* TAB 2: CRON JOB & AUTOMATION */}
+        {activeTab === 'cron' && (
+          <>
+            {/* Action Cards */}
+            <div className="cron-cards-grid">
+              {/* Card 1: Time Settings */}
+              <div className="cron-config-card">
+                <div>
+                  <div className="cron-card-header">
+                    <div className="cron-card-icon blue">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="cron-card-title">ตั้งเวลาทำงานอัตโนมัติ (Schedule)</h4>
+                      <p className="cron-card-desc">
+                        ระบบจะดึงนัดหมายตรวจ Telemed ในวันถัดไปจาก HOSxP อัตโนมัติตามเวลาที่กำหนด และส่งลิงก์แบบคัดกรองทาง LINE OA ให้คนไข้
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="cron-time-input-group">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b' }}>เวลาทำงานประจำวัน</span>
+                    <input
+                      id="cron-time-input"
+                      className="cron-time-input"
+                      type="time"
+                      value={cronTime}
+                      onChange={(e) => setCronTime(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    className="cron-btn cron-btn-blue"
+                    onClick={handleSaveCronSettings}
+                    disabled={cronSaving}
+                    type="button"
+                  >
+                    {cronSaving ? 'กำลังบันทึก...' : 'บันทึกเวลา'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 2: Manual Trigger */}
+              <div className="cron-config-card">
+                <div>
+                  <div className="cron-card-header">
+                    <div className="cron-card-icon green">
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h4 className="cron-card-title">สั่งรันระบบทันที (Manual Trigger)</h4>
+                      <p className="cron-card-desc">
+                        หากต้องการดึงข้อมูลนัดหมายและส่งข้อความ LINE คัดกรองสำหรับวันพรุ่งนี้ทันที โดยไม่ต้องรอเวลาทำงานอัตโนมัติ
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 <button
-                  className="btn btn-add-user"
-                  onClick={handleSaveCronSettings}
-                  disabled={cronSaving}
-                  style={{ marginTop: '23px', minWidth: '100px', height: '40px' }}
+                  className="cron-btn cron-btn-green"
+                  onClick={handleRunCronNow}
+                  disabled={manualTriggerLoading}
                   type="button"
                 >
-                  {cronSaving ? '⏳...' : '💾 บันทึกเวลา'}
+                  {manualTriggerLoading ? (
+                    '⏳ กำลังประมวลผลดึงนัดและส่ง LINE...'
+                  ) : (
+                    <>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                      สั่งดึงนัดหมายและส่งข้อความทันที
+                    </>
+                  )}
                 </button>
               </div>
             </div>
 
-            <div style={{ flex: '1', minWidth: '300px', borderLeft: '1px solid var(--gray-200)', paddingLeft: '30px' }}>
-              <h3 style={{ margin: '0 0 15px 0', fontSize: '1.2em', color: '#1b802e' }}>🚀 รันระบบทันที (Manual Trigger)</h3>
-              <p style={{ fontSize: '0.9em', color: 'var(--gray-600)', margin: '0 0 20px 0' }}>
-                หากต้องการดึงข้อมูลนัดหมายและส่งลิงก์ LINE คัดกรองสำหรับวันพรุ่งนี้ทันที โดยไม่ต้องรอเวลาทำงานอัตโนมัติ 
-                ท่านสามารถกดปุ่มเพื่อเริ่มกระบวนการทันที
-              </p>
-              <button
-                className="btn btn-add-user"
-                onClick={handleRunCronNow}
-                disabled={manualTriggerLoading}
-                style={{ backgroundColor: '#28a745', borderColor: '#28a745', height: '40px' }}
-                type="button"
-              >
-                {manualTriggerLoading ? '⏳ กำลังประมวลผลดึงนัดและส่ง LINE...' : '🚀 สั่งดึงนัดหมายและส่งข้อความทันที'}
-              </button>
-            </div>
-          </div>
-        </div>
+            {/* Cron Job Logs */}
+            <div className="settings-table-card">
+              <div className="settings-table-toolbar">
+                <h3 className="settings-table-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                  </svg>
+                  ประวัติการทำงานของระบบ (10 รายการล่าสุด)
+                </h3>
+                <button
+                  className="settings-btn-icon"
+                  onClick={fetchCronLogs}
+                  title="รีเฟรชประวัติ"
+                  type="button"
+                  style={{ width: 'auto', padding: '0 12px', height: '32px', gap: '6px', fontSize: '0.8125rem' }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10" />
+                    <polyline points="1 20 1 14 7 14" />
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+                  </svg>
+                  รีเฟรช
+                </button>
+              </div>
 
-        {/* Cron Job Logs */}
-        <div className="table-card" style={{ marginTop: '20px' }}>
-          <div className="table-toolbar">
-            <h3 style={{ margin: 0, fontSize: '1.1em', color: 'var(--gray-800)' }}>🕒 ประวัติการทำงานล่าสุด (10 รายการล่าสุด)</h3>
-            <button 
-              className="btn-action" 
-              onClick={fetchCronLogs}
-              title="รีเฟรชประวัติ"
-              style={{ padding: '5px 10px', fontSize: '0.9em', backgroundColor: 'var(--gray-100)', borderRadius: '4px' }}
-              type="button"
-            >
-              🔄 รีเฟรช
-            </button>
-          </div>
-
-          {cronLogsLoading ? (
-            <div className="loading-container">
-              <div className="spinner" />
-              <div className="loading-text">กำลังโหลดประวัติการทำงาน...</div>
+              {cronLogsLoading ? (
+                <div className="loading-container">
+                  <div className="spinner" />
+                  <div className="loading-text">กำลังโหลดประวัติการทำงาน...</div>
+                </div>
+              ) : cronLogs.length === 0 ? (
+                <div className="empty-state" style={{ padding: '36px 0' }}>
+                  <div className="empty-state-icon">🕒</div>
+                  <div className="empty-state-title">ไม่พบประวัติการทำงาน</div>
+                  <div className="empty-state-text">ระบบยังไม่เคยมีบันทึกการทำงานของ Cron Job</div>
+                </div>
+              ) : (
+                <div className="settings-table-container">
+                  <table className="settings-table" style={{ fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr>
+                        <th>เวลาเริ่มต้น</th>
+                        <th>เวลาเสร็จสิ้น</th>
+                        <th>สถานะ</th>
+                        <th style={{ textAlign: 'center' }}>พบนัดหมาย (ราย)</th>
+                        <th style={{ textAlign: 'center' }}>บันทึกสำเร็จ (ราย)</th>
+                        <th style={{ textAlign: 'center' }}>ส่ง LINE สำเร็จ</th>
+                        <th style={{ textAlign: 'center' }}>ส่ง LINE ล้มเหลว</th>
+                        <th>รายละเอียด / ข้อผิดพลาด</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {cronLogs.slice(0, 10).map((log) => (
+                        <tr key={log.id}>
+                          <td><strong>{formatDateTime(log.started_at)}</strong></td>
+                          <td style={{ color: '#64748b' }}>{log.completed_at ? formatDateTime(log.completed_at) : '—'}</td>
+                          <td>
+                            {log.status === 'started' && (
+                              <span className="settings-status-inactive" style={{ background: '#fffbeb', color: '#b45309', border: '1px solid #fde68a' }}>
+                                ⏳ กำลังทำงาน
+                              </span>
+                            )}
+                            {log.status === 'success' && (
+                              <span className="settings-status-active">
+                                ✓ สำเร็จ
+                              </span>
+                            )}
+                            {log.status === 'failed' && (
+                              <span className="settings-status-inactive" style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
+                                ✕ ล้มเหลว
+                              </span>
+                            )}
+                          </td>
+                          <td style={{ textAlign: 'center', fontWeight: 600 }}>{log.records_found}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#2563eb' }}>{log.records_inserted}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#059669' }}>{log.line_sent_count}</td>
+                          <td style={{ textAlign: 'center', fontWeight: 700, color: '#dc2626' }}>{log.line_failed_count}</td>
+                          <td style={{ whiteSpace: 'normal', wordBreak: 'break-word', color: log.status === 'failed' ? '#dc2626' : '#64748b', fontSize: '0.8125rem' }}>
+                            {log.error_message || (log.status === 'success' ? 'ทำงานสมบูรณ์' : 'กำลังดำเนินการ...')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-          ) : cronLogs.length === 0 ? (
-            <div className="empty-state" style={{ padding: '30px 0' }}>
-              <div className="empty-state-icon">🕒</div>
-              <div className="empty-state-title">ไม่พบประวัติการทำงาน</div>
-              <div className="empty-state-text">ระบบยังไม่เคยมีบันทึกการทำงานของ Cron Job</div>
-            </div>
-          ) : (
-            <div className="data-table-wrapper">
-              <table className="data-table" style={{ fontSize: '0.9em' }}>
-                <thead>
-                  <tr>
-                    <th>วันเวลาเริ่มต้น</th>
-                    <th>วันเวลาเสร็จสิ้น</th>
-                    <th>สถานะการทำงาน</th>
-                    <th style={{ textAlign: 'center' }}>พบนัดหมาย (ราย)</th>
-                    <th style={{ textAlign: 'center' }}>บันทึกสำเร็จ (ราย)</th>
-                    <th style={{ textAlign: 'center' }}>ส่ง LINE สำเร็จ</th>
-                    <th style={{ textAlign: 'center' }}>ส่ง LINE ล้มเหลว</th>
-                    <th>รายละเอียดเพิ่มเติม / ข้อผิดพลาด</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cronLogs.slice(0, 10).map((log) => (
-                    <tr key={log.id}>
-                      <td className="date-text"><strong>{formatDateTime(log.started_at)}</strong></td>
-                      <td className="date-text">{log.completed_at ? formatDateTime(log.completed_at) : '—'}</td>
-                      <td>
-                        {log.status === 'started' && (
-                          <span className="badge badge-warning" style={{ backgroundColor: '#fff9c4', color: '#f57f17' }}>
-                            ⏳ กำลังทำงาน
-                          </span>
-                        )}
-                        {log.status === 'success' && (
-                          <span className="badge badge-success">
-                            ✅ สำเร็จ
-                          </span>
-                        )}
-                        {log.status === 'failed' && (
-                          <span className="badge badge-danger">
-                            ❌ ล้มเหลว
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{log.records_found}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--primary-600)' }}>{log.records_inserted}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#2e7d32' }}>{log.line_sent_count}</td>
-                      <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#c62828' }}>{log.line_failed_count}</td>
-                      <td style={{ whiteSpace: 'normal', wordBreak: 'break-word', color: log.status === 'failed' ? '#c62828' : 'var(--gray-600)' }}>
-                        {log.error_message || (log.status === 'success' ? 'ทำงานสมบูรณ์' : 'กำลังดำเนินการ...')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Add User Modal */}
@@ -541,53 +721,61 @@ function AddUserModal({ onClose, onSuccess }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={handleOverlayClick} role="presentation">
-      <div className="modal-content" ref={modalContentRef} role="dialog" aria-modal="true">
-        <div className="modal-header">
-          <h3 className="modal-title">เพิ่มผู้ใช้งานระบบ</h3>
-          <button className="modal-close" onClick={onClose} type="button" aria-label="Close">
-            ✕
+    <div className="settings-modal-overlay" onClick={handleOverlayClick} role="presentation">
+      <div className="settings-modal-card" ref={modalContentRef} role="dialog" aria-modal="true">
+        <div className="settings-modal-header">
+          <h3 className="settings-modal-title">เพิ่มผู้ใช้งานระบบ</h3>
+          <button className="settings-modal-close" onClick={onClose} type="button" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="12" x2="18" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </div>
 
-        <div className="modal-body">
+        <div className="settings-modal-body">
           {/* Selected User Preview */}
           {selectedUser && (
-            <div className="selected-user-card">
-              <div className="selected-user-info">
-                <div className="selected-user-avatar">
+            <div className="settings-selected-user-card">
+              <div className="settings-user-preview-left">
+                <div className="settings-user-preview-avatar">
                   {selectedUser.name?.charAt(0)?.toUpperCase() || '?'}
                 </div>
                 <div>
-                  <div className="selected-user-name">{selectedUser.name}</div>
-                  <div className="selected-user-login">{selectedUser.loginname}</div>
-                  {selectedUser.department && (
-                    <div className="selected-user-dept">{selectedUser.department}</div>
-                  )}
+                  <div className="settings-user-preview-name">{selectedUser.name}</div>
+                  <div className="settings-user-preview-sub">
+                    @{selectedUser.loginname}
+                    {selectedUser.department ? ` · ${selectedUser.department}` : ''}
+                  </div>
                 </div>
               </div>
               <button
-                className="btn-action btn-remove-selected"
+                className="settings-btn-icon"
                 onClick={() => setSelectedUser(null)}
+                title="เปลี่ยนผู้ใช้"
                 type="button"
+                style={{ border: 'none', background: 'transparent' }}
               >
                 ✕
               </button>
             </div>
           )}
 
-          {/* Search */}
+          {/* Search HOSxP OPD Users */}
           {!selectedUser && (
-            <div className="modal-search-section">
-              <label className="form-label" htmlFor="search-opduser-input">
-                ค้นหาผู้ใช้งาน (ชื่อ หรือ Username)
+            <div className="settings-search-wrap">
+              <label className="loa-form-label" htmlFor="search-opduser-input">
+                ค้นหาเจ้าหน้าที่จาก HOSxP (ชื่อ หรือ Username)
               </label>
-              <div className="search-box modal-search-box">
-                <span className="search-icon">🔍</span>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                  🔍
+                </span>
                 <input
-                  className="search-input"
+                  className="settings-modal-search-input"
                   type="text"
-                  placeholder="พิมพ์อย่างน้อย 2 ตัวอักษร..."
+                  placeholder="พิมพ์ชื่อ หรือ Loginname อย่างน้อย 2 ตัวอักษร..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   id="search-opduser-input"
@@ -598,31 +786,32 @@ function AddUserModal({ onClose, onSuccess }) {
 
               {/* Search Results Dropdown */}
               {(searching || searchResults.length > 0) && (
-                <div className="search-results-dropdown">
+                <div className="settings-search-dropdown">
                   {searching ? (
-                    <div className="search-results-loading">
-                      <div className="spinner-sm" />
-                      <span>กำลังค้นหา...</span>
+                    <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '0.875rem' }}>
+                      กำลังค้นหาข้อมูลใน HOSxP...
                     </div>
                   ) : searchResults.length === 0 ? (
-                    <div className="search-results-empty">ไม่พบผู้ใช้งาน</div>
+                    <div style={{ padding: '16px', textAlign: 'center', color: '#64748b', fontSize: '0.875rem' }}>
+                      ไม่พบผู้ใช้งานที่ตรงกับเงื่อนไข
+                    </div>
                   ) : (
                     searchResults.map((u) => (
                       <button
                         key={u.loginname}
-                        className="search-result-item"
+                        className="settings-search-item"
                         onClick={() => handleSelectUser(u)}
                         type="button"
                       >
-                        <div className="search-result-avatar">
+                        <div className="settings-search-item-avatar">
                           {u.name?.charAt(0)?.toUpperCase() || '?'}
                         </div>
-                        <div className="search-result-info">
-                          <div className="search-result-name">{u.name}</div>
-                          <div className="search-result-meta">
-                            {u.loginname}
+                        <div className="settings-search-item-info">
+                          <span className="settings-search-item-name">{u.name}</span>
+                          <span className="settings-search-item-sub">
+                            @{u.loginname}
                             {u.department ? ` · ${u.department}` : ''}
-                          </div>
+                          </span>
                         </div>
                       </button>
                     ))
@@ -633,88 +822,72 @@ function AddUserModal({ onClose, onSuccess }) {
           )}
 
           {/* Role Selection */}
-          <div className="role-selection">
-            <label className="form-label">เลือก Role</label>
-            <div className="role-options">
-              <label
-                className={`role-option ${selectedRole === 'admin' ? 'selected' : ''}`}
-                htmlFor="role-admin"
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label className="loa-form-label">กำหนดสิทธิ์การใช้งาน (Role)</label>
+            <div className="settings-roles-grid">
+              {/* Admin */}
+              <div
+                className={`settings-role-radio-card ${selectedRole === 'admin' ? 'selected' : ''}`}
+                onClick={() => setSelectedRole('admin')}
               >
-                <input
-                  type="radio"
-                  name="role"
-                  value="admin"
-                  id="role-admin"
-                  checked={selectedRole === 'admin'}
-                  onChange={() => setSelectedRole('admin')}
-                />
-                <div className="role-option-content">
-                  <span className="role-option-icon">🛡️</span>
-                  <div>
-                    <div className="role-option-title">Admin</div>
-                    <div className="role-option-desc">จัดการผู้ใช้งาน, สร้างลิงก์ Telemed</div>
-                  </div>
+                <span className="settings-role-radio-icon">🛡️</span>
+                <div>
+                  <div className="settings-role-radio-title">Admin (ผู้ดูแลระบบ)</div>
+                  <div className="settings-role-radio-desc">เข้าถึงทุกเมนู จัดการผู้ใช้ ตั้งค่าระบบ และสร้างลิงก์ Telemed</div>
                 </div>
-              </label>
-              <label
-                className={`role-option ${selectedRole === 'request_telemed' ? 'selected' : ''}`}
-                htmlFor="role-request-telemed"
+              </div>
+
+              {/* Request Telemed */}
+              <div
+                className={`settings-role-radio-card ${selectedRole === 'request_telemed' ? 'selected' : ''}`}
+                onClick={() => setSelectedRole('request_telemed')}
               >
-                <input
-                  type="radio"
-                  name="role"
-                  value="request_telemed"
-                  id="role-request-telemed"
-                  checked={selectedRole === 'request_telemed'}
-                  onChange={() => setSelectedRole('request_telemed')}
-                />
-                <div className="role-option-content">
-                  <span className="role-option-icon">📦</span>
-                  <div>
-                    <div className="role-option-title">Request Telemed</div>
-                    <div className="role-option-desc">เข้าถึงเฉพาะเมนู Line OA และ Request Telemed</div>
-                  </div>
+                <span className="settings-role-radio-icon">📦</span>
+                <div>
+                  <div className="settings-role-radio-title">Request Telemed (เจ้าหน้าที่จัดส่งยาและคำขอ)</div>
+                  <div className="settings-role-radio-desc">เข้าถึงเฉพาะเมนู LINE OA และจัดการสถานะส่งยา Request Telemed</div>
                 </div>
-              </label>
-              <label
-                className={`role-option ${selectedRole === 'viewer' ? 'selected' : ''}`}
-                htmlFor="role-viewer"
+              </div>
+
+              {/* Viewer */}
+              <div
+                className={`settings-role-radio-card ${selectedRole === 'viewer' ? 'selected' : ''}`}
+                onClick={() => setSelectedRole('viewer')}
               >
-                <input
-                  type="radio"
-                  name="role"
-                  value="viewer"
-                  id="role-viewer"
-                  checked={selectedRole === 'viewer'}
-                  onChange={() => setSelectedRole('viewer')}
-                />
-                <div className="role-option-content">
-                  <span className="role-option-icon">👁️</span>
-                  <div>
-                    <div className="role-option-title">Viewer</div>
-                    <div className="role-option-desc">ดูข้อมูลได้อย่างเดียว</div>
-                  </div>
+                <span className="settings-role-radio-icon">👁️</span>
+                <div>
+                  <div className="settings-role-radio-title">Viewer (ผู้เข้าชม)</div>
+                  <div className="settings-role-radio-desc">ดูข้อมูลเคสและสถิติต่างๆ ในระบบได้อย่างเดียว ไม่สามารถแก้ไขได้</div>
                 </div>
-              </label>
+              </div>
             </div>
           </div>
 
-          {/* Error */}
-          {error && <div className="modal-error">{error}</div>}
+          {/* Error Message */}
+          {error && (
+            <div className="loa-form-error">
+              {error}
+            </div>
+          )}
         </div>
 
-        <div className="modal-footer">
-          <button className="btn btn-cancel" onClick={onClose} type="button">
+        <div className="settings-modal-footer">
+          <button
+            className="loa-btn loa-btn-secondary"
+            onClick={onClose}
+            type="button"
+            disabled={saving}
+          >
             ยกเลิก
           </button>
           <button
-            className="btn btn-save"
+            className="loa-btn loa-btn-primary"
             onClick={handleSubmit}
             disabled={!selectedUser || saving}
             type="button"
             id="btn-save-admin-user"
           >
-            {saving ? 'กำลังบันทึก...' : '💾 บันทึก'}
+            {saving ? 'กำลังบันทึก...' : 'บันทึกผู้ใช้งาน'}
           </button>
         </div>
       </div>
