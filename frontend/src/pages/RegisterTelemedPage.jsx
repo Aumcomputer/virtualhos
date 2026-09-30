@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import './RegisterTelemedPage.css';
 
 function formatThaiDate(dateStr) {
   if (!dateStr) return '—';
@@ -240,19 +241,22 @@ export default function RegisterTelemedPage() {
         </div>
       </div>
 
-      <div className="page-body">
+      <div className="page-body register-telemed-container">
         {/* Step 1: HN Search Card */}
-        <div className="telemed-card search-step-card">
-          <div className="step-badge-label">ขั้นตอนที่ 1 : ค้นหาผู้ป่วย</div>
-          <form className="hn-search-form" onSubmit={handleSearch}>
-            <div className="hn-search-input-group">
-              <label htmlFor="hn-search-input" className="form-label font-bold">
+        <div className="reg-step-card">
+          <div className="reg-step-badge">
+            <span className="reg-step-num">1</span>
+            <span>ขั้นตอนที่ 1 : ค้นหาผู้ป่วย</span>
+          </div>
+          <form className="reg-search-form" onSubmit={handleSearch}>
+            <div className="reg-search-input-group">
+              <label htmlFor="hn-search-input">
                 เลขประจำตัวผู้ป่วย (HN) หรือ เลขบัตรประชาชน (CID)
               </label>
-              <div className="hn-input-btn-row">
+              <div className="reg-input-btn-row">
                 <input
                   id="hn-search-input"
-                  className="form-input font-mono"
+                  className="reg-search-input"
                   type="text"
                   inputMode="numeric"
                   maxLength={13}
@@ -264,7 +268,7 @@ export default function RegisterTelemedPage() {
                 />
                 <button
                   type="submit"
-                  className="btn btn-primary btn-search-hn"
+                  className="reg-search-btn"
                   disabled={searching || !hnInput.trim()}
                 >
                   {searching ? (
@@ -287,17 +291,17 @@ export default function RegisterTelemedPage() {
               </div>
 
               {hnInput.length > 0 && (
-                <div style={{ marginTop: '8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="reg-input-hint-row">
                   {hnInput.length === 7 ? (
-                    <span className="badge badge-success" style={{ padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>
+                    <span className="reg-hint-badge reg-hint-hn">
                       ✓ รูปแบบ HN (7 หลัก)
                     </span>
                   ) : hnInput.length === 13 ? (
-                    <span className="badge badge-primary" style={{ padding: '3px 10px', fontSize: '0.75rem', fontWeight: 600 }}>
+                    <span className="reg-hint-badge reg-hint-cid">
                       ✓ รูปแบบเลขบัตรประชาชน CID (13 หลัก)
                     </span>
                   ) : (
-                    <span style={{ color: 'var(--gray-500)' }}>
+                    <span className="reg-hint-typing">
                       กรอกแล้ว {hnInput.length} หลัก (ต้องการ 7 หลักสำหรับ HN หรือ 13 หลักสำหรับ CID)
                     </span>
                   )}
@@ -307,7 +311,7 @@ export default function RegisterTelemedPage() {
           </form>
 
           {searchError && (
-            <div className="search-error-alert">
+            <div className="reg-error-box">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" />
                 <line x1="12" y1="8" x2="12" y2="12" />
@@ -320,210 +324,220 @@ export default function RegisterTelemedPage() {
 
         {/* Step 2: Patient Info & Upcoming Appointments */}
         {patient && (
-          <div className="telemed-card patient-appointments-card">
+          <div className="reg-step-card">
             {/* Patient Header Summary */}
-            <div className="patient-card-header">
-              <div className="patient-avatar-box">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
-              </div>
-              <div className="patient-meta-info">
-                <div className="patient-name-title">{patient.fullname || 'ไม่ระบุชื่อ'}</div>
-                <div className="patient-sub-details">
-                  <span className="font-mono">HN: {patient.hn}</span>
-                  {patient.cid && <span className="font-mono">CID: {patient.cid}</span>}
-                  {patient.phone && <span>เบอร์โทร: {patient.phone}</span>}
+            <div className="reg-patient-banner">
+              <div className="reg-patient-info-group">
+                <div className="reg-patient-avatar">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <div className="reg-patient-details">
+                  <div className="reg-patient-name">{patient.fullname || 'ไม่ระบุชื่อ'}</div>
+                  <div className="reg-patient-badges">
+                    <span className="reg-pill-badge hn-badge">HN: {patient.hn}</span>
+                    {patient.cid && <span className="reg-pill-badge cid-badge">CID: {patient.cid}</span>}
+                    {patient.phone && <span className="reg-pill-badge phone-badge">📞 {patient.phone}</span>}
+                  </div>
                 </div>
               </div>
               <button
                 type="button"
-                className="btn btn-secondary btn-sm"
+                className="reg-btn-change-patient"
                 onClick={handleReset}
                 title="ค้นหาคนไข้รายอื่น"
               >
-                เปลี่ยนผู้ป่วย
+                🔄 เปลี่ยนผู้ป่วย
               </button>
             </div>
 
             {/* Appointments Section */}
-            <div className="appointments-section-container">
-              <div className="step-badge-label">
+            <div className="reg-step-badge">
+              <span className="reg-step-num">2</span>
+              <span>
                 ขั้นตอนที่ 2 : เลือกรายการนัดหมายล่วงหน้า {maxApptDate ? `(เปิดรับเฉพาะนัดหมายไม่เกิน ${formatThaiDate(maxApptDate)})` : '(ที่ยังไม่ถึงกำหนด)'}
+              </span>
+            </div>
+
+            {maxApptDate && (
+              <div className="reg-policy-banner">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <span>
+                  เงื่อนไขการรับยา: เปิดรับเฉพาะรายการนัดหมายที่มีกำหนด<strong>ไม่เกินวันที่ {formatThaiDate(maxApptDate)}</strong> เท่านั้น (ใบนัดที่เกินกำหนดจะไม่สามารถเลือกได้)
+                </span>
               </div>
+            )}
 
-              {maxApptDate && (
-                <div className="appt-date-policy-notice">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="16" x2="12" y2="12" />
-                    <line x1="12" y1="8" x2="12.01" y2="8" />
-                  </svg>
-                  <span>
-                    เงื่อนไขการรับยา: เปิดรับเฉพาะรายการนัดหมายที่มีกำหนด<strong>ไม่เกินวันที่ {formatThaiDate(maxApptDate)}</strong> เท่านั้น (ใบนัดที่เกินกำหนดจะไม่สามารถเลือกได้)
-                  </span>
-                </div>
-              )}
-
-              {appointments.length === 0 ? (
-                <div className="no-appointment-alert">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                  <div className="no-appt-text-group">
-                    <div className="no-appt-title">ไม่พบรายการนัดหมายล่วงหน้าสำหรับ HN นี้</div>
-                    <div className="no-appt-desc">
-                      ระบบอนุญาตให้ยื่นคำขอรับยาไม่พบแพทย์ได้เฉพาะผู้ป่วยที่มีรายการนัดหมายล่วงหน้าในระบบ HOSxP เท่านั้น
-                    </div>
+            {appointments.length === 0 ? (
+              <div className="reg-no-appts-card">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <div>
+                  <div className="reg-no-appts-title">ไม่พบรายการนัดหมายล่วงหน้าสำหรับ HN นี้</div>
+                  <div className="reg-no-appts-desc">
+                    ระบบอนุญาตให้ยื่นคำขอรับยาไม่พบแพทย์ได้เฉพาะผู้ป่วยที่มีรายการนัดหมายล่วงหน้าในระบบ HOSxP เท่านั้น
                   </div>
                 </div>
-              ) : (
-                <div className="appt-cards-grid">
-                  {appointments.map((appt) => {
-                    const isSelected = selectedAppt?.oappId === appt.oappId;
-                    const hasReq = Boolean(appt.existingRequest);
-                    const thresholdDate = maxApptDate || '2026-10-14';
-                    const apptYMD = formatToYMD(appt.nextdate);
-                    const isDisallowed = appt.isDateAllowed === false || (Boolean(thresholdDate) && Boolean(apptYMD) && apptYMD > thresholdDate);
-                    const isDisabled = hasReq || isDisallowed;
+              </div>
+            ) : (
+              <div className="reg-appts-grid">
+                {appointments.map((appt) => {
+                  const isSelected = selectedAppt?.oappId === appt.oappId;
+                  const hasReq = Boolean(appt.existingRequest);
+                  const thresholdDate = maxApptDate || '2026-10-14';
+                  const apptYMD = formatToYMD(appt.nextdate);
+                  const isDisallowed = appt.isDateAllowed === false || (Boolean(thresholdDate) && Boolean(apptYMD) && apptYMD > thresholdDate);
+                  const isDisabled = hasReq || isDisallowed;
 
-                    let cardClass = 'reg-appt-card';
-                    if (isSelected) cardClass += ' selected';
-                    if (isDisabled) cardClass += ' disabled';
-                    if (isDisallowed) cardClass += ' date-disallowed';
+                  let cardClass = 'reg-card-item';
+                  if (isSelected) cardClass += ' is-selected';
+                  if (isDisabled) cardClass += ' is-disabled';
+                  if (isDisallowed) cardClass += ' is-disallowed';
 
-                    return (
-                      <div
-                        key={appt.oappId}
-                        className={cardClass}
-                        onClick={() => {
-                          if (!isDisabled) handleSelectAppt(appt);
-                        }}
-                      >
-                        <div className="reg-appt-header">
-                          <div className="reg-appt-date font-bold">
-                            {formatThaiDate(appt.nextdate)}
-                          </div>
-                          <div className="reg-appt-header-badges">
-                            {isDisallowed && (
-                              <span className="reg-appt-disallowed-badge" title={appt.dateDisallowedReason || 'วันนัดหมายเกินกำหนด'}>
-                                เกินกำหนดเปิดรับ
-                              </span>
-                            )}
-                            {appt.timeRange && (
-                              <span className="reg-appt-time-badge">{appt.timeRange}</span>
-                            )}
-                          </div>
+                  return (
+                    <div
+                      key={appt.oappId}
+                      className={cardClass}
+                      onClick={() => {
+                        if (!isDisabled) handleSelectAppt(appt);
+                      }}
+                    >
+                      <div className="reg-card-head">
+                        <div className="reg-card-date">
+                          📅 {formatThaiDate(appt.nextdate)}
                         </div>
-
-                        <div className="reg-appt-details">
-                          <div className="reg-appt-detail-row">
-                            <span className="label">คลินิก/แผนก:</span>
-                            <span className="value">{appt.clinicName}</span>
-                          </div>
-                          <div className="reg-appt-detail-row">
-                            <span className="label">แพทย์ผู้นัด:</span>
-                            <span className="value">{appt.doctorName}</span>
-                          </div>
-                          {appt.appCause && (
-                            <div className="reg-appt-detail-row">
-                              <span className="label">สาเหตุการนัด:</span>
-                              <span className="value">{appt.appCause}</span>
-                            </div>
+                        <div className="reg-card-badges">
+                          {isDisallowed && (
+                            <span className="reg-disallowed-pill" title={appt.dateDisallowedReason || 'วันนัดหมายเกินกำหนด'}>
+                              เกินกำหนดเปิดรับ
+                            </span>
                           )}
-                          {appt.note && (
-                            <div className="reg-appt-detail-row">
-                              <span className="label">หมายเหตุ:</span>
-                              <span className="value text-muted">{appt.note}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="reg-appt-footer">
-                          {hasReq ? (
-                            <div className="existing-req-badge">
-                              <span className="status-dot"></span>
-                              ยื่นคำขอแล้ว ({appt.existingRequest.status || 'รอตรวจสอบ'})
-                            </div>
-                          ) : isDisallowed ? (
-                            <div className="disallowed-req-note" title={appt.dateDisallowedReason || `วันนัดหมายเกินกำหนด (เปิดรับเฉพาะนัดหมายไม่เกิน ${formatThaiDate(thresholdDate)})`}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="12" y1="8" x2="12" y2="12" />
-                                <line x1="12" y1="16" x2="12.01" y2="16" />
-                              </svg>
-                              <span>เกินกำหนดเปิดรับ (ไม่สามารถเลือกรอบนี้ได้)</span>
-                            </div>
-                          ) : isSelected ? (
-                            <div className="selected-indicator">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              เลือกรอบนัดนี้แล้ว
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm btn-select-appt"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSelectAppt(appt);
-                              }}
-                            >
-                              เลือกรอบนัดนี้
-                            </button>
+                          {appt.timeRange && (
+                            <span className="reg-time-pill">{appt.timeRange}</span>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+
+                      <div className="reg-card-body">
+                        <div className="reg-info-row">
+                          <span className="reg-lbl">คลินิก/แผนก:</span>
+                          <span className="reg-val">{appt.clinicName}</span>
+                        </div>
+                        <div className="reg-info-row">
+                          <span className="reg-lbl">แพทย์ผู้นัด:</span>
+                          <span className="reg-val">{appt.doctorName}</span>
+                        </div>
+                        {appt.appCause && (
+                          <div className="reg-info-row">
+                            <span className="reg-lbl">สาเหตุการนัด:</span>
+                            <span className="reg-val">{appt.appCause}</span>
+                          </div>
+                        )}
+                        {appt.note && (
+                          <div className="reg-info-row">
+                            <span className="reg-lbl">หมายเหตุ:</span>
+                            <span className="reg-val text-muted">{appt.note}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="reg-card-foot">
+                        {hasReq ? (
+                          <div className="reg-indicator-exists">
+                            <span className="reg-dot-pending"></span>
+                            ยื่นคำขอแล้ว ({appt.existingRequest.status || 'รอตรวจสอบ'})
+                          </div>
+                        ) : isDisallowed ? (
+                          <div className="reg-disallowed-note" title={appt.dateDisallowedReason || `วันนัดหมายเกินกำหนด (เปิดรับเฉพาะนัดหมายไม่เกิน ${formatThaiDate(thresholdDate)})`}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <line x1="12" y1="8" x2="12" y2="12" />
+                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>เกินกำหนดเปิดรับ</span>
+                          </div>
+                        ) : isSelected ? (
+                          <div className="reg-indicator-selected">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                            เลือกรอบนัดนี้แล้ว
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="reg-btn-select"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleSelectAppt(appt);
+                            }}
+                          >
+                            เลือกรอบนัดนี้ →
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
         {/* Step 3: Registration Form (Only when appointment is selected) */}
         {selectedAppt && (
-          <div className="telemed-card form-step-card" ref={formRef}>
-            <div className="step-badge-label">
-              ขั้นตอนที่ 3 : ข้อมูลขอรับยาไม่พบแพทย์ (จัดส่งทางไปรษณีย์)
+          <div className="reg-step-card reg-form-card" ref={formRef}>
+            <div className="reg-step-badge">
+              <span className="reg-step-num">3</span>
+              <span>ขั้นตอนที่ 3 : ข้อมูลขอรับยาไม่พบแพทย์ (จัดส่งทางไปรษณีย์)</span>
             </div>
 
             {/* Selected Summary Banner */}
-            <div className="selected-summary-banner">
-              <div className="summary-banner-title">รอบนัดหมายที่เลือก:</div>
-              <div className="summary-banner-desc">
+            <div className="reg-summary-banner">
+              <div className="reg-summary-head">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+                รอบนัดหมายที่เลือก:
+              </div>
+              <div className="reg-summary-body">
                 วันที่ <strong>{formatThaiDate(selectedAppt.nextdate)}</strong> ({selectedAppt.timeRange || 'ไม่ระบุเวลา'}) • แผนก: <strong>{selectedAppt.clinicName}</strong> • แพทย์: <strong>{selectedAppt.doctorName}</strong>
               </div>
             </div>
 
             {/* Success state */}
             {submitSuccess ? (
-              <div className="submit-success-card">
-                <div className="success-icon-box">
+              <div className="reg-success-card">
+                <div className="reg-success-icon-wrap">
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M20 6L9 17l-5-5" />
                   </svg>
                 </div>
-                <h3 className="success-title">บันทึกคำขอรับยาไม่พบแพทย์เรียบร้อยแล้ว</h3>
-                <p className="success-desc">
+                <h3 className="reg-success-title">บันทึกคำขอรับยาไม่พบแพทย์เรียบร้อยแล้ว</h3>
+                <p className="reg-success-desc">
                   รายการคำขอได้รับการบันทึกลงระบบแล้ว เจ้าหน้าที่สามารถติดตามสถานะและรับเรื่องได้ที่หน้ารายชื่อผู้ยื่นความจำนง
                 </p>
-                <div className="success-actions-row">
+                <div className="reg-success-buttons">
                   <button
                     type="button"
-                    className="btn btn-primary"
+                    className="reg-btn-submit"
                     onClick={() => navigate('/request-telemed')}
                   >
-                    ไปยังหน้ารายชื่อผู้ยื่นความจำนง
+                    ไปยังหน้ารายชื่อผู้ยื่นความจำนง →
                   </button>
                   <button
                     type="button"
-                    className="btn btn-secondary"
+                    className="reg-btn-cancel"
                     onClick={handleReset}
                   >
                     ลงทะเบียนคนไข้รายถัดไป
@@ -531,8 +545,8 @@ export default function RegisterTelemedPage() {
                 </div>
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="telemed-request-form">
-                <div className="alert-notice-box">
+              <form onSubmit={handleSubmit}>
+                <div className="reg-notice-alert">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="16" x2="12" y2="12" />
@@ -543,13 +557,13 @@ export default function RegisterTelemedPage() {
                   </span>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-reason">
-                    เหตุผลความจำเป็น <span className="req-star">*</span>
+                <div className="reg-form-group">
+                  <label htmlFor="input-reason">
+                    เหตุผลความจำเป็น <span className="reg-req-star">*</span>
                   </label>
                   <textarea
                     id="input-reason"
-                    className="form-input form-textarea"
+                    className="reg-textarea"
                     rows="2"
                     placeholder="ตัวอย่าง : น้ำท่วม ไม่สามารถเดินทางไปโรงพยาบาลได้"
                     value={reason}
@@ -558,13 +572,13 @@ export default function RegisterTelemedPage() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-symptoms">
-                    อาการปัจจุบัน <span className="req-star">*</span>
+                <div className="reg-form-group">
+                  <label htmlFor="input-symptoms">
+                    อาการปัจจุบัน <span className="reg-req-star">*</span>
                   </label>
                   <textarea
                     id="input-symptoms"
-                    className="form-input form-textarea"
+                    className="reg-textarea"
                     rows="2"
                     placeholder="ตัวอย่าง : รับยาความดัน อาการปกติ ไม่มีอาการผิดปกติ"
                     value={symptoms}
@@ -573,13 +587,13 @@ export default function RegisterTelemedPage() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label" htmlFor="input-address">
-                    ที่อยู่สำหรับจัดส่งยา <span className="req-star">*</span>
+                <div className="reg-form-group">
+                  <label htmlFor="input-address">
+                    ที่อยู่สำหรับจัดส่งยา <span className="reg-req-star">*</span>
                   </label>
                   <textarea
                     id="input-address"
-                    className="form-input form-textarea"
+                    className="reg-textarea"
                     rows="2"
                     placeholder="บ้านเลขที่ หมู่ ซอย ถนน ตำบล อำเภอ จังหวัด"
                     value={address}
@@ -588,14 +602,14 @@ export default function RegisterTelemedPage() {
                   />
                 </div>
 
-                <div className="form-row-2col">
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="input-postcode">
-                      รหัสไปรษณีย์ <span className="req-star">*</span>
+                <div className="reg-grid-2col">
+                  <div className="reg-form-group">
+                    <label htmlFor="input-postcode">
+                      รหัสไปรษณีย์ <span className="reg-req-star">*</span>
                     </label>
                     <input
                       id="input-postcode"
-                      className="form-input font-mono"
+                      className="reg-input-text font-mono"
                       type="text"
                       maxLength={10}
                       placeholder="รหัสไปรษณีย์"
@@ -605,13 +619,13 @@ export default function RegisterTelemedPage() {
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="input-phone">
-                      หมายเลขโทรศัพท์ที่ติดต่อได้ <span className="req-star">*</span>
+                  <div className="reg-form-group">
+                    <label htmlFor="input-phone">
+                      หมายเลขโทรศัพท์ที่ติดต่อได้ <span className="reg-req-star">*</span>
                     </label>
                     <input
                       id="input-phone"
-                      className="form-input font-mono"
+                      className="reg-input-text font-mono"
                       type="tel"
                       maxLength={20}
                       placeholder="เช่น 0812345678"
@@ -623,15 +637,15 @@ export default function RegisterTelemedPage() {
                 </div>
 
                 {/* Recorder Info */}
-                <div className="recorder-info-strip">
-                  <span className="recorder-label">ผู้บันทึกข้อมูล:</span>
-                  <span className="recorder-value font-bold">
+                <div className="reg-recorder-strip">
+                  <span>ผู้บันทึกข้อมูล:</span>
+                  <span className="reg-recorder-name">
                     {user?.displayName || user?.name || user?.username || 'เจ้าหน้าที่'}
                   </span>
                 </div>
 
                 {submitError && (
-                  <div className="submit-error-alert">
+                  <div className="reg-error-box" style={{ marginBottom: 16 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <circle cx="12" cy="12" r="10" />
                       <line x1="12" y1="8" x2="12" y2="12" />
@@ -641,10 +655,10 @@ export default function RegisterTelemedPage() {
                   </div>
                 )}
 
-                <div className="form-actions-row">
+                <div className="reg-actions-row">
                   <button
                     type="submit"
-                    className="btn btn-primary btn-submit-reg"
+                    className="reg-btn-submit"
                     disabled={submitting}
                   >
                     {submitting ? (
@@ -660,7 +674,7 @@ export default function RegisterTelemedPage() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-cancel"
+                    className="reg-btn-cancel"
                     onClick={() => setSelectedAppt(null)}
                     disabled={submitting}
                   >

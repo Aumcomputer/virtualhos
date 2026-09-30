@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../api/client';
+import './TelemedDashboardPage.css';
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -62,11 +63,16 @@ function groupBy(visits, keyFn, labelFn) {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-function StatCard({ label, value, color = 'primary' }) {
+function StatCard({ label, value, icon, iconType = 'blue' }) {
   return (
-    <div className="stat-card">
-      <div className="stat-label">{label}</div>
-      <div className={`stat-value ${color}`}>{value.toLocaleString()}</div>
+    <div className="dash-stat-card">
+      <div className={`dash-stat-icon-wrap dash-stat-icon-${iconType}`}>
+        {icon}
+      </div>
+      <div className="dash-stat-content">
+        <span className="dash-stat-label">{label}</span>
+        <span className="dash-stat-val">{value.toLocaleString()}</span>
+      </div>
     </div>
   );
 }
@@ -85,15 +91,15 @@ function InlineDetailRows({ visits, colSpan, onClose }) {
   return (
     <tr className="inline-detail-row" ref={ref}>
       <td colSpan={colSpan} style={{ padding: 0 }}>
-        <div className="inline-detail-panel">
+        <div className="dash-inline-detail-wrapper">
           {/* Header */}
-          <div className="inline-detail-header">
-            <span className="inline-detail-title">
-              🔍 รายละเอียด
-              <span className="detail-panel-count" style={{ marginLeft: 8 }}>{visits.length} เคส</span>
+          <div className="dash-inline-header">
+            <span className="dash-inline-title">
+              🔍 รายละเอียดเคส
+              <span className="dash-inline-count">{visits.length} เคส</span>
             </span>
             <button
-              className="detail-panel-close"
+              className="dash-inline-close-btn"
               onClick={(e) => { e.stopPropagation(); onClose(); }}
               id="inline-detail-close-btn"
               aria-label="ปิดรายละเอียด"
@@ -102,9 +108,9 @@ function InlineDetailRows({ visits, colSpan, onClose }) {
             </button>
           </div>
 
-          {/* Detail table */}
-          <div className="data-table-wrapper">
-            <table className="data-table inline-detail-table" id="dashboard-detail-table">
+          {/* Sub-table */}
+          <div className="dash-sub-table-container">
+            <table className="dash-sub-table" id="dashboard-detail-table">
               <thead>
                 <tr>
                   <th style={{ width: '46px' }}>#</th>
@@ -119,34 +125,31 @@ function InlineDetailRows({ visits, colSpan, onClose }) {
               </thead>
               <tbody>
                 {visits.map((v, idx) => (
-                  <tr key={`${v.vn}-${idx}`} className="inline-detail-data-row">
-                    <td style={{ color: 'var(--gray-400)', fontSize: '0.8rem' }}>{idx + 1}</td>
+                  <tr key={`${v.vn}-${idx}`}>
+                    <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{idx + 1}</td>
                     <td>
-                      <span className="hn-text">{v.hn || '-'}</span>
+                      <span className="font-mono font-bold" style={{ color: '#1e293b' }}>{v.hn || '-'}</span>
                     </td>
-                    <td style={{ fontWeight: 600, color: 'var(--gray-800)' }}>
+                    <td style={{ fontWeight: 600, color: '#0f172a' }}>
                       {v.patient_name || '-'}
                     </td>
                     <td>
-                      <span className="date-text">{formatThaiShortDate(v.vstdate)}</span>
+                      <span style={{ color: '#475569' }}>{formatThaiShortDate(v.vstdate)}</span>
                     </td>
                     <td>
-                      <span
-                        className="ver-badge"
-                        style={{ background: '#eff6ff', color: 'var(--primary-700)', border: 'none' }}
-                      >
+                      <span className="dash-dept-pill">
                         {v.spclty_name || '-'}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--gray-700)' }}>{v.doctor_name || '-'}</td>
+                    <td style={{ color: '#334155', fontWeight: 500 }}>{v.doctor_name || '-'}</td>
                     <td>
                       {v.icd10 ? (
-                        <span className="icd-code-badge">{v.icd10}</span>
+                        <span className="dash-icd-pill">{v.icd10}</span>
                       ) : (
-                        <span style={{ color: 'var(--gray-300)' }}>-</span>
+                        <span style={{ color: '#cbd5e1' }}>-</span>
                       )}
                     </td>
-                    <td style={{ fontSize: '0.8125rem', color: 'var(--gray-600)' }}>
+                    <td style={{ fontSize: '0.8125rem', color: '#64748b' }}>
                       {v.icd10_name || '-'}
                     </td>
                   </tr>
@@ -163,16 +166,15 @@ function InlineDetailRows({ visits, colSpan, onClose }) {
 function SummaryTable({ rows, selectedKey, onSelect }) {
   if (rows.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon">📭</div>
-        <div className="empty-state-title">ไม่พบข้อมูล</div>
-        <div className="empty-state-text">ไม่มีข้อมูลในช่วงวันที่เลือก</div>
+      <div className="empty-state" style={{ padding: '48px 20px', textAlign: 'center' }}>
+        <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📭</div>
+        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>ไม่พบข้อมูล</div>
+        <div style={{ fontSize: '0.875rem', color: '#64748b' }}>ไม่มีข้อมูลในช่วงวันที่เลือก</div>
       </div>
     );
   }
 
   const total = rows.reduce((s, r) => s + r.count, 0);
-  // colSpan: #, label, count, pct = 4 columns
   const COL_SPAN = 4;
 
   return (
@@ -181,9 +183,9 @@ function SummaryTable({ rows, selectedKey, onSelect }) {
         <thead>
           <tr>
             <th style={{ width: '60px' }}>#</th>
-            <th>ชื่อ</th>
+            <th>ชื่อรายการ</th>
             <th style={{ width: '130px', textAlign: 'right' }}>จำนวนเคส</th>
-            <th style={{ width: '140px', textAlign: 'right' }}>สัดส่วน (%)</th>
+            <th style={{ width: '160px', textAlign: 'right' }}>สัดส่วน (%)</th>
           </tr>
         </thead>
         <tbody>
@@ -192,37 +194,39 @@ function SummaryTable({ rows, selectedKey, onSelect }) {
             const isSelected = row.key === selectedKey;
 
             return (
-              <>
+              <React.Fragment key={row.key}>
                 {/* Summary row */}
                 <tr
-                  key={row.key}
-                  className={`summary-row-clickable${isSelected ? ' selected' : ''}`}
+                  className={`dash-summary-row${isSelected ? ' is-selected' : ''}`}
                   onClick={() => onSelect(isSelected ? null : row.key)}
                   title={isSelected ? 'คลิกเพื่อปิดรายละเอียด' : 'คลิกเพื่อดูรายละเอียด'}
                 >
                   <td>
-                    {idx < 3 ? (
-                      <span className={`rank-badge rank-${idx + 1}`}>{idx + 1}</span>
+                    {idx === 0 ? (
+                      <span className="dash-rank-pill dash-rank-gold">1</span>
+                    ) : idx === 1 ? (
+                      <span className="dash-rank-pill dash-rank-silver">2</span>
+                    ) : idx === 2 ? (
+                      <span className="dash-rank-pill dash-rank-bronze">3</span>
                     ) : (
-                      <span style={{ color: 'var(--gray-400)', fontSize: '0.875rem' }}>{idx + 1}</span>
+                      <span style={{ color: '#94a3b8', fontSize: '0.8125rem', fontWeight: 600, paddingLeft: 6 }}>{idx + 1}</span>
                     )}
                   </td>
                   <td>
-                    <span style={{ fontWeight: 500, color: 'var(--gray-800)' }}>{row.label}</span>
-                    {isSelected && (
-                      <span className="expand-indicator">▲ ซ่อน</span>
-                    )}
-                    {!isSelected && (
-                      <span className="expand-indicator"></span>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span style={{ fontWeight: 600, color: '#1e293b' }}>{row.label}</span>
+                      <span style={{ fontSize: '0.75rem', color: isSelected ? '#2563eb' : '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                        {isSelected ? '▲ ซ่อน' : '▼ ดูเคส'}
+                      </span>
+                    </div>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <span className="dash-count-badge">{row.count.toLocaleString()}</span>
+                    <span className="dash-count-pill">{row.count.toLocaleString()}</span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <div className="pct-bar-wrap">
-                      <div className="pct-bar-fill" style={{ width: `${pct}%` }} />
-                      <span className="pct-bar-label">{pct}%</span>
+                    <div className="dash-pct-bar-wrapper">
+                      <div className="dash-pct-bar-fill" style={{ width: `${pct}%` }} />
+                      <span className="dash-pct-bar-text">{pct}%</span>
                     </div>
                   </td>
                 </tr>
@@ -236,7 +240,7 @@ function SummaryTable({ rows, selectedKey, onSelect }) {
                     onClose={() => onSelect(null)}
                   />
                 )}
-              </>
+              </React.Fragment>
             );
           })}
         </tbody>
@@ -349,96 +353,107 @@ export default function TelemedDashboardPage() {
         </div>
       </div>
 
-      <div className="page-body">
+      <div className="page-body telemed-dashboard-container">
         {/* Date Range Picker */}
-        <div className="date-range-card">
-          <div className="date-range-presets">
-            <span className="date-range-label">ช่วงเวลา:</span>
+        <div className="dash-toolbar-card">
+          <div className="dash-presets-group">
+            <span className="dash-toolbar-label">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              ช่วงเวลา:
+            </span>
             <button
               id="preset-today"
-              className={`date-range-btn${preset === 'today' ? ' active' : ''}`}
+              className={`dash-preset-btn${preset === 'today' ? ' is-active' : ''}`}
               onClick={() => handlePreset('today')}
             >
               วันนี้
             </button>
             <button
               id="preset-month"
-              className={`date-range-btn${preset === 'month' ? ' active' : ''}`}
+              className={`dash-preset-btn${preset === 'month' ? ' is-active' : ''}`}
               onClick={() => handlePreset('month')}
             >
               เดือนนี้
             </button>
             <button
               id="preset-3month"
-              className={`date-range-btn${preset === '3month' ? ' active' : ''}`}
+              className={`dash-preset-btn${preset === '3month' ? ' is-active' : ''}`}
               onClick={() => handlePreset('3month')}
             >
               3 เดือน
             </button>
-            <div className="date-range-custom">
-              <span className="date-range-label" style={{ marginLeft: 8 }}>กำหนดเอง:</span>
-              <input
-                id="custom-start-date"
-                type="date"
-                className={`date-input${preset === 'custom' ? ' custom-active' : ''}`}
-                value={startDate}
-                max={endDate}
-                onChange={(e) => handleCustomDate('start', e.target.value)}
-              />
-              <span style={{ color: 'var(--gray-400)', fontSize: '0.875rem' }}>ถึง</span>
-              <input
-                id="custom-end-date"
-                type="date"
-                className={`date-input${preset === 'custom' ? ' custom-active' : ''}`}
-                value={endDate}
-                min={startDate}
-                max={today}
-                onChange={(e) => handleCustomDate('end', e.target.value)}
-              />
-            </div>
+          </div>
+
+          <div className="dash-custom-dates">
+            <span className="dash-toolbar-label">กำหนดเอง:</span>
+            <input
+              id="custom-start-date"
+              type="date"
+              className={`dash-date-field${preset === 'custom' ? ' is-custom-active' : ''}`}
+              value={startDate}
+              max={endDate}
+              onChange={(e) => handleCustomDate('start', e.target.value)}
+            />
+            <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>ถึง</span>
+            <input
+              id="custom-end-date"
+              type="date"
+              className={`dash-date-field${preset === 'custom' ? ' is-custom-active' : ''}`}
+              value={endDate}
+              min={startDate}
+              max={today}
+              onChange={(e) => handleCustomDate('end', e.target.value)}
+            />
           </div>
         </div>
 
         {/* Stat Cards */}
-        <div className="stats-row">
-          <StatCard label="จำนวนเคสทั้งหมด" value={visits.length} color="primary" />
-          <StatCard label="จำนวนแพทย์" value={uniqueDoctors} color="success" />
-          <StatCard label="จำนวนแผนก" value={uniqueClinics} color="accent" />
-          <StatCard label="จำนวน ICD-10" value={uniqueIcds} color="warning" />
+        <div className="dash-stats-grid">
+          <StatCard label="จำนวนเคสทั้งหมด" value={visits.length} icon="🩺" iconType="blue" />
+          <StatCard label="จำนวนแพทย์" value={uniqueDoctors} icon="👨‍⚕️" iconType="emerald" />
+          <StatCard label="จำนวนแผนก" value={uniqueClinics} icon="🏥" iconType="indigo" />
+          <StatCard label="จำนวน ICD-10" value={uniqueIcds} icon="🔬" iconType="amber" />
         </div>
 
         {/* Tabs + Summary Table */}
-        <div className="table-card">
+        <div className="dash-main-card">
           {/* Tab bar */}
-          <div className="dash-tabs">
-            <button
-              id="tab-clinic"
-              className={`dash-tab${activeTab === 'clinic' ? ' active' : ''}`}
-              onClick={() => setActiveTab('clinic')}
-            >
-              🏢 ตามแผนก
-              <span className="dash-tab-count">{byClinic.length}</span>
-            </button>
-            <button
-              id="tab-doctor"
-              className={`dash-tab${activeTab === 'doctor' ? ' active' : ''}`}
-              onClick={() => setActiveTab('doctor')}
-            >
-              👨‍⚕️ ตามแพทย์
-              <span className="dash-tab-count">{byDoctor.length}</span>
-            </button>
-            <button
-              id="tab-icd"
-              className={`dash-tab${activeTab === 'icd' ? ' active' : ''}`}
-              onClick={() => setActiveTab('icd')}
-            >
-              🔬 ตาม ICD-10
-              <span className="dash-tab-count">{byIcd.length}</span>
-            </button>
-            <div style={{ flex: 1 }} />
+          <div className="dash-tabs-bar">
+            <div className="dash-tab-pill-group">
+              <button
+                id="tab-clinic"
+                className={`dash-tab-pill${activeTab === 'clinic' ? ' is-active' : ''}`}
+                onClick={() => setActiveTab('clinic')}
+              >
+                🏢 ตามแผนก
+                <span className="dash-tab-count-badge">{byClinic.length}</span>
+              </button>
+              <button
+                id="tab-doctor"
+                className={`dash-tab-pill${activeTab === 'doctor' ? ' is-active' : ''}`}
+                onClick={() => setActiveTab('doctor')}
+              >
+                👨‍⚕️ ตามแพทย์
+                <span className="dash-tab-count-badge">{byDoctor.length}</span>
+              </button>
+              <button
+                id="tab-icd"
+                className={`dash-tab-pill${activeTab === 'icd' ? ' is-active' : ''}`}
+                onClick={() => setActiveTab('icd')}
+              >
+                🔬 ตาม ICD-10
+                <span className="dash-tab-count-badge">{byIcd.length}</span>
+              </button>
+            </div>
+
             {selectedKey && (
               <button
-                className="date-range-btn"
+                className="dash-btn-clear-selection"
                 onClick={() => setSelectedKey(null)}
                 id="clear-selection-btn"
               >
@@ -448,9 +463,9 @@ export default function TelemedDashboardPage() {
           </div>
 
           {loading ? (
-            <div className="loading-container">
+            <div className="loading-container" style={{ padding: '48px 0' }}>
               <div className="spinner" />
-              <span className="loading-text">กำลังโหลดข้อมูล...</span>
+              <span className="loading-text" style={{ marginTop: 12, color: '#64748b' }}>กำลังโหลดข้อมูล...</span>
             </div>
           ) : (
             <SummaryTable
@@ -461,9 +476,9 @@ export default function TelemedDashboardPage() {
           )}
 
           {!loading && visits.length > 0 && (
-            <div className="table-footer">
-              <div className="table-info">
-                รวม {visits.length.toLocaleString()} เคส ตั้งแต่{' '}
+            <div className="table-footer" style={{ padding: '14px 20px', background: '#f8fafc', borderTop: '1px solid #e2e8f0' }}>
+              <div className="table-info" style={{ color: '#64748b', fontSize: '0.8125rem' }}>
+                รวม <strong>{visits.length.toLocaleString()}</strong> เคส ตั้งแต่{' '}
                 {formatThaiShortDate(startDate)} ถึง {formatThaiShortDate(endDate)}
               </div>
             </div>

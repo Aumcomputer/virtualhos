@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
+import './PrescreeningPage.css';
 
 function getTomorrowStr() {
   const now = new Date();
@@ -140,74 +141,89 @@ export default function PrescreeningPage() {
         </div>
       </div>
 
-      <div className="page-body">
+      <div className="page-body prescreening-container">
         {/* Stats Row */}
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-label">เคสทั้งหมด</div>
-            <div className="stat-value primary">{totalCount}</div>
+        <div className="prescreen-stats-grid">
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon total">📋</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">เคสทั้งหมด</span>
+              <span className="prescreen-stat-val" style={{ color: '#2563eb' }}>{totalCount}</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">คัดกรองเสร็จสิ้น</div>
-            <div className="stat-value success">{completedCount}</div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon completed">✅</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">คัดกรองเสร็จสิ้น</span>
+              <span className="prescreen-stat-val" style={{ color: '#059669' }}>{completedCount}</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">รอคัดกรอง</div>
-            <div className="stat-value accent">{pendingCount}</div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon pending">⏳</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">รอคัดกรอง</span>
+              <span className="prescreen-stat-val" style={{ color: '#d97706' }}>{pendingCount}</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">ส่ง LINE แจ้งเตือนแล้ว</div>
-            <div className="stat-value info" style={{ color: '#0288d1' }}>{lineSentCount}</div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon line">📱</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">ส่ง LINE แล้ว</span>
+              <span className="prescreen-stat-val" style={{ color: '#0284c7' }}>{lineSentCount}</span>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">ไม่มีบัญชี LINE OA</div>
-            <div className="stat-value warning" style={{ color: '#f57c00' }}>{noLineCount}</div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon noline">⚠️</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">ไม่มีบัญชี LINE OA</span>
+              <span className="prescreen-stat-val" style={{ color: '#64748b' }}>{noLineCount}</span>
+            </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="table-card" style={{ marginBottom: '20px' }}>
-          <div className="table-toolbar" style={{ flexWrap: 'wrap', gap: '15px' }}>
-            <div className="search-box">
-              <span className="search-icon">🔍</span>
-              <input
-                className="search-input"
-                type="text"
-                placeholder="ค้นหา HN, ชื่อผู้ป่วย, แพทย์, คลินิก..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                id="search-prescreening"
-              />
+        <div className="prescreen-toolbar-card">
+          <div className="prescreen-search-box">
+            <svg className="prescreen-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              className="prescreen-search-input"
+              type="text"
+              placeholder="ค้นหา HN, ชื่อผู้ป่วย, แพทย์, คลินิก..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              id="search-prescreening"
+            />
+          </div>
+          
+          <div className="prescreen-filters-group">
+            <div className="prescreen-filter-item">
+              <label htmlFor="status-filter">สถานะ:</label>
+              <select
+                id="status-filter"
+                className="prescreen-select"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+              >
+                <option value="">ทั้งหมด</option>
+                <option value="pending">⏳ รอกรอกข้อมูล</option>
+                <option value="completed">✅ กรอกข้อมูลแล้ว</option>
+                <option value="confirmed">🩺 ยืนยันข้อมูลแล้ว</option>
+                <option value="expired">🛑 หมดอายุ</option>
+              </select>
             </div>
-            
-            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap' }}>
-              <div className="date-picker-group">
-                <label htmlFor="status-filter">สถานะ:</label>
-                <select
-                  id="status-filter"
-                  className="search-input"
-                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--gray-300)', backgroundColor: 'white' }}
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                >
-                  <option value="">ทั้งหมด</option>
-                  <option value="pending">⏳ รอกรอกข้อมูล (Pending)</option>
-                  <option value="completed">✅ กรอกข้อมูลแล้ว (Completed)</option>
-                  <option value="confirmed">🩺 ยืนยันข้อมูลแล้ว (Confirmed)</option>
-                  <option value="expired">🛑 หมดอายุ (Expired)</option>
-                </select>
-              </div>
 
-              <div className="date-picker-group">
-                <label htmlFor="date-picker">วันนัดหมาย:</label>
-                <input
-                  id="date-picker"
-                  className="date-picker-input"
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                />
-              </div>
+            <div className="prescreen-filter-item">
+              <label htmlFor="date-picker">วันนัดหมาย:</label>
+              <input
+                id="date-picker"
+                className="prescreen-date-input"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
             </div>
           </div>
         </div>
@@ -215,28 +231,28 @@ export default function PrescreeningPage() {
         {/* Data Table */}
         <div className="table-card">
           {loading ? (
-            <div className="loading-container">
+            <div className="loading-container" style={{ padding: '48px 0' }}>
               <div className="spinner"></div>
-              <span className="loading-text">กำลังโหลดข้อมูลคัดกรอง...</span>
+              <span className="loading-text" style={{ marginTop: 12, color: '#64748b' }}>กำลังโหลดข้อมูลคัดกรอง...</span>
             </div>
           ) : data.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-state-icon">📭</div>
-              <div className="empty-state-title">ไม่พบข้อมูลการคัดกรอง</div>
-              <div className="empty-state-text">ไม่มีรายชื่อผู้ป่วยที่กรอกข้อมูลคัดกรองหรือมีนัดหมายตรงตามเงื่อนไขในวันที่เลือก</div>
+            <div className="empty-state" style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📭</div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>ไม่พบข้อมูลการคัดกรอง</div>
+              <div style={{ fontSize: '0.875rem', color: '#64748b' }}>ไม่มีรายชื่อผู้ป่วยที่กรอกข้อมูลคัดกรองหรือมีนัดหมายตรงตามเงื่อนไขในวันที่เลือก</div>
             </div>
           ) : (
             <div className="data-table-wrapper">
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th></th>
-                    <th>HN</th>
+                    <th style={{ width: '40px' }}></th>
+                    <th style={{ width: '110px' }}>HN</th>
                     <th>ชื่อ-นามสกุล</th>
                     <th>คลินิก</th>
                     <th>แพทย์</th>
-                    <th style={{ textAlign: 'center' }}>สถานะ LINE</th>
-                    <th style={{ textAlign: 'center' }}>สถานะกรอกข้อมูล</th>
+                    <th style={{ textAlign: 'center', width: '120px' }}>สถานะ LINE</th>
+                    <th style={{ textAlign: 'center', width: '130px' }}>สถานะกรอกข้อมูล</th>
                     <th style={{ textAlign: 'center' }}>สัญญาณชีพ (Vital Signs)</th>
                     <th>นัดหมาย / วันเวลากรอก</th>
                   </tr>
@@ -246,16 +262,15 @@ export default function PrescreeningPage() {
                     const isExpanded = expandedRowId === row.id;
                     const isCompleted = row.status === 'completed' || row.status === 'confirmed';
                     return (
-                      <>
+                      <React.Fragment key={row.id}>
                         <tr 
-                          key={row.id} 
                           onClick={() => toggleExpandRow(row.id)}
                           style={{ cursor: 'pointer', transition: 'background-color 0.2s' }}
                           className={isExpanded ? 'expanded-parent-row' : ''}
                         >
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '10px', minWidth: '10px', color: 'var(--gray-500)' }}>
+                              <span style={{ fontSize: '10px', minWidth: '10px', color: '#64748b' }}>
                                 {isExpanded ? '▼' : '▶'}
                               </span>
                               {row.image_count > 0 && (
@@ -266,66 +281,66 @@ export default function PrescreeningPage() {
                             </div>
                           </td>
                           <td>
-                            <span className="hn-text">{row.hn}</span>
+                            <span className="font-mono font-bold" style={{ color: '#1e293b' }}>{row.hn}</span>
                           </td>
                           <td>
-                            <strong>{row.patient_name || '-'}</strong>
+                            <strong style={{ color: '#0f172a' }}>{row.patient_name || '-'}</strong>
                           </td>
                           <td>
-                            <span style={{ fontSize: '0.9em', fontWeight: 'bold', color: 'var(--gray-700)' }}>
+                            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#334155' }}>
                               {row.clinic || '-'}
                             </span>
                           </td>
                           <td>
                             {row.doctor_name ? (
-                              <span style={{ fontSize: '0.85em', color: 'var(--gray-600)' }}>
+                              <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
                                 🩺 {row.doctor_name}
                               </span>
                             ) : (
-                              <span style={{ color: 'var(--gray-400)' }}>-</span>
+                              <span style={{ color: '#cbd5e1' }}>-</span>
                             )}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             {row.line_sent === 'Y' && (
-                              <span className="badge badge-success" style={{ backgroundColor: '#e2f9e6', color: '#1b802e' }}>
+                              <span className="prescreen-badge-line success">
                                 ✅ ส่งสำเร็จ
                               </span>
                             )}
                             {row.line_sent === 'N' && (
-                              <span className="badge badge-danger" style={{ backgroundColor: '#ffebee', color: '#c62828' }}>
+                              <span className="prescreen-badge-line failed">
                                 ❌ ส่งล้มเหลว
                               </span>
                             )}
                             {row.line_sent === 'NO_LINE' && (
-                              <span className="badge badge-warning" style={{ backgroundColor: '#fff3e0', color: '#e65100' }}>
+                              <span className="prescreen-badge-line noline">
                                 ⚠️ ไม่มี LINE
                               </span>
                             )}
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             {row.status === 'pending' && (
-                              <span className="badge badge-warning" style={{ borderRadius: '12px', padding: '4px 10px' }}>
+                              <span className="prescreen-badge-status pending">
                                 ⏳ รอกรอกข้อมูล
                               </span>
                             )}
                             {row.status === 'completed' && (
-                              <span className="badge badge-success" style={{ borderRadius: '12px', padding: '4px 10px' }}>
+                              <span className="prescreen-badge-status completed">
                                 ✅ กรอกสำเร็จ
                               </span>
                             )}
                             {row.status === 'confirmed' && (
-                              <span className="badge badge-success" style={{ borderRadius: '12px', padding: '4px 10px', backgroundColor: '#004d40', color: '#ffffff' }}>
+                              <span className="prescreen-badge-status confirmed">
                                 🩺 ยืนยันแล้ว
                               </span>
                             )}
                             {row.status === 'expired' && (
-                              <span className="badge badge-danger" style={{ borderRadius: '12px', padding: '4px 10px', backgroundColor: '#eeeeee', color: '#666666' }}>
+                              <span className="prescreen-badge-status expired">
                                 🛑 หมดอายุ
                               </span>
                             )}
                             {row.image_count > 0 && (
-                              <div style={{ marginTop: '5px' }}>
-                                <span className="badge" style={{ backgroundColor: '#e0f7fa', color: '#006064', borderRadius: '12px', padding: '2px 8px', fontSize: '0.725rem', fontWeight: 'bold', display: 'inline-flex', alignItems: 'center', gap: '3px', border: '1px solid #b2ebf2' }}>
+                              <div style={{ marginTop: '4px' }}>
+                                <span style={{ background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                                   📷 {row.image_count} รูป
                                 </span>
                               </div>
@@ -333,19 +348,19 @@ export default function PrescreeningPage() {
                           </td>
                           <td style={{ textAlign: 'center' }}>
                             {isCompleted ? (
-                              <div style={{ fontSize: '0.85em', textAlign: 'left', display: 'inline-block' }}>
-                                <div>💓 <strong>Pulse:</strong> {row.pulse || '-'} bpm | 🩺 <strong>BP:</strong> {row.sbp || '-'}/{row.dbp || '-'}</div>
+                              <div style={{ fontSize: '0.8125rem', textAlign: 'left', display: 'inline-block' }}>
+                                <div>💓 <strong>Pulse:</strong> {row.pulse || '-'} bpm | 🩸 <strong>BP:</strong> {row.sbp || '-'}/{row.dbp || '-'}</div>
                                 <div style={{ marginTop: '2px' }}>🌡️ <strong>Temp:</strong> {row.temperature || '-'} °C</div>
                               </div>
                             ) : (
-                              <span style={{ color: 'var(--gray-400)', fontSize: '0.9em' }}>ไม่มีข้อมูล</span>
+                              <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>ไม่มีข้อมูล</span>
                             )}
                           </td>
                           <td>
-                            <div style={{ fontSize: '0.85em' }}>
+                            <div style={{ fontSize: '0.8125rem' }}>
                               <div><strong>นัด:</strong> {formatThaiDate(row.appointment_date)}</div>
                               {isCompleted && row.completed_at && (
-                                <div style={{ color: 'var(--gray-500)', marginTop: '2px' }}>
+                                <div style={{ color: '#64748b', marginTop: '2px' }}>
                                   <strong>ส่งข้อมูล:</strong> {formatDateTime(row.completed_at)}
                                 </div>
                               )}
@@ -354,106 +369,128 @@ export default function PrescreeningPage() {
                         </tr>
 
                         {isExpanded && (
-                          <tr className="expanded-details-row" style={{ backgroundColor: '#fcfdfe' }}>
-                            <td colSpan="9" style={{ padding: '20px', borderLeft: '3px solid var(--primary-500)' }}>
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                                <div>
-                                  <h4 style={{ margin: '0 0 10px 0', borderBottom: '1px solid var(--gray-200)', paddingBottom: '5px', color: '#0056b3' }}>
-                                    ข้อมูลทั่วไปและการติดต่อ
-                                  </h4>
-                                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+                          <tr className="prescreen-expanded-row">
+                            <td colSpan="9">
+                              <div className="prescreen-detail-grid">
+                                <div className="prescreen-detail-card">
+                                  <div className="prescreen-detail-title">
+                                    📋 ข้อมูลทั่วไปและการติดต่อ
+                                  </div>
+                                  <table className="prescreen-kv-table">
                                     <tbody>
                                       <tr>
-                                        <td style={{ padding: '4px 0', color: 'var(--gray-500)', width: '100px' }}><strong>HN:</strong></td>
-                                        <td style={{ padding: '4px 0' }}>{row.hn}</td>
+                                        <td className="lbl">HN:</td>
+                                        <td className="val font-mono">{row.hn}</td>
                                       </tr>
                                       <tr>
-                                        <td style={{ padding: '4px 0', color: 'var(--gray-500)' }}><strong>ชื่อคนไข้:</strong></td>
-                                        <td style={{ padding: '4px 0' }}>{row.patient_name || '-'}</td>
+                                        <td className="lbl">ชื่อคนไข้:</td>
+                                        <td className="val font-bold">{row.patient_name || '-'}</td>
                                       </tr>
                                       <tr>
-                                        <td style={{ padding: '4px 0', color: 'var(--gray-500)' }}><strong>ที่อยู่:</strong></td>
-                                        <td style={{ padding: '4px 0', whiteSpace: 'pre-wrap' }}>{row.address || 'ไม่มีข้อมูลที่อยู่'}</td>
+                                        <td className="lbl">ที่อยู่:</td>
+                                        <td className="val" style={{ whiteSpace: 'pre-wrap' }}>{row.address || 'ไม่มีข้อมูลที่อยู่'}</td>
                                       </tr>
                                       <tr>
-                                        <td style={{ padding: '4px 0', color: 'var(--gray-500)' }}><strong>รหัสไปรษณีย์:</strong></td>
-                                        <td style={{ padding: '4px 0' }}>{row.postal_code || '-'}</td>
+                                        <td className="lbl">รหัสไปรษณีย์:</td>
+                                        <td className="val">{row.postal_code || '-'}</td>
                                       </tr>
                                       <tr>
-                                        <td style={{ padding: '4px 0', color: 'var(--gray-500)' }}><strong>เบอร์โทร:</strong></td>
-                                        <td style={{ padding: '4px 0' }}>{row.phone || '-'}</td>
+                                        <td className="lbl">เบอร์โทร:</td>
+                                        <td className="val">{row.phone || '-'}</td>
                                       </tr>
                                       <tr>
-                                        <td style={{ padding: '4px 0', color: 'var(--gray-500)' }}><strong>นัดหมาย:</strong></td>
-                                        <td style={{ padding: '4px 0' }}>{formatThaiDate(row.appointment_date)} ({row.note || '-'})</td>
+                                        <td className="lbl">นัดหมาย:</td>
+                                        <td className="val">{formatThaiDate(row.appointment_date)} ({row.note || '-'})</td>
                                       </tr>
                                       {row.line_sent_timestamp && (
                                         <tr>
-                                          <td style={{ padding: '4px 0', color: 'var(--gray-500)' }}><strong>ส่ง LINE:</strong></td>
-                                          <td style={{ padding: '4px 0' }}>{formatDateTime(row.line_sent_timestamp)}</td>
+                                          <td className="lbl">ส่ง LINE:</td>
+                                          <td className="val">{formatDateTime(row.line_sent_timestamp)}</td>
                                         </tr>
                                       )}
                                     </tbody>
                                   </table>
                                 </div>
 
-                                <div>
-                                  <h4 style={{ margin: '0 0 10px 0', borderBottom: '1px solid var(--gray-200)', paddingBottom: '5px', color: '#0056b3' }}>
-                                    ผลการคัดกรองสัญญาณชีพ
-                                  </h4>
+                                <div className="prescreen-detail-card">
+                                  <div className="prescreen-detail-title">
+                                    🩺 ผลการคัดกรองสัญญาณชีพ
+                                  </div>
                                   {isCompleted ? (
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 15px', fontSize: '0.9em' }}>
-                                      <div>💓 <strong>ชีพจร (Pulse Rate):</strong> {row.pulse ? `${row.pulse} ครั้ง/นาที` : '-'}</div>
-                                      <div>🩸 <strong>ความดันโลหิต (BP):</strong> {row.sbp || row.dbp ? `${row.sbp || '-'}/${row.dbp || '-'} mmHg` : '-'}</div>
-                                      <div>🌡️ <strong>อุณหภูมิ (Temp):</strong> {row.temperature ? `${row.temperature} °C` : '-'}</div>
-                                      <div>🫁 <strong>ออกซิเจน (SpO2):</strong> {row.spo2 ? `${row.spo2} %` : '-'}</div>
-                                      <div>🫁 <strong>อัตราหายใจ (RR):</strong> {row.rr ? `${row.rr} ครั้ง/นาที` : '-'}</div>
-                                      <div>⚖️ <strong>น้ำหนัก/ส่วนสูง:</strong> {row.weight ? `${row.weight} กก.` : '-'} / {row.height ? `${row.height} ซม.` : '-'}</div>
+                                    <div className="prescreen-vitals-grid">
+                                      <div className="prescreen-vital-item">
+                                        <span className="prescreen-vital-lbl">💓 ชีพจร (Pulse Rate)</span>
+                                        <span className="prescreen-vital-val">{row.pulse ? `${row.pulse} bpm` : '-'}</span>
+                                      </div>
+                                      <div className="prescreen-vital-item">
+                                        <span className="prescreen-vital-lbl">🩸 ความดันโลหิต (BP)</span>
+                                        <span className="prescreen-vital-val">{row.sbp || row.dbp ? `${row.sbp || '-'}/${row.dbp || '-'}` : '-'}</span>
+                                      </div>
+                                      <div className="prescreen-vital-item">
+                                        <span className="prescreen-vital-lbl">🌡️ อุณหภูมิ (Temp)</span>
+                                        <span className="prescreen-vital-val">{row.temperature ? `${row.temperature} °C` : '-'}</span>
+                                      </div>
+                                      <div className="prescreen-vital-item">
+                                        <span className="prescreen-vital-lbl">🫁 ออกซิเจน (SpO2)</span>
+                                        <span className="prescreen-vital-val">{row.spo2 ? `${row.spo2} %` : '-'}</span>
+                                      </div>
+                                      <div className="prescreen-vital-item">
+                                        <span className="prescreen-vital-lbl">🫁 อัตราหายใจ (RR)</span>
+                                        <span className="prescreen-vital-val">{row.rr ? `${row.rr} /min` : '-'}</span>
+                                      </div>
+                                      <div className="prescreen-vital-item">
+                                        <span className="prescreen-vital-lbl">⚖️ นน. / สส.</span>
+                                        <span className="prescreen-vital-val">{row.weight ? `${row.weight} กก.` : '-'} / {row.height ? `${row.height} ซม.` : '-'}</span>
+                                      </div>
                                     </div>
                                   ) : (
-                                    <div style={{ color: 'var(--gray-500)', fontSize: '0.9em', fontStyle: 'italic' }}>
+                                    <div style={{ color: '#94a3b8', fontSize: '0.8125rem', fontStyle: 'italic', padding: '16px 0' }}>
                                       ยังไม่ได้รับการกรอกข้อมูล
                                     </div>
                                   )}
                                 </div>
 
-                                <div>
-                                  <h4 style={{ margin: '0 0 10px 0', borderBottom: '1px solid var(--gray-200)', paddingBottom: '5px', color: '#0056b3' }}>
-                                    ข้อมูลอาการและประวัติ
-                                  </h4>
+                                <div className="prescreen-detail-card">
+                                  <div className="prescreen-detail-title">
+                                    📝 อาการและประวัติ
+                                  </div>
                                   {isCompleted ? (
-                                    <div style={{ fontSize: '0.9em' }}>
-                                      <div style={{ marginBottom: '8px' }}>
-                                        <strong>อาการสำคัญ (Chief Complaint):</strong>
-                                        <div style={{ padding: '8px', backgroundColor: 'var(--gray-50)', borderRadius: '4px', marginTop: '4px', whiteSpace: 'pre-wrap', minHeight: '40px' }}>
+                                    <div style={{ fontSize: '0.8125rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                      <div>
+                                        <span style={{ fontWeight: 600, color: '#475569' }}>อาการสำคัญ (CC):</span>
+                                        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: '6px', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
                                           {row.chief_complaint || 'ไม่มีข้อมูล'}
                                         </div>
                                       </div>
-                                      <div style={{ marginBottom: '8px' }}>
-                                        <strong>🍺 ดื่มสุรา:</strong>{' '}
-                                        {row.alcohol === 'yes' ? (
-                                          <span style={{ color: '#d32f2f' }}>ดื่ม — {row.alcohol_detail || 'ไม่ระบุรายละเอียด'}</span>
-                                        ) : (
-                                          <span style={{ color: 'var(--gray-500)' }}>ไม่ดื่ม</span>
-                                        )}
-                                      </div>
-                                      <div style={{ marginBottom: '8px' }}>
-                                        <strong>🚬 สูบบุหรี่:</strong>{' '}
-                                        {row.smoking === 'yes' ? (
-                                          <span style={{ color: '#d32f2f' }}>สูบ — {row.smoking_detail || 'ไม่ระบุรายละเอียด'}</span>
-                                        ) : (
-                                          <span style={{ color: 'var(--gray-500)' }}>ไม่สูบ</span>
-                                        )}
-                                      </div>
-                                      <div>
-                                        <strong>ข้อมูลเพิ่มเติมจากผู้ป่วย:</strong>
-                                        <div style={{ padding: '8px', backgroundColor: 'var(--gray-50)', borderRadius: '4px', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
-                                          {row.additional_notes || '-'}
+                                      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                                        <div>
+                                          <span style={{ fontWeight: 600, color: '#475569' }}>🍺 ดื่มสุรา:</span>{' '}
+                                          {row.alcohol === 'yes' ? (
+                                            <span style={{ color: '#dc2626', fontWeight: 600 }}>ดื่ม ({row.alcohol_detail || 'ไม่ระบุ'})</span>
+                                          ) : (
+                                            <span style={{ color: '#64748b' }}>ไม่ดื่ม</span>
+                                          )}
+                                        </div>
+                                        <div>
+                                          <span style={{ fontWeight: 600, color: '#475569' }}>🚬 สูบบุหรี่:</span>{' '}
+                                          {row.smoking === 'yes' ? (
+                                            <span style={{ color: '#dc2626', fontWeight: 600 }}>สูบ ({row.smoking_detail || 'ไม่ระบุ'})</span>
+                                          ) : (
+                                            <span style={{ color: '#64748b' }}>ไม่สูบ</span>
+                                          )}
                                         </div>
                                       </div>
+                                      {row.additional_notes && (
+                                        <div>
+                                          <span style={{ fontWeight: 600, color: '#475569' }}>เพิ่มเติม:</span>
+                                          <div style={{ padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', marginTop: '2px', color: '#334155' }}>
+                                            {row.additional_notes}
+                                          </div>
+                                        </div>
+                                      )}
                                     </div>
                                   ) : (
-                                    <div style={{ color: 'var(--gray-500)', fontSize: '0.9em', fontStyle: 'italic' }}>
+                                    <div style={{ color: '#94a3b8', fontSize: '0.8125rem', fontStyle: 'italic', padding: '16px 0' }}>
                                       ยังไม่มีข้อมูลการส่งฟอร์ม
                                     </div>
                                   )}
@@ -462,38 +499,38 @@ export default function PrescreeningPage() {
 
                               {/* รูปภาพแนบเพิ่มเติม */}
                               {isCompleted && (
-                                <div className="image-attachments-section">
-                                  <h4 className="image-attachments-title">
+                                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
+                                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af', marginBottom: '8px' }}>
                                     📷 รูปภาพแนบเพิ่มเติม ({images.length} รูป)
-                                  </h4>
+                                  </div>
                                   {imagesLoading ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                       <div className="spinner-sm"></div>
-                                      <span style={{ fontSize: '0.875rem', color: 'var(--gray-500)' }}>
-                                        กำลังโหลดรูปภาพ...
-                                      </span>
+                                      <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>กำลังโหลดรูปภาพ...</span>
                                     </div>
                                   ) : images.length > 0 ? (
-                                    <div className="image-grid">
+                                    <div className="prescreen-images-wrap">
                                       {images.map((img) => (
-                                        <div
+                                        <button
+                                          type="button"
                                           key={img.id}
-                                          className="image-thumbnail-wrapper"
+                                          className="prescreen-thumb-btn"
                                           onClick={(e) => {
                                             e.stopPropagation();
                                             setLightboxImageSrc(`/api/prescreening/images/${img.id}`);
                                           }}
+                                          title="คลิกเพื่อดูภาพขนาดเต็ม"
                                         >
                                           <img
                                             src={`/api/prescreening/images/${img.id}`}
                                             alt="รูปภาพคัดกรอง"
-                                            className="image-thumbnail-img"
+                                            className="prescreen-thumb-img"
                                           />
-                                        </div>
+                                        </button>
                                       ))}
                                     </div>
                                   ) : (
-                                    <div style={{ fontSize: '0.875rem', color: 'var(--gray-400)', fontStyle: 'italic' }}>
+                                    <div style={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
                                       ไม่มีรูปภาพแนบสำหรับเคสนี้
                                     </div>
                                   )}
@@ -502,7 +539,7 @@ export default function PrescreeningPage() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
