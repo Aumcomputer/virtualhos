@@ -282,9 +282,9 @@ const STAGE_META = {
     emptyText: 'ไม่มีรายการที่รอปรึกษาแพทย์ในขณะนี้',
   },
   pharmacist: {
-    title: 'คิวเภสัชกร',
+    title: 'คิวรอปรึกษาเภสัช',
     subtitle: 'รายการที่แพทย์อนุมัติแล้ว อยู่ระหว่างเภสัชกรตรวจสอบความพร้อมของยาและความปลอดภัยในการจัดส่ง',
-    emptyText: 'ไม่มีรายการที่รอเภสัชกรตรวจสอบในขณะนี้',
+    emptyText: 'ไม่มีรายการที่รอปรึกษาเภสัชในขณะนี้',
   },
   approved: {
     title: 'รายการที่อนุมัติ (พร้อมจัดส่งยา)',
@@ -748,7 +748,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
             className={({ isActive }) => `rtm-stage-chip rtm-chip-pharmacist ${isActive ? 'active' : ''}`}
           >
             <span className="rtm-chip-icon">💊</span>
-            <span>เภสัชกร</span>
+            <span>รอปรึกษาเภสัช</span>
             <span className="rtm-chip-count">{summary.pharmacist || 0}</span>
           </NavLink>
           <NavLink

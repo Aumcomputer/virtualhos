@@ -256,7 +256,7 @@ export default function Sidebar({ isOpen, onClose }) {
               <path d="M12 7v10" />
               <path d="M7 12h10" />
             </svg>
-            <span>เภสัชกร</span>
+            <span>รอปรึกษาเภสัช</span>
           </NavLink>
 
           <NavLink
