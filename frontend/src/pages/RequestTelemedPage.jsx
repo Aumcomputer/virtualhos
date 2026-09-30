@@ -541,6 +541,9 @@ export default function RequestTelemedPage({ stage = 'all' }) {
     try {
       const res = await api.getVisitDetail(item.id);
       setVisitDetail(res);
+      if (res?.request) {
+        setVisitModalItem(res.request);
+      }
     } catch (err) {
       console.error('Error fetching visit detail:', err);
       setVisitError(err.message || 'ไม่สามารถดึงข้อมูลประวัติการตรวจได้');
@@ -884,7 +887,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   {stage === 'receive' && <th>ผู้ลงทะเบียน</th>}
                   {stage === 'doctor' && <th>ผู้รับเรื่อง</th>}
                   {stage === 'pharmacist' && <th>แพทย์ผู้อนุมัติ</th>}
-                  {stage === 'approved' && <th>เภสัชกรผู้อนุมัติ</th>}
+                  {stage === 'approved' && <th>เภสัชผู้อนุมัติ</th>}
                   {(stage === 'today' || stage === 'all') && (
                     <th className="sortable-th" onClick={() => handleSort('status')}>
                       <div className="th-sort-wrapper">
@@ -1035,6 +1038,11 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                             <div style={{ fontWeight: 600, color: '#047857' }}>
                               {item.doctor_approved_by || 'แพทย์อนุมัติ'}
                             </div>
+                            {(item.doctor_approved_at || item.updated_at) && (
+                              <div style={{ fontSize: '0.6875rem', color: 'var(--gray-400)', marginTop: '2px' }}>
+                                {formatThaiDateTime(item.doctor_approved_at || item.updated_at)}
+                              </div>
+                            )}
                             {item.doctor_remark && (
                               <div style={{ fontSize: '0.75rem', color: 'var(--primary-700)', marginTop: '2px' }}>
                                 หมายเหตุ: {item.doctor_remark}
@@ -1675,15 +1683,29 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
                               {visitModalItem.doctor_approved_by && (
                                 <div className="audit-trail-item">
-                                  <span className={`audit-dot ${visitModalItem.status && visitModalItem.status.includes('ไม่อนุมัติ') ? 'error' : 'success'}`}></span>
-                                  <span>แพทย์: <strong>{visitModalItem.doctor_approved_by}</strong> {visitModalItem.doctor_remark ? `(หมายเหตุ: ${visitModalItem.doctor_remark})` : ''}</span>
+                                  <span className={`audit-dot ${visitModalItem.status && visitModalItem.status.includes('แพทย์ไม่อนุมัติ') ? 'error' : 'success'}`}></span>
+                                  <span>
+                                    {visitModalItem.status && visitModalItem.status.includes('แพทย์ไม่อนุมัติ') ? 'แพทย์ไม่อนุมัติ: ' : 'แพทย์ผู้อนุมัติ: '}
+                                    <strong>{visitModalItem.doctor_approved_by}</strong>
+                                    {(visitModalItem.doctor_approved_at || visitModalItem.updated_at) && (
+                                      <> ({formatThaiDateTime(visitModalItem.doctor_approved_at || visitModalItem.updated_at)})</>
+                                    )}
+                                    {visitModalItem.doctor_remark ? ` (หมายเหตุ: ${visitModalItem.doctor_remark})` : ''}
+                                  </span>
                                 </div>
                               )}
 
-                              {visitModalItem.pharmacy_approved_by && (
+                              {(visitModalItem.pharmacy_approved_by || visitModalItem.approve_by) && (
                                 <div className="audit-trail-item">
-                                  <span className={`audit-dot ${visitModalItem.status && visitModalItem.status.includes('ไม่อนุมัติ') ? 'error' : 'success'}`}></span>
-                                  <span>เภสัชกร: <strong>{visitModalItem.pharmacy_approved_by}</strong> {visitModalItem.pharmacy_remark ? `(หมายเหตุ: ${visitModalItem.pharmacy_remark})` : ''}</span>
+                                  <span className={`audit-dot ${visitModalItem.status && (visitModalItem.status.includes('ยาส่งไม่ได้') || visitModalItem.status.includes('เภสัชกรไม่อนุมัติ')) ? 'error' : 'success'}`}></span>
+                                  <span>
+                                    {visitModalItem.status && (visitModalItem.status.includes('ยาส่งไม่ได้') || visitModalItem.status.includes('เภสัชกรไม่อนุมัติ')) ? 'เภสัชไม่อนุมัติ: ' : 'เภสัชผู้อนุมัติ: '}
+                                    <strong>{visitModalItem.pharmacy_approved_by || visitModalItem.approve_by}</strong>
+                                    {(visitModalItem.pharmacy_approved_at || visitModalItem.approve_at || visitModalItem.updated_at) && (
+                                      <> ({formatThaiDateTime(visitModalItem.pharmacy_approved_at || visitModalItem.approve_at || visitModalItem.updated_at)})</>
+                                    )}
+                                    {visitModalItem.pharmacy_remark ? ` (หมายเหตุ: ${visitModalItem.pharmacy_remark})` : ''}
+                                  </span>
                                 </div>
                               )}
 
