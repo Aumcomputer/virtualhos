@@ -1407,12 +1407,10 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                               {visitDetail?.visit?.diagnosis_concat && visitDetail.visit.diagnosis_concat.trim() ? (
                                 <div className="diag-list">
                                   {parseLines(visitDetail.visit.diagnosis_concat).map((line, dIdx) => {
-                                    const isPdx = line.includes('(PDX)');
                                     const cleanLine = line.replace('(PDX)', '').trim();
                                     return (
                                       <div key={dIdx} className="diag-item">
-                                        {isPdx && <span className="pdx-badge">PDX โรคหลัก</span>}
-                                        <span style={{ fontWeight: isPdx ? 600 : 400, color: 'var(--gray-800)' }}>
+                                        <span style={{ color: 'var(--gray-800)' }}>
                                           {cleanLine}
                                         </span>
                                       </div>
@@ -1457,7 +1455,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                                           <tr key={mIdx}>
                                             <td className="med-col-num">#{mIdx + 1}</td>
                                             <td className="med-col-name">{medInfo}</td>
-                                            <td className="med-col-qty">{qty ? `${qty} เม็ด/หน่วย` : ''}</td>
+                                            <td className="med-col-qty">{qty ? `${qty} เม็ด` : ''}</td>
                                           </tr>
                                         );
                                       })}
