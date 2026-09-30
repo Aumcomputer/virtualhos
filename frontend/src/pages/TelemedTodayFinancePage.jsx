@@ -502,7 +502,7 @@ export default function TelemedTodayFinancePage() {
                 onClick={handleConfirmPay}
                 disabled={paying}
               >
-                {paying ? 'กำลังบันทึก...' : '✓ บันทึกชำระเงินแล้ว (ส่งไปแท็บรอจัดส่ง)'}
+                {paying ? 'กำลังบันทึก...' : '✓ บันทึกชำระเงินแล้ว'}
               </button>
             </div>
           </div>

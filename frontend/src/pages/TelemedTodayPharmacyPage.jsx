@@ -1020,7 +1020,7 @@ export default function TelemedTodayPharmacyPage() {
                     onClick={() => handleDispenseAction('FREE')}
                     disabled={dispenseSubmitting}
                   >
-                    ✓ ไม่ต้องชำระเงิน (ไปแท็บรอจัดส่ง)
+                    ✓ ไม่ต้องชำระเงิน
                   </button>
 
                   <button
@@ -1030,7 +1030,7 @@ export default function TelemedTodayPharmacyPage() {
                     onClick={() => handleDispenseAction('PAID')}
                     disabled={dispenseSubmitting}
                   >
-                    💰 ต้องชำระเงิน (ส่งไปเมนูการเงิน)
+                    💰 ต้องชำระเงิน
                   </button>
                 </div>
               ) : (
