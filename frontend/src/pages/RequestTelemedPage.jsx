@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import { api } from '../api/client';
+import './RequestTelemedPage.css';
 
 function getTodayStr() {
   const now = new Date();
@@ -725,63 +726,69 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
       <div className="page-body">
         {/* Stage Summary Navigation Chips */}
-        <div className="stage-summary-bar">
+        <div className="rtm-stage-bar">
           <NavLink
             to="/request-telemed/pending-receive"
-            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `rtm-stage-chip rtm-chip-receive ${isActive ? 'active' : ''}`}
           >
+            <span className="rtm-chip-icon">📥</span>
             <span>รอรับเรื่อง</span>
-            <span className="stage-chip-count">{summary.receive || 0}</span>
+            <span className="rtm-chip-count">{summary.receive || 0}</span>
           </NavLink>
           <NavLink
             to="/request-telemed/pending-doctor"
-            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `rtm-stage-chip rtm-chip-doctor ${isActive ? 'active' : ''}`}
           >
+            <span className="rtm-chip-icon">🩺</span>
             <span>รอปรึกษาแพทย์</span>
-            <span className="stage-chip-count">{summary.doctor || 0}</span>
+            <span className="rtm-chip-count">{summary.doctor || 0}</span>
           </NavLink>
           <NavLink
             to="/request-telemed/pharmacist"
-            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `rtm-stage-chip rtm-chip-pharmacist ${isActive ? 'active' : ''}`}
           >
+            <span className="rtm-chip-icon">💊</span>
             <span>เภสัชกร</span>
-            <span className="stage-chip-count">{summary.pharmacist || 0}</span>
+            <span className="rtm-chip-count">{summary.pharmacist || 0}</span>
           </NavLink>
           <NavLink
             to="/request-telemed/approved"
-            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `rtm-stage-chip rtm-chip-approved ${isActive ? 'active' : ''}`}
           >
+            <span className="rtm-chip-icon">✅</span>
             <span>รายการที่อนุมัติ</span>
-            <span className="stage-chip-count">{summary.approved || 0}</span>
+            <span className="rtm-chip-count">{summary.approved || 0}</span>
           </NavLink>
           <NavLink
             to="/request-telemed/today"
-            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `rtm-stage-chip ${isActive ? 'active' : ''}`}
           >
+            <span className="rtm-chip-icon">📅</span>
             <span>“รับยาไม่พบแพทย์” วันนี้</span>
-            <span className="stage-chip-count">{summary.today || 0}</span>
+            <span className="rtm-chip-count">{summary.today || 0}</span>
           </NavLink>
           <NavLink
             to="/request-telemed/all"
-            className={({ isActive }) => `stage-summary-chip ${isActive ? 'active' : ''}`}
+            className={({ isActive }) => `rtm-stage-chip ${isActive ? 'active' : ''}`}
           >
+            <span className="rtm-chip-icon">📋</span>
             <span>ผู้ยื่นความจำนงทั้งหมด</span>
-            <span className="stage-chip-count">{summary.total || 0}</span>
+            <span className="rtm-chip-count">{summary.total || 0}</span>
           </NavLink>
         </div>
 
         {/* Table Card containing Toolbar & Data Table */}
-        <div className="table-card">
+        <div className="table-card rtm-card">
           {/* Table Toolbar */}
-          <div className="table-toolbar">
-            <div className="search-box" style={{ maxWidth: '420px' }}>
-              <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <div className="table-toolbar rtm-toolbar">
+            <div className="search-box rtm-search-wrap" style={{ maxWidth: '440px' }}>
+              <svg className="search-icon rtm-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" />
                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
               <input
                 type="text"
-                className="search-input"
+                className="search-input rtm-search-input"
                 placeholder="ค้นหา HN, ชื่อผู้ป่วย, เบอร์โทร, คลินิก, แพทย์, เลขพัสดุ..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -789,7 +796,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
               {search && (
                 <button
                   type="button"
-                  className="search-clear-btn"
+                  className="search-clear-btn rtm-search-clear"
                   onClick={() => setSearch('')}
                   title="ล้างการค้นหา"
                 >
@@ -798,10 +805,10 @@ export default function RequestTelemedPage({ stage = 'all' }) {
               )}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="rtm-actions-right">
               {stage === 'all' && (
                 <select
-                  className="filter-select"
+                  className="filter-select rtm-filter-select"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -817,31 +824,21 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
               <button
                 type="button"
-                className="btn btn-secondary btn-refresh"
+                className="btn btn-secondary rtm-btn-refresh"
                 onClick={() => fetchData()}
-                title="Refresh"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '7px 12px',
-                  fontSize: '0.8125rem',
-                  fontWeight: 500,
-                  height: '38px',
-                  borderRadius: 'var(--radius-sm)',
-                }}
+                title="รีเฟรชข้อมูล"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
                 </svg>
-                <span>Refresh</span>
+                <span>รีเฟรช</span>
               </button>
             </div>
           </div>
 
           {/* Data Table Wrapper */}
-          <div className="data-table-wrapper">
-            <table className="data-table telemed-workflow-table">
+          <div className="data-table-wrapper rtm-table-container">
+            <table className="data-table telemed-workflow-table rtm-table">
               <thead>
                 <tr>
                   <th style={{ width: '45px', textAlign: 'center' }}>#</th>
@@ -971,7 +968,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
                         {/* 4. HN Badge */}
                         <td>
-                          <span className="hn-badge-btn font-mono">
+                          <span className="rtm-hn-pill">
                             {item.hn}
                           </span>
                         </td>
@@ -1179,12 +1176,12 @@ export default function RequestTelemedPage({ stage = 'all' }) {
           Patient Clinical Visit Detail Modal (from HOSxP oapp -> vn)
           ======================================================================== */}
       {visitModalItem && (
-        <div className="visit-modal-backdrop" onClick={() => setVisitModalItem(null)}>
-          <div className="visit-modal-container" onClick={(e) => e.stopPropagation()}>
+        <div className="visit-modal-backdrop rtm-modal-backdrop" onClick={() => setVisitModalItem(null)}>
+          <div className="visit-modal-container rtm-modal-window" onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="visit-modal-header">
+            <div className="visit-modal-header rtm-modal-header">
               <div className="visit-modal-title-row">
-                <div className="visit-modal-title">
+                <div className="visit-modal-title rtm-modal-title">
                   รายละเอียดการรับบริการครั้งที่มีการนัดหมาย
                 </div>
                 {visitDetail?.vn && (
@@ -1195,7 +1192,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
               </div>
               <button
                 type="button"
-                className="visit-modal-close-btn"
+                className="visit-modal-close-btn rtm-modal-close"
                 onClick={() => setVisitModalItem(null)}
                 aria-label="ปิด"
               >
@@ -1206,7 +1203,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
             {/* Modal Body */}
             <div className="visit-modal-body">
               {/* Quick Patient Banner */}
-              <div className="patient-quick-banner">
+              <div className="patient-quick-banner rtm-patient-banner">
                 <div className="patient-banner-left">
                   <div className="patient-banner-name-block">
                     <div className="patient-banner-name">
@@ -1871,7 +1868,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                 {canPrintAddress(visitModalItem) && (
                   <button
                     type="button"
-                    className="btn btn-print-modal"
+                    className="btn btn-print-modal rtm-btn-print"
                     onClick={() => handlePrintAddress(visitModalItem)}
                     title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ เบอร์โทร สำหรับจัดส่งยา (A5 แนวตั้ง)"
                   >
