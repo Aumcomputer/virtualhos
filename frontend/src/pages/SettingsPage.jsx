@@ -35,6 +35,7 @@ export default function SettingsPage() {
   const [adminUsers, setAdminUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingRoleUser, setEditingRoleUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
 
@@ -93,29 +94,10 @@ export default function SettingsPage() {
     }
   }, [fetchAdminUsers, fetchCronSettings, fetchCronLogs, isAdmin]);
 
-  const ROLE_CYCLE = {
-    admin: 'request_telemed',
-    request_telemed: 'viewer',
-    viewer: 'admin',
-  };
-
   const ROLE_CONFIG = {
     admin: { label: 'Admin', icon: '🛡️', badgeClass: 'settings-role-admin' },
     request_telemed: { label: 'Request Telemed', icon: '📦', badgeClass: 'settings-role-request_telemed' },
     viewer: { label: 'Viewer', icon: '👁️', badgeClass: 'settings-role-viewer' },
-  };
-
-  const handleToggleRole = async (user) => {
-    const nextRole = ROLE_CYCLE[user.role] || 'viewer';
-    setActionLoading(user.id);
-    try {
-      await api.updateAdminUser(user.id, { role: nextRole });
-      await fetchAdminUsers();
-    } catch (err) {
-      console.error('Failed to update role');
-    } finally {
-      setActionLoading(null);
-    }
   };
 
   const handleDelete = async (id) => {
@@ -133,6 +115,11 @@ export default function SettingsPage() {
 
   const handleUserAdded = () => {
     setShowModal(false);
+    fetchAdminUsers();
+  };
+
+  const handleRoleUpdated = () => {
+    setEditingRoleUser(null);
     fetchAdminUsers();
   };
 
@@ -389,23 +376,16 @@ export default function SettingsPage() {
                             {/* Actions */}
                             <td style={{ textAlign: 'center' }}>
                               <div className="settings-actions-group" style={{ justifyContent: 'center' }}>
-                                {/* Toggle Role */}
+                                {/* Edit Role Button */}
                                 <button
                                   className="settings-btn-icon"
-                                  onClick={() => handleToggleRole(u)}
-                                  disabled={actionLoading === u.id}
-                                  title={`เปลี่ยนสิทธิ์เป็น ${ROLE_CONFIG[ROLE_CYCLE[u.role] || 'viewer']?.label}`}
+                                  onClick={() => setEditingRoleUser(u)}
+                                  title="แก้ไขและเลือกสิทธิ์การใช้งาน"
                                   type="button"
                                 >
-                                  {actionLoading === u.id ? (
-                                    <div className="spinner-sm" style={{ width: 14, height: 14 }} />
-                                  ) : (
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="23 4 23 10 17 10" />
-                                      <polyline points="1 20 1 14 7 14" />
-                                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
-                                    </svg>
-                                  )}
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                                  </svg>
                                 </button>
 
                                 {/* Delete with Confirm */}
@@ -629,11 +609,133 @@ export default function SettingsPage() {
         )}
       </div>
 
+      {/* Edit Role Modal */}
+      {editingRoleUser && (
+        <EditRoleModal
+          user={editingRoleUser}
+          onClose={() => setEditingRoleUser(null)}
+          onSuccess={handleRoleUpdated}
+        />
+      )}
+
       {/* Add User Modal */}
       {showModal && (
         <AddUserModal onClose={() => setShowModal(false)} onSuccess={handleUserAdded} />
       )}
     </>
+  );
+}
+
+// ============================================================================
+// EditRoleModal — choose which role to assign to the user
+// ============================================================================
+function EditRoleModal({ user, onClose, onSuccess }) {
+  const [selectedRole, setSelectedRole] = useState(user.role || 'viewer');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      await api.updateAdminUser(user.id, { role: selectedRole });
+      onSuccess();
+    } catch (err) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-modal-overlay" onClick={onClose} role="presentation">
+      <div className="settings-modal-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="settings-modal-header">
+          <h3 className="settings-modal-title">กำหนดสิทธิ์การใช้งาน (Role)</h3>
+          <button className="settings-modal-close" onClick={onClose} type="button" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="18" x2="18" y2="6" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="settings-modal-body">
+          {/* User Preview */}
+          <div className="settings-selected-user-card">
+            <div className="settings-user-preview-left">
+              <div className="settings-user-preview-avatar">
+                {(user.display_name?.charAt(0) || user.username?.charAt(0) || '?').toUpperCase()}
+              </div>
+              <div>
+                <div className="settings-user-preview-name">{user.display_name || user.username}</div>
+                <div className="settings-user-preview-sub">@{user.username}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Role Selection */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <label className="loa-form-label">เลือกสิทธิ์การใช้งานที่ต้องการกำหนด</label>
+            <div className="settings-roles-grid">
+              <div
+                className={`settings-role-radio-card ${selectedRole === 'admin' ? 'selected' : ''}`}
+                onClick={() => setSelectedRole('admin')}
+              >
+                <span className="settings-role-radio-icon">🛡️</span>
+                <div>
+                  <div className="settings-role-radio-title">Admin (ผู้ดูแลระบบ)</div>
+                  <div className="settings-role-radio-desc">เข้าถึงทุกเมนู จัดการผู้ใช้ ตั้งค่าระบบ และสร้างลิงก์ Telemed</div>
+                </div>
+              </div>
+
+              <div
+                className={`settings-role-radio-card ${selectedRole === 'request_telemed' ? 'selected' : ''}`}
+                onClick={() => setSelectedRole('request_telemed')}
+              >
+                <span className="settings-role-radio-icon">📦</span>
+                <div>
+                  <div className="settings-role-radio-title">Request Telemed (เจ้าหน้าที่จัดส่งยาและคำขอ)</div>
+                  <div className="settings-role-radio-desc">เข้าถึงเฉพาะเมนู LINE OA และจัดการสถานะส่งยา Request Telemed</div>
+                </div>
+              </div>
+
+              <div
+                className={`settings-role-radio-card ${selectedRole === 'viewer' ? 'selected' : ''}`}
+                onClick={() => setSelectedRole('viewer')}
+              >
+                <span className="settings-role-radio-icon">👁️</span>
+                <div>
+                  <div className="settings-role-radio-title">Viewer (ผู้เข้าชม)</div>
+                  <div className="settings-role-radio-desc">ดูข้อมูลเคสและสถิติต่างๆ ในระบบได้อย่างเดียว ไม่สามารถแก้ไขได้</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {error && <div className="loa-form-error">{error}</div>}
+        </div>
+
+        <div className="settings-modal-footer">
+          <button
+            className="loa-btn loa-btn-secondary"
+            onClick={onClose}
+            type="button"
+            disabled={saving}
+          >
+            ยกเลิก
+          </button>
+          <button
+            className="loa-btn loa-btn-primary"
+            onClick={handleSave}
+            disabled={saving}
+            type="button"
+          >
+            {saving ? 'กำลังบันทึก...' : 'บันทึกสิทธิ์'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
