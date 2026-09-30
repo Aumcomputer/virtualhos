@@ -974,30 +974,128 @@ export default function TelemedTodayPharmacyPage() {
                         <div className="clinical-card-header">
                           <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>ประวัติและสถานะการดำเนินงาน (Timeline)</span>
                         </div>
-                        <div className="clinical-card-body" style={{ padding: '10px 14px' }}>
-                          <div className="audit-trail-timeline" style={{ borderTop: 'none', paddingTop: 0, marginTop: 0 }}>
+                        <div className="clinical-card-body" style={{ padding: '12px 14px' }}>
+                          {/* ช่วงที่ 1: Pre-screening */}
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#475569', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>📋 ช่วงที่ 1: Pre-screening (คำขอรับยา)</span>
+                          </div>
+                          <div className="audit-trail-timeline" style={{ borderTop: 'none', paddingTop: 0, marginTop: 0, marginBottom: '14px' }}>
                             <div className="audit-trail-item">
                               <span className="audit-dot"></span>
-                              <span>ผู้ยื่นคำขอ: <strong>{detailModalItem.request_by || 'คนไข้ (LINE OA)'}</strong> ({formatThaiDateTime(detailModalItem.created_at)})</span>
+                              <span>ผู้ยื่นคำขอ: <strong>{(detailData?.request || detailModalItem).request_by || 'คนไข้ (LINE OA)'}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).created_at)})</span>
                             </div>
-                            {detailModalItem.received_by && (
+                            {(detailData?.request || detailModalItem).received_by && (
                               <div className="audit-trail-item">
                                 <span className="audit-dot success"></span>
-                                <span>รับเรื่องโดย: <strong>{detailModalItem.received_by}</strong> ({formatThaiDateTime(detailModalItem.received_at)})</span>
+                                <span>รับเรื่องโดย: <strong>{(detailData?.request || detailModalItem).received_by}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).received_at)})</span>
                               </div>
                             )}
-                            {detailModalItem.doctor_approved_by && (
+                            {(detailData?.request || detailModalItem).doctor_approved_by && (
                               <div className="audit-trail-item">
                                 <span className="audit-dot success"></span>
-                                <span>แพทย์ผู้อนุมัติ: <strong>{detailModalItem.doctor_approved_by}</strong> ({formatThaiDateTime(detailModalItem.doctor_approved_at || detailModalItem.updated_at)})</span>
+                                <span>แพทย์ผู้อนุมัติ: <strong>{(detailData?.request || detailModalItem).doctor_approved_by}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).doctor_approved_at || (detailData?.request || detailModalItem).updated_at)})</span>
                               </div>
                             )}
-                            {detailModalItem.pharmacy_approved_by && (
+                            {(detailData?.request || detailModalItem).pharmacy_approved_by && (
                               <div className="audit-trail-item">
                                 <span className="audit-dot success"></span>
-                                <span>เภสัชผู้อนุมัติ: <strong>{detailModalItem.pharmacy_approved_by}</strong> ({formatThaiDateTime(detailModalItem.pharmacy_approved_at || detailModalItem.approve_at || detailModalItem.updated_at)})</span>
+                                <span>เภสัชผู้อนุมัติ: <strong>{(detailData?.request || detailModalItem).pharmacy_approved_by}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).pharmacy_approved_at || (detailData?.request || detailModalItem).approve_at || (detailData?.request || detailModalItem).updated_at)})</span>
                               </div>
                             )}
+                          </div>
+
+                          {/* ช่วงที่ 2: วันนัดจริง */}
+                          <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e40af', marginBottom: '8px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span>🏥 ช่วงที่ 2: วันนัดจริง / ดำเนินการวันนี้ ({formatThaiDate((detailData?.request || detailModalItem).nextdate || new Date())})</span>
+                          </div>
+                          <div className="audit-trail-timeline" style={{ borderTop: 'none', paddingTop: 0, marginTop: 0 }}>
+                            {/* 2.1 เวชระเบียนเปิด Visit */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${detailData?.currentVn || (detailData?.request || detailModalItem).vn_today ? 'success' : ''}`}></span>
+                              <span>
+                                เวชระเบียนเปิด Visit:{' '}
+                                {detailData?.currentVn || (detailData?.request || detailModalItem).vn_today ? (
+                                  <>
+                                    <strong>เปิด Visit เรียบร้อย (VN: {detailData?.currentVn || (detailData?.request || detailModalItem).vn_today})</strong>
+                                    {detailData?.currentVisit?.vsttime ? ` เวลา ${detailData.currentVisit.vsttime.slice(0, 5)} น.` : ''}
+                                  </>
+                                ) : (
+                                  <span style={{ color: '#ea580c' }}>⏳ รอเวชระเบียนเปิด Visit ใน HOSxP</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.2 แพทย์สั่งยา */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${detailData?.currentVisit?.drug_concat ? 'success' : ''}`}></span>
+                              <span>
+                                แพทย์สั่งยา:{' '}
+                                {detailData?.currentVisit?.drug_concat ? (
+                                  <strong>สั่งยาเรียบร้อย ({parseLines(detailData.currentVisit.drug_concat).length} รายการ)</strong>
+                                ) : detailData?.currentVn || (detailData?.request || detailModalItem).vn_today ? (
+                                  <span style={{ color: '#ea580c' }}>⏳ รอแพทย์สั่งยาใน HOSxP</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.3 เภสัชกรจัดยา */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).pharmacy_dispense_at ? 'success' : ''}`}></span>
+                              <span>
+                                เภสัชกรตรวจสอบ/จัดยา:{' '}
+                                {(detailData?.request || detailModalItem).pharmacy_dispense_at ? (
+                                  <>
+                                    <strong>{(detailData?.request || detailModalItem).pharmacy_dispense_by || 'เภสัชกร'}</strong> ({formatThaiDateTime((detailData?.request || detailModalItem).pharmacy_dispense_at)}) —{' '}
+                                    <span style={{ fontWeight: 600, color: (detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' ? '#059669' : '#ea580c' }}>
+                                      {(detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' ? '✓ ไม่ต้องชำระเงิน' : '💰 ต้องชำระเงิน'}
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span style={{ color: '#ea580c' }}>⏳ รอเภสัชกรตรวจสอบและจัดยา</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.4 การเงิน */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' || (detailData?.request || detailModalItem).finance_status === 'PAID' ? 'success' : ''}`}></span>
+                              <span>
+                                การเงิน:{' '}
+                                {(detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' ? (
+                                  <strong style={{ color: '#059669' }}>✓ ได้รับสิทธิฟรี (ไม่ต้องชำระเงิน)</strong>
+                                ) : (detailData?.request || detailModalItem).finance_status === 'PAID' ? (
+                                  <>
+                                    <strong style={{ color: '#059669' }}>✓ ชำระเงินเรียบร้อย</strong>
+                                    {(detailData?.request || detailModalItem).finance_by ? ` โดย ${(detailData?.request || detailModalItem).finance_by}` : ''}
+                                    {(detailData?.request || detailModalItem).finance_at ? ` (${formatThaiDateTime((detailData?.request || detailModalItem).finance_at)})` : ''}
+                                  </>
+                                ) : (detailData?.request || detailModalItem).pharmacy_pay_type === 'PAID' ? (
+                                  <span style={{ color: '#dc2626', fontWeight: 600 }}>⏳ รอคนไข้ชำระเงินที่การเงิน</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* 2.5 การจัดส่งยา */}
+                            <div className="audit-trail-item">
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).tracking_number ? 'success' : ''}`}></span>
+                              <span>
+                                จัดส่งยา:{' '}
+                                {(detailData?.request || detailModalItem).tracking_number ? (
+                                  <>
+                                    <strong style={{ color: '#059669' }}>✓ จัดส่งเรียบร้อย</strong> (เลขพัสดุ: <span className="font-mono">{(detailData?.request || detailModalItem).tracking_number}</span>)
+                                    {(detailData?.request || detailModalItem).delivery_at ? ` เมื่อ ${formatThaiDateTime((detailData?.request || detailModalItem).delivery_at)}` : ''}
+                                  </>
+                                ) : ((detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' || (detailData?.request || detailModalItem).finance_status === 'PAID') && (detailData?.request || detailModalItem).pharmacy_dispense_at ? (
+                                  <span style={{ color: '#2563eb', fontWeight: 600 }}>📦 พร้อมจัดส่ง / รอเลขพัสดุ</span>
+                                ) : (
+                                  <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
+                                )}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
