@@ -409,8 +409,10 @@ export default function SettingsPage() {
                   <table className="settings-table" id="admin-users-table">
                     <thead>
                       <tr>
-                        <th>ผู้ใช้งาน (User Profile)</th>
-                        <th>Role / สิทธิ์การใช้งาน</th>
+                        <th>ชื่อ-สกุล (Name)</th>
+                        <th>Login Name</th>
+                        <th>กลุ่มงาน HOSxP (Group)</th>
+                        <th>Role / สิทธิ์ในระบบ</th>
                         <th>สถานะ</th>
                         <th>เพิ่มโดย</th>
                         <th>วันที่เพิ่ม</th>
@@ -427,7 +429,7 @@ export default function SettingsPage() {
 
                         return (
                           <tr key={u.id}>
-                            {/* Profile (Name & Username) */}
+                            {/* Profile (Name only) */}
                             <td>
                               <div className="settings-user-cell">
                                 <div className="settings-user-avatar">
@@ -435,9 +437,48 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="settings-user-meta">
                                   <span className="settings-user-name">{u.display_name || u.username}</span>
-                                  <span className="settings-user-login">@{u.username}</span>
+                                  {u.department && (
+                                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>{u.department}</span>
+                                  )}
                                 </div>
                               </div>
+                            </td>
+
+                            {/* Login Name Column */}
+                            <td>
+                              <span style={{
+                                fontFamily: 'monospace',
+                                fontWeight: 600,
+                                fontSize: '0.8125rem',
+                                background: '#f1f5f9',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                color: '#334155'
+                              }}>
+                                @{u.username}
+                              </span>
+                            </td>
+
+                            {/* HOSxP Group Name Column */}
+                            <td>
+                              {u.groupname && u.groupname !== '—' && u.groupname.trim() !== '' ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px',
+                                  fontSize: '0.8125rem',
+                                  fontWeight: 500,
+                                  color: '#0369a1',
+                                  background: '#f0f9ff',
+                                  border: '1px solid #bae6fd',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px'
+                                }}>
+                                  🏢 {u.groupname}
+                                </span>
+                              ) : (
+                                <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>—</span>
+                              )}
                             </td>
 
                             {/* Role Badge */}
@@ -1158,6 +1199,7 @@ function AddUserModal({ roles, onClose, onSuccess }) {
                   <div className="settings-user-preview-sub">
                     @{selectedUser.loginname}
                     {selectedUser.department ? ` · ${selectedUser.department}` : ''}
+                    {selectedUser.groupname ? ` · 🏢 ${selectedUser.groupname}` : ''}
                   </div>
                 </div>
               </div>
@@ -1222,6 +1264,7 @@ function AddUserModal({ roles, onClose, onSuccess }) {
                           <span className="settings-search-item-sub">
                             @{u.loginname}
                             {u.department ? ` · ${u.department}` : ''}
+                            {u.groupname ? ` · 🏢 ${u.groupname}` : ''}
                           </span>
                         </div>
                       </button>

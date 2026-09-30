@@ -6,10 +6,11 @@ const router = express.Router();
 
 // GET /api/admin-users — list all admin users
 router.get('/', authenticateToken, requireAdmin, async (req, res) => {
-  let conn;
+  let connVhos;
+  let connHos;
   try {
-    conn = await pool_vhos.getConnection();
-    const rows = await conn.query(`
+    connVhos = await pool_vhos.getConnection();
+    const rows = await connVhos.query(`
       SELECT u.id, u.username, u.display_name, u.role, u.is_active, u.created_by, u.created_at, u.updated_at,
              IFNULL(r.role_name, u.role) as role_name,
              IFNULL(r.icon, '👤') as role_icon,
@@ -18,12 +19,47 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
       LEFT JOIN system_roles r ON r.role_key = u.role
       ORDER BY u.created_at DESC
     `);
+
+    // Fetch groupname and department from HOSxP opduser
+    if (rows && rows.length > 0) {
+      try {
+        connHos = await pool_hos.getConnection();
+        const usernames = [...new Set(rows.map((r) => r.username).filter(Boolean))];
+        if (usernames.length > 0) {
+          const placeholders = usernames.map(() => '?').join(',');
+          const opdUsers = await connHos.query(
+            `SELECT loginname, groupname, department FROM opduser WHERE loginname IN (${placeholders})`,
+            usernames
+          );
+          const groupMap = {};
+          for (const ou of opdUsers) {
+            groupMap[ou.loginname] = {
+              groupname: ou.groupname || '',
+              department: ou.department || '',
+            };
+          }
+          for (const row of rows) {
+            const info = groupMap[row.username];
+            row.groupname = info?.groupname || '—';
+            row.department = info?.department || '';
+          }
+        }
+      } catch (hosErr) {
+        console.error('Error fetching opduser info from HOSxP:', hosErr.message);
+        for (const row of rows) {
+          row.groupname = '—';
+          row.department = '';
+        }
+      }
+    }
+
     res.json({ data: rows });
   } catch (err) {
     console.error('Error fetching admin users:', err.message);
     res.status(500).json({ error: 'Internal server error' });
   } finally {
-    if (conn) conn.release();
+    if (connVhos) connVhos.release();
+    if (connHos) connHos.release();
   }
 });
 
@@ -179,7 +215,7 @@ router.get('/search-opduser', authenticateToken, requireAdmin, async (req, res) 
     conn = await pool_hos.getConnection();
     const searchParam = `%${q}%`;
     const rows = await conn.query(
-      `SELECT loginname, name, department, account_disable
+      `SELECT loginname, name, department, groupname, account_disable
        FROM opduser
        WHERE (loginname LIKE ? OR name LIKE ?)
        AND (account_disable IS NULL OR account_disable != 'Y')
@@ -193,6 +229,7 @@ router.get('/search-opduser', authenticateToken, requireAdmin, async (req, res) 
         loginname: r.loginname,
         name: r.name,
         department: r.department || '',
+        groupname: r.groupname || '',
         account_disable: r.account_disable,
       })),
     });
