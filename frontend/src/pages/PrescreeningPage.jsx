@@ -382,20 +382,23 @@ export default function PrescreeningPage() {
           Prescreening Detail Modal Popup
           ======================================================================== */}
       {selectedPrescreenItem && (
-        <div className="visit-modal-overlay" onClick={closeDetailModal}>
-          <div className="visit-modal-card" style={{ maxWidth: '1000px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="visit-modal-backdrop rtm-modal-backdrop" onClick={closeDetailModal}>
+          <div className="visit-modal-container rtm-modal-window" style={{ maxWidth: '1000px', maxHeight: '94vh' }} onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="visit-modal-header">
-              <div className="visit-modal-title">
-                <span>รายละเอียดข้อมูลคัดกรองก่อนพบแพทย์</span>
-                <span className="font-mono" style={{ fontSize: '0.8125rem', color: '#0369a1', marginLeft: '10px' }}>
+            <div className="visit-modal-header rtm-modal-header">
+              <div className="visit-modal-title-row">
+                <div className="visit-modal-title rtm-modal-title">
+                  รายละเอียดข้อมูลคัดกรองก่อนพบแพทย์
+                </div>
+                <span className="badge badge-primary font-mono" style={{ marginLeft: '10px' }}>
                   HN: {selectedPrescreenItem.hn}
                 </span>
               </div>
               <button
                 type="button"
-                className="visit-modal-close"
+                className="visit-modal-close-btn rtm-modal-close"
                 onClick={closeDetailModal}
+                aria-label="ปิด"
               >
                 ✕
               </button>

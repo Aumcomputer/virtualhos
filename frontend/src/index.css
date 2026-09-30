@@ -3303,8 +3303,9 @@ a {
   color: white;
 }
 
-/* Patient Clinical Visit Modal */
-.visit-modal-backdrop {
+/* Patient Clinical Visit Modal & Workflow Popups */
+.visit-modal-backdrop,
+.visit-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 1050;
@@ -3316,7 +3317,8 @@ a {
   padding: 16px;
 }
 
-.visit-modal-container {
+.visit-modal-container,
+.visit-modal-card {
   background: white;
   border-radius: var(--radius-lg);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -3351,10 +3353,13 @@ a {
   color: var(--gray-900);
 }
 
-.visit-modal-close-btn {
+.visit-modal-close-btn,
+.visit-modal-close {
   background: none;
   border: none;
-  padding: 6px;
+  padding: 6px 10px;
+  font-size: 1.125rem;
+  line-height: 1;
   color: var(--gray-400);
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -3364,7 +3369,8 @@ a {
   transition: color var(--transition-fast), background-color var(--transition-fast);
 }
 
-.visit-modal-close-btn:hover {
+.visit-modal-close-btn:hover,
+.visit-modal-close:hover {
   color: var(--gray-700);
   background: var(--gray-200);
 }

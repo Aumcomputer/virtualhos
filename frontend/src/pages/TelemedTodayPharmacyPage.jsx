@@ -584,29 +584,32 @@ export default function TelemedTodayPharmacyPage() {
           Left: Visit เก่า | Right: Visit ปัจจุบัน + ราคายา + ยื่นความจำนง
           ======================================================================== */}
       {detailModalItem && (
-        <div className="visit-modal-overlay" onClick={() => setDetailModalItem(null)}>
-          <div className="visit-modal-card" style={{ maxWidth: '1200px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="visit-modal-backdrop rtm-modal-backdrop" onClick={() => setDetailModalItem(null)}>
+          <div className="visit-modal-container rtm-modal-window" style={{ maxWidth: '1280px', maxHeight: '94vh' }} onClick={(e) => e.stopPropagation()}>
             {/* Modal Header */}
-            <div className="visit-modal-header">
-              <div className="visit-modal-title">
-                <span>รายละเอียดการจัดยาผู้ป่วยรับยาไม่พบแพทย์</span>
+            <div className="visit-modal-header rtm-modal-header">
+              <div className="visit-modal-title-row">
+                <div className="visit-modal-title rtm-modal-title">
+                  รายละเอียดการจัดยาผู้ป่วยรับยาไม่พบแพทย์
+                </div>
                 {detailData?.currentVn && (
-                  <span className="font-mono" style={{ fontSize: '0.8125rem', color: '#0369a1', marginLeft: '10px' }}>
+                  <span className="badge badge-primary font-mono" style={{ marginLeft: '10px' }}>
                     VN วันนี้: {detailData.currentVn}
                   </span>
                 )}
               </div>
               <button
                 type="button"
-                className="visit-modal-close"
+                className="visit-modal-close-btn rtm-modal-close"
                 onClick={() => setDetailModalItem(null)}
+                aria-label="ปิด"
               >
                 ✕
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="visit-modal-body">
+            <div className="visit-modal-body" style={{ maxHeight: 'calc(94vh - 130px)', overflowY: 'auto' }}>
               {/* Quick Patient Banner */}
               <div className="patient-quick-banner rtm-patient-banner">
                 <div className="patient-banner-left">
@@ -667,28 +670,60 @@ export default function TelemedTodayPharmacyPage() {
                         <div className="clinical-card-header">
                           <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>สัญญาณชีพ (Vital Signs) ครั้งก่อน</span>
                         </div>
-                        <div className="clinical-card-body" style={{ padding: '10px' }}>
+                        <div className="clinical-card-body" style={{ padding: '8px 10px' }}>
                           {detailData?.previousVisit ? (
-                            <div className="vitals-matrix-clean">
-                              <div className="vital-item">
-                                <span className="vital-label">BP</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.bps || '—'}/{detailData.previousVisit.bpd || '—'}</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BP</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">
+                                    {detailData.previousVisit.bps && detailData.previousVisit.bpd
+                                      ? `${detailData.previousVisit.bps}/${detailData.previousVisit.bpd}`
+                                      : '—'}
+                                  </span>
+                                  <span className="v-unit">mmHg</span>
+                                </div>
                               </div>
-                              <div className="vital-item">
-                                <span className="vital-label">Pulse</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.pulse || '—'}</span>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Pulse</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.previousVisit.pulse || detailData.previousVisit.hr || '—'}</span>
+                                  <span className="v-unit">/m</span>
+                                </div>
                               </div>
-                              <div className="vital-item">
-                                <span className="vital-label">Temp</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.temperature || '—'}°C</span>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Temp</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.previousVisit.temperature || '—'}</span>
+                                  <span className="v-unit">°C</span>
+                                </div>
                               </div>
-                              <div className="vital-item">
-                                <span className="vital-label">BW</span>
-                                <span className="vital-val font-mono">{detailData.previousVisit.bw || '—'} kg</span>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BW</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.previousVisit.bw || '—'}</span>
+                                  <span className="v-unit">kg</span>
+                                </div>
                               </div>
                             </div>
                           ) : (
-                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>— ไม่มีข้อมูล —</div>
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>— ไม่มีข้อมูลสัญญาณชีพ —</div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* อาการสำคัญ / ประวัติ (Chief Complaint) ครั้งก่อน */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>อาการสำคัญ / ประวัติ (Chief Complaint) ครั้งก่อน</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.previousVisit?.cc ? (
+                            <div style={{ fontSize: '0.8125rem', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
+                              {detailData.previousVisit.cc}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>— ไม่พบข้อมูลอาการสำคัญครั้งก่อน —</div>
                           )}
                         </div>
                       </div>
@@ -757,16 +792,105 @@ export default function TelemedTodayPharmacyPage() {
                       {/* กล่องราคายา vn_stat */}
                       <div className="finance-price-box">
                         <div className="finance-price-card fp-total">
-                          <span className="fp-label">ยอดรวม (item_money)</span>
+                          <span className="fp-label">ยอดรวม</span>
                           <span className="fp-amount">{formatMoney(detailData?.vnStat?.item_money)} ฿</span>
                         </div>
                         <div className="finance-price-card fp-uc">
-                          <span className="fp-label">เบิกได้ (uc_money)</span>
+                          <span className="fp-label">เบิกได้</span>
                           <span className="fp-amount">{formatMoney(detailData?.vnStat?.uc_money)} ฿</span>
                         </div>
                         <div className="finance-price-card fp-paid">
-                          <span className="fp-label">ต้องชำระ (paid_money)</span>
+                          <span className="fp-label">ต้องชำระ</span>
                           <span className="fp-amount">{formatMoney(detailData?.vnStat?.paid_money)} ฿</span>
+                        </div>
+                      </div>
+
+                      {/* สัญญาณชีพ (Vital Signs) วันนี้ */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>สัญญาณชีพ (Vital Signs) วันนี้</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 10px' }}>
+                          {detailData?.currentVisit ? (
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BP</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">
+                                    {detailData.currentVisit.bps && detailData.currentVisit.bpd
+                                      ? `${detailData.currentVisit.bps}/${detailData.currentVisit.bpd}`
+                                      : '—'}
+                                  </span>
+                                  <span className="v-unit">mmHg</span>
+                                </div>
+                              </div>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Pulse</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.currentVisit.pulse || detailData.currentVisit.hr || '—'}</span>
+                                  <span className="v-unit">/m</span>
+                                </div>
+                              </div>
+                              <div className="vital-stat-card">
+                                <span className="v-label">Temp</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.currentVisit.temperature || '—'}</span>
+                                  <span className="v-unit">°C</span>
+                                </div>
+                              </div>
+                              <div className="vital-stat-card">
+                                <span className="v-label">BW</span>
+                                <div className="v-value-group">
+                                  <span className="v-value font-mono">{detailData.currentVisit.bw || '—'}</span>
+                                  <span className="v-unit">kg</span>
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.75rem' }}>
+                              {detailData?.currentVn ? '— ไม่มีข้อมูลสัญญาณชีพใน Visit วันนี้ —' : '— รอเปิด Visit ใน HOSxP —'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* อาการสำคัญ / ประวัติ (Chief Complaint) วันนี้ */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>อาการสำคัญ / ประวัติ (Chief Complaint) วันนี้</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.currentVisit?.cc ? (
+                            <div style={{ fontSize: '0.8125rem', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
+                              {detailData.currentVisit.cc}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>
+                              {detailData?.currentVn ? '— ไม่พบข้อมูลอาการสำคัญในการตรวจวันนี้ —' : '— รอเปิด Visit ใน HOSxP —'}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* การวินิจฉัยโรควันนี้ (Diagnoses) */}
+                      <div className="clinical-card">
+                        <div className="clinical-card-header">
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1d4ed8' }}>การวินิจฉัยโรควันนี้ (Diagnoses)</span>
+                        </div>
+                        <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                          {detailData?.currentVisit?.diagnosis_concat ? (
+                            <div className="diag-list">
+                              {parseLines(detailData.currentVisit.diagnosis_concat).map((line, dIdx) => (
+                                <div key={dIdx} className="diag-item">
+                                  <span>{line.replace('(PDX)', '').trim()}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ color: 'var(--gray-400)', fontStyle: 'italic', fontSize: '0.8125rem' }}>
+                              {detailData?.currentVn ? '— ยังไม่มีการบันทึกการวินิจฉัยโรคใน Visit วันนี้ —' : '— รอแพทย์บันทึกการวินิจฉัยใน HOSxP —'}
+                            </div>
+                          )}
                         </div>
                       </div>
 

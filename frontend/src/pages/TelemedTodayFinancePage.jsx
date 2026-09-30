@@ -379,21 +379,24 @@ export default function TelemedTodayFinancePage() {
           Finance Payment Modal Popup
           ======================================================================== */}
       {selectedItem && (
-        <div className="visit-modal-overlay" onClick={closePayModal}>
-          <div className="visit-modal-card" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="visit-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="visit-modal-title">
-                <span>บันทึกการชำระเงินค่ายา / ค่าบริการ</span>
+        <div className="visit-modal-backdrop rtm-modal-backdrop" onClick={closePayModal}>
+          <div className="visit-modal-container rtm-modal-window" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="visit-modal-header rtm-modal-header">
+              <div className="visit-modal-title-row">
+                <div className="visit-modal-title rtm-modal-title">
+                  บันทึกการชำระเงินค่ายา / ค่าบริการ
+                </div>
                 {selectedItem.vn_today && (
-                  <span className="font-mono" style={{ fontSize: '0.8125rem', color: '#0369a1', marginLeft: '10px' }}>
+                  <span className="badge badge-primary font-mono" style={{ marginLeft: '10px' }}>
                     VN วันนี้: {selectedItem.vn_today}
                   </span>
                 )}
               </div>
               <button
                 type="button"
-                className="visit-modal-close"
+                className="visit-modal-close-btn rtm-modal-close"
                 onClick={closePayModal}
+                aria-label="ปิด"
               >
                 ✕
               </button>
@@ -422,15 +425,15 @@ export default function TelemedTodayFinancePage() {
               {/* Price Cards */}
               <div className="finance-price-box">
                 <div className="finance-price-card fp-total">
-                  <span className="fp-label">ยอดรวม (item_money)</span>
+                  <span className="fp-label">ยอดรวม</span>
                   <span className="fp-amount">{formatMoney(selectedItem.item_money)} ฿</span>
                 </div>
                 <div className="finance-price-card fp-uc">
-                  <span className="fp-label">เบิกได้ (uc_money)</span>
+                  <span className="fp-label">เบิกได้</span>
                   <span className="fp-amount">{formatMoney(selectedItem.uc_money)} ฿</span>
                 </div>
                 <div className="finance-price-card fp-paid">
-                  <span className="fp-label">ยอดต้องชำระ (paid_money)</span>
+                  <span className="fp-label">ต้องชำระ</span>
                   <span className="fp-amount" style={{ fontSize: '1.35rem' }}>{formatMoney(selectedItem.paid_money)} ฿</span>
                 </div>
               </div>

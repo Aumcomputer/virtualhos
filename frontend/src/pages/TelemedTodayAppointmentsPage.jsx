@@ -415,22 +415,25 @@ export default function TelemedTodayAppointmentsPage() {
           Detail Modal Popup for Appointments Today
           ======================================================================== */}
       {detailModalItem && (
-        <div className="visit-modal-overlay" onClick={closeDetailModal}>
-          <div className="visit-modal-card" style={{ maxWidth: '1200px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="visit-modal-backdrop rtm-modal-backdrop" onClick={closeDetailModal}>
+          <div className="visit-modal-container rtm-modal-window" style={{ maxWidth: '1280px', maxHeight: '94vh' }} onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div className="visit-modal-header">
-              <div className="visit-modal-title">
-                <span>รายละเอียดผู้ป่วย “รับยาไม่พบแพทย์” วันนี้</span>
+            <div className="visit-modal-header rtm-modal-header">
+              <div className="visit-modal-title-row">
+                <div className="visit-modal-title rtm-modal-title">
+                  รายละเอียดผู้ป่วย “รับยาไม่พบแพทย์” วันนี้
+                </div>
                 {detailData?.currentVn && (
-                  <span className="font-mono" style={{ fontSize: '0.8125rem', color: '#0369a1', marginLeft: '10px' }}>
+                  <span className="badge badge-primary font-mono" style={{ marginLeft: '10px' }}>
                     VN วันนี้: {detailData.currentVn}
                   </span>
                 )}
               </div>
               <button
                 type="button"
-                className="visit-modal-close"
+                className="visit-modal-close-btn rtm-modal-close"
                 onClick={closeDetailModal}
+                aria-label="ปิด"
               >
                 ✕
               </button>
