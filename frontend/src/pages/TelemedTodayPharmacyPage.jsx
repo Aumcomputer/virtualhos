@@ -19,6 +19,19 @@ function formatThaiDate(dateStr) {
   }
 }
 
+function isPastDate(dateStr) {
+  if (!dateStr) return false;
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const d = new Date(dateStr);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
+  } catch {
+    return false;
+  }
+}
+
 function formatThaiDateTime(dateTimeStr) {
   if (!dateTimeStr) return '—';
   try {
@@ -312,7 +325,7 @@ export default function TelemedTodayPharmacyPage() {
           <div className="prescreen-stat-card">
             <div className="prescreen-stat-icon total">📋</div>
             <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">เคสห้องยาทั้งหมดวันนี้</span>
+              <span className="prescreen-stat-label">เคสห้องยาทั้งหมด</span>
               <span className="prescreen-stat-val" style={{ color: '#2563eb' }}>
                 {(summary.today_count || 0) + (summary.delivery_count || 0)}
               </span>
@@ -321,7 +334,7 @@ export default function TelemedTodayPharmacyPage() {
           <div className="prescreen-stat-card">
             <div className="prescreen-stat-icon dispense">💊</div>
             <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">รอตรวจและจัดยา</span>
+              <span className="prescreen-stat-label">รอตรวจและจัดยา (วันนี้/ย้อนหลัง)</span>
               <span className="prescreen-stat-val" style={{ color: '#7c3aed' }}>
                 {summary.today_count || 0}
               </span>
@@ -388,6 +401,7 @@ export default function TelemedTodayPharmacyPage() {
               <thead>
                 <tr>
                   <th style={{ width: '45px', textAlign: 'center' }}>#</th>
+                  <th style={{ width: '135px' }}>วันนัดหมาย</th>
                   <th style={{ width: '120px' }}>VN วันนี้</th>
                   <th style={{ width: '110px' }}>HN</th>
                   <th>ชื่อ-นามสกุล</th>
@@ -411,7 +425,7 @@ export default function TelemedTodayPharmacyPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -422,14 +436,14 @@ export default function TelemedTodayPharmacyPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
-                          {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยาในวันนี้' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
+                          {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยา (วันนี้และย้อนหลัง)' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
                         </div>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
                           {tab === 'today'
-                            ? 'เมื่อเวชระเบียนเปิด Visit และแพทย์สั่งยา รายการจะแสดงเพื่อรอเภสัชตรวจสอบ'
+                            ? 'เมื่อเวชระเบียนเปิด Visit และแพทย์สั่งยา รายการจะแสดงเพื่อรอเภสัชตรวจสอบและจัดยา'
                             : 'รายการที่ระบุ "ไม่ต้องชำระเงิน" หรือผ่าน "การเงินชำระแล้ว" จะปรากฏในแท็บนี้'}
                         </div>
                       </div>
@@ -449,7 +463,27 @@ export default function TelemedTodayPharmacyPage() {
                           {idx + 1}
                         </td>
 
-                        {/* 2. VN */}
+                        {/* 2. วันนัดหมาย */}
+                        <td>
+                          <span className="appt-date-badge">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                              <line x1="16" y1="2" x2="16" y2="6" />
+                              <line x1="8" y1="2" x2="8" y2="6" />
+                              <line x1="3" y1="10" x2="21" y2="10" />
+                            </svg>
+                            <span>{formatThaiDate(item.nextdate)}</span>
+                          </span>
+                          {isPastDate(item.nextdate) && (
+                            <div style={{ marginTop: '3px' }}>
+                              <span style={{ fontSize: '0.6875rem', color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                                ⚠️ ย้อนหลัง
+                              </span>
+                            </div>
+                          )}
+                        </td>
+
+                        {/* 3. VN */}
                         <td>
                           {item.vn_today ? (
                             <span className="tt-vn-tag">
@@ -462,7 +496,7 @@ export default function TelemedTodayPharmacyPage() {
                           )}
                         </td>
 
-                        {/* 3. HN */}
+                        {/* 4. HN */}
                         <td>
                           <span className="rtm-hn-pill font-mono">{item.hn}</span>
                         </td>

@@ -302,7 +302,7 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
     // Summary counts for badges
     const summaryRows = await connVhos.query(`
       SELECT 
-        SUM(CASE WHEN DATE(nextdate) = CURDATE() AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '') THEN 1 ELSE 0 END) AS today_count,
+        SUM(CASE WHEN (DATE(nextdate) <= CURDATE() OR nextdate IS NULL) AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '') THEN 1 ELSE 0 END) AS today_count,
         SUM(CASE WHEN (pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID')) AND (status != 'จัดส่งเรียบร้อย' OR delivery_at IS NULL) THEN 1 ELSE 0 END) AS delivery_count
       FROM virtualhos.req_telemed
       WHERE (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%')
@@ -318,8 +318,8 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
     const params = [];
 
     if (tab === 'today') {
-      // 1. รายการวันนี้: นัดวันนี้ และยังไม่ได้กดยืนยันการชำระเงิน (pharmacy_pay_type is null/empty)
-      whereClause += ` AND DATE(nextdate) = CURDATE() AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '')`;
+      // 1. รายการยาวันนี้ + ย้อนหลังที่ยังไม่ได้กด dispense: นัดวันนี้หรือย้อนหลัง (<= CURDATE()) และยังไม่ได้กดยืนยันการชำระเงิน/จัดยา
+      whereClause += ` AND (DATE(nextdate) <= CURDATE() OR nextdate IS NULL) AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '')`;
     } else {
       // 2. รอจัดส่ง: เภสัชระบุไม่ต้องชำระ (FREE) หรือ การเงินชำระเงินแล้ว (PAID) และยังไม่จัดส่ง
       whereClause += `
@@ -338,14 +338,41 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
       SELECT *
       FROM virtualhos.req_telemed
       WHERE ${whereClause}
-      ORDER BY id ASC
+      ORDER BY nextdate ASC, id ASC
     `;
     const rows = await connVhos.query(query, params);
 
-    // Enrich with vn_stat prices if vn_today is present
+    // Enrich with vn_stat prices if vn_today is present (and auto-sync vn_today if missing)
     const enriched = [];
     for (const r of rows) {
       const item = serializeRow(r);
+
+      // If vn_today is not yet recorded, search HOSxP ovst for this patient on their appointment date
+      if (!item.vn_today && item.hn) {
+        try {
+          const dateParam = item.nextdate ? new Date(item.nextdate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+          const strippedHn = item.hn.replace(/^0+/, '') || item.hn;
+          const ovstRows = await connHos.query(`
+            SELECT vn, vstdate, vsttime, cur_dep
+            FROM ovst
+            WHERE (hn = ? OR hn = ?) AND vstdate = ?
+            ORDER BY vsttime DESC
+            LIMIT 1
+          `, [item.hn, strippedHn, dateParam]);
+
+          if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
+            item.vn_today = ovstRows[0].vn;
+            await connVhos.query(`
+              UPDATE virtualhos.req_telemed
+              SET vn_today = ?, updated_at = NOW()
+              WHERE id = ?
+            `, [item.vn_today, item.id]);
+          }
+        } catch (ovstErr) {
+          console.warn('[telemed-today] Pharmacy ovst lookup error:', ovstErr.message);
+        }
+      }
+
       if (item.vn_today) {
         const vnStat = await fetchVnStat(connHos, item.vn_today);
         if (vnStat) {
