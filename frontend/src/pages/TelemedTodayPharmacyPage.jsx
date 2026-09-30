@@ -19,18 +19,6 @@ function formatThaiDate(dateStr) {
   }
 }
 
-function isPastDate(dateStr) {
-  if (!dateStr) return false;
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const d = new Date(dateStr);
-    d.setHours(0, 0, 0, 0);
-    return d < today;
-  } catch {
-    return false;
-  }
-}
 
 function formatThaiDateTime(dateTimeStr) {
   if (!dateTimeStr) return '—';
@@ -334,7 +322,7 @@ export default function TelemedTodayPharmacyPage() {
           <div className="prescreen-stat-card">
             <div className="prescreen-stat-icon dispense">💊</div>
             <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">รอตรวจและจัดยา (วันนี้/ย้อนหลัง)</span>
+              <span className="prescreen-stat-label">รอตรวจและจัดยา</span>
               <span className="prescreen-stat-val" style={{ color: '#7c3aed' }}>
                 {summary.today_count || 0}
               </span>
@@ -439,7 +427,7 @@ export default function TelemedTodayPharmacyPage() {
                     <td colSpan={10} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
-                          {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยา (วันนี้และย้อนหลัง)' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
+                          {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยา' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
                         </div>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
                           {tab === 'today'
@@ -474,13 +462,6 @@ export default function TelemedTodayPharmacyPage() {
                             </svg>
                             <span>{formatThaiDate(item.nextdate)}</span>
                           </span>
-                          {isPastDate(item.nextdate) && (
-                            <div style={{ marginTop: '3px' }}>
-                              <span style={{ fontSize: '0.6875rem', color: '#b45309', background: '#fef3c7', border: '1px solid #fde68a', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                                ⚠️ ย้อนหลัง
-                              </span>
-                            </div>
-                          )}
                         </td>
 
                         {/* 3. VN */}
