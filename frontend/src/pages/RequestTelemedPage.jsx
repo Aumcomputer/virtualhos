@@ -84,6 +84,272 @@ function getPatientInitials(name) {
   return clean ? clean.slice(0, 2) : 'ผป';
 }
 
+function generateAddressHtml(item, extraVn = '') {
+  const patientName = item.patient_name || 'ไม่ระบุชื่อผู้ป่วย';
+  const hn = item.hn || '';
+  const phone = formatPhone(item.phone) || item.phone || '—';
+  const address = item.address || '—';
+  const trackingNumber = item.tracking_number || '';
+  const reqId = item.id || '';
+  const vn = item.vn || extraVn || '';
+
+  // Extract 5-digit postcode
+  let postcode = (item.postcode || '').trim();
+  if (postcode.length !== 5 && address) {
+    const match = address.match(/\b\d{5}\b/);
+    if (match) postcode = match[0];
+  }
+  const digits = postcode.length === 5 ? postcode.split('') : [];
+
+  return `<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <title>ใบปะหน้าพัสดุจัดส่งยา - ${patientName}</title>
+  <style>
+    @page {
+      size: A5 portrait;
+      margin: 8mm 10mm;
+    }
+    * {
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Sarabun', 'TH Sarabun New', 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #000;
+      background: #fff;
+      font-size: 13pt;
+      line-height: 1.35;
+    }
+    .page-wrap {
+      width: 100%;
+      height: 100%;
+      min-height: 188mm;
+      border: 2px solid #1e293b;
+      border-radius: 8px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .sender-card {
+      border-bottom: 2px dashed #94a3b8;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+    }
+    .sender-title {
+      font-size: 10.5pt;
+      font-weight: 700;
+      color: #475569;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sender-name {
+      font-size: 13pt;
+      font-weight: 800;
+      color: #0f172a;
+      margin: 2px 0;
+    }
+    .sender-address {
+      font-size: 11pt;
+      color: #334155;
+      line-height: 1.35;
+    }
+    .sender-phone {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .recipient-card {
+      flex: 1;
+      border: 3px solid #0f172a;
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: #fafafa;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .recipient-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+    .recipient-heading {
+      font-size: 14pt;
+      font-weight: 900;
+      color: #0f172a;
+      letter-spacing: 0.5px;
+    }
+    .recipient-hn-badge {
+      font-size: 13pt;
+      font-weight: 800;
+      font-family: monospace;
+      background: #0f172a;
+      color: #fff;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+    .recipient-name {
+      font-size: 19pt;
+      font-weight: 900;
+      color: #000;
+      margin: 4px 0 8px 0;
+      line-height: 1.25;
+    }
+    .recipient-address-label {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 2px;
+    }
+    .recipient-address {
+      font-size: 14.5pt;
+      font-weight: 600;
+      color: #0f172a;
+      line-height: 1.45;
+      min-height: 55px;
+      word-break: break-word;
+    }
+    .postcode-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin: 10px 0;
+    }
+    .postcode-label {
+      font-size: 12pt;
+      font-weight: 800;
+      color: #1e293b;
+    }
+    .postcode-boxes {
+      display: flex;
+      gap: 4px;
+    }
+    .postcode-cell {
+      width: 32px;
+      height: 38px;
+      border: 2px solid #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18pt;
+      font-weight: 900;
+      font-family: monospace;
+      background: #fff;
+    }
+    .postcode-text {
+      font-size: 16pt;
+      font-weight: 900;
+      font-family: monospace;
+      letter-spacing: 2px;
+    }
+    .recipient-phone-box {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1.5px dashed #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .recipient-phone-label {
+      font-size: 13pt;
+      font-weight: 700;
+      color: #334155;
+    }
+    .recipient-phone-val {
+      font-size: 18pt;
+      font-weight: 900;
+      color: #000;
+      letter-spacing: 0.5px;
+    }
+    .slip-footer {
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .warning-banner {
+      border: 1.5px solid #dc2626;
+      background: #fef2f2;
+      color: #991b1b;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 10.5pt;
+      font-weight: 700;
+      text-align: center;
+    }
+    .meta-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9.5pt;
+      color: #64748b;
+      padding: 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="sender-card">
+      <div class="sender-title">
+        <span>ผู้ส่ง (SENDER)</span>
+        <span>โครงการจัดส่งยาทางไปรษณีย์ (Virtual Hospital)</span>
+      </div>
+      <div class="sender-name">กลุ่มงานเภสัชกรรม โรงพยาบาลราชบุรี</div>
+      <div class="sender-address">85 ถนนสมบูรณ์กุล ตำบลหน้าเมือง อำเภอเมือง จังหวัดราชบุรี 70000</div>
+      <div class="sender-phone">โทรศัพท์: 032-719600</div>
+    </div>
+
+    <div class="recipient-card">
+      <div class="recipient-header">
+        <span class="recipient-heading">กรุณาส่ง (DELIVER TO)</span>
+        ${hn ? `<span class="recipient-hn-badge">HN: ${hn}</span>` : ''}
+      </div>
+
+      <div class="recipient-name">${patientName}</div>
+
+      <div class="recipient-address-label">ที่อยู่จัดส่งพัสดุ:</div>
+      <div class="recipient-address">${address}</div>
+
+      <div class="postcode-wrap">
+        <span class="postcode-label">รหัสไปรษณีย์:</span>
+        ${digits.length === 5
+          ? `<div class="postcode-boxes">${digits.map(d => `<div class="postcode-cell">${d}</div>`).join('')}</div>`
+          : `<span class="postcode-text">${postcode || '—'}</span>`
+        }
+      </div>
+
+      <div class="recipient-phone-box">
+        <span class="recipient-phone-label">เบอร์โทรศัพท์ติดต่อ:</span>
+        <span class="recipient-phone-val">${phone}</span>
+      </div>
+    </div>
+
+    <div class="slip-footer">
+      <div class="warning-banner">
+        ⚠️ สำคัญ: ภายในบรรจุ <strong>ยาและเวชภัณฑ์</strong> โปรดส่งมอบให้ผู้รับโดยเร็ว หลีกเลี่ยงความร้อนและแสงแดดจัด
+      </div>
+      <div class="meta-info-row">
+        <span>คำขอรับยาเลขที่: <strong>#${reqId}</strong> ${vn ? `| VN: ${vn}` : ''}</span>
+        ${trackingNumber ? `<span>เลขพัสดุ: <strong>${trackingNumber}</strong></span>` : ''}
+        <span>พิมพ์เมื่อ: ${new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function getStatusBadgeConfig(status) {
   const str = String(status || '').trim();
   if (str.includes('รอตรวจสอบ')) {
@@ -430,6 +696,61 @@ export default function RequestTelemedPage({ stage = 'all' }) {
       .split('\n')
       .map((s) => s.trim())
       .filter(Boolean);
+  };
+
+  // Check if item is eligible for printing address (approved stage or deliverable status)
+  const canPrintAddress = (item) => {
+    if (!item) return false;
+    const s = String(item.status || '');
+    return (
+      stage === 'approved' ||
+      (s.includes('สามารถจัดส่งได้') && !s.includes('ไม่สามารถ')) ||
+      s.includes('จัดส่งเรียบร้อย')
+    );
+  };
+
+  // Trigger A5 portrait address print
+  const handlePrintAddress = (item) => {
+    if (!item) return;
+    const html = generateAddressHtml(item, visitDetail?.vn || '');
+
+    try {
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(html);
+      doc.close();
+
+      iframe.contentWindow.focus();
+      setTimeout(() => {
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          if (iframe.parentNode) {
+            document.body.removeChild(iframe);
+          }
+        }, 1000);
+      }, 350);
+    } catch (err) {
+      console.warn('Iframe print failed, falling back to window.open:', err);
+      const printWin = window.open('', '_blank', 'width=700,height=900');
+      if (printWin) {
+        printWin.document.open();
+        printWin.document.write(html);
+        printWin.document.close();
+        printWin.focus();
+        setTimeout(() => {
+          printWin.print();
+        }, 400);
+      }
+    }
   };
 
   const hasActionColumn = stage === 'doctor' || stage === 'pharmacist' || stage === 'approved';
@@ -916,19 +1237,37 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                               )}
 
                               {stage === 'approved' && (
-                                <button
-                                  type="button"
-                                  className="btn-action-pill btn-action-deliver"
-                                  onClick={() => openDeliveryModal(item)}
-                                >
-                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="1" y="3" width="15" height="13" />
-                                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-                                    <circle cx="5.5" cy="18.5" r="2.5" />
-                                    <circle cx="18.5" cy="18.5" r="2.5" />
-                                  </svg>
-                                  <span>จัดส่งยา</span>
-                                </button>
+                                <>
+                                  <button
+                                    type="button"
+                                    className="btn-action-pill btn-action-print"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePrintAddress(item);
+                                    }}
+                                    title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ เบอร์โทร (A5 แนวตั้ง)"
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="6 9 6 2 18 2 18 9" />
+                                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                                      <rect x="6" y="14" width="12" height="8" />
+                                    </svg>
+                                    <span>พิมพ์ที่อยู่</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-action-pill btn-action-deliver"
+                                    onClick={() => openDeliveryModal(item)}
+                                  >
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <rect x="1" y="3" width="15" height="13" />
+                                      <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
+                                      <circle cx="5.5" cy="18.5" r="2.5" />
+                                      <circle cx="18.5" cy="18.5" r="2.5" />
+                                    </svg>
+                                    <span>จัดส่งยา</span>
+                                  </button>
+                                </>
                               )}
                             </div>
                           </td>
@@ -1511,11 +1850,27 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                               )}
 
                               {/* Address */}
-                              <div className="req-info-row">
+                              <div className="req-info-row" style={{ alignItems: 'flex-start' }}>
                                 <span className="label">ที่อยู่จัดส่งยา:</span>
-                                <span className="val">
-                                  {visitModalItem.address || '—'} {visitModalItem.postcode || ''}
-                                </span>
+                                <div className="val" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                  <span>{visitModalItem.address || '—'} {visitModalItem.postcode || ''}</span>
+                                  {canPrintAddress(visitModalItem) && (
+                                    <div>
+                                      <button
+                                        type="button"
+                                        className="btn-print-address-inline"
+                                        onClick={() => handlePrintAddress(visitModalItem)}
+                                      >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                          <polyline points="6 9 6 2 18 2 18 9" />
+                                          <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                                          <rect x="6" y="14" width="12" height="8" />
+                                        </svg>
+                                        <span>พิมพ์ที่อยู่ (A5)</span>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
 
                               {/* Phone */}
@@ -1652,6 +2007,23 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                       ยาส่งได้ (อนุมัติ)
                     </button>
                   </>
+                )}
+
+                {/* Print Address button when in approved stage or delivery ready */}
+                {canPrintAddress(visitModalItem) && (
+                  <button
+                    type="button"
+                    className="btn btn-print-modal"
+                    onClick={() => handlePrintAddress(visitModalItem)}
+                    title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ เบอร์โทร สำหรับจัดส่งยา (A5 แนวตั้ง)"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="6 9 6 2 18 2 18 9" />
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                      <rect x="6" y="14" width="12" height="8" />
+                    </svg>
+                    <span>พิมพ์ที่อยู่ (A5)</span>
+                  </button>
                 )}
 
                 {stage === 'approved' && (
