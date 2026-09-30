@@ -5,6 +5,7 @@ import { getVersionStatus, subscribeVersion, performReload } from '../services/v
 
 export default function Layout() {
   const [versionStatus, setVersionStatus] = useState(getVersionStatus());
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const location = useLocation();
   const lastPathnameRef = useRef(location.pathname);
 
@@ -13,6 +14,11 @@ export default function Layout() {
       setVersionStatus({ ...status });
     });
   }, []);
+
+  // Close sidebar on page change
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
 
   // Auto reload when navigating to another page if a new version is detected
   useEffect(() => {
@@ -28,7 +34,25 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
-      <Sidebar />
+      {/* Mobile Top Navbar with Hamburger */}
+      <header className="mobile-navbar">
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          onClick={() => setIsSidebarOpen(true)}
+          aria-label="เปิดเมนูหลัก"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <span className="mobile-nav-title">RBH Virtual Hospital</span>
+        <div style={{ width: 36 }} />
+      </header>
+
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <main className="main-content">
         {versionStatus.hasNewVersion && (
           <div className="version-update-topbar">
