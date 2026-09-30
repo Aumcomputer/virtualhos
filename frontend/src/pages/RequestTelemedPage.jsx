@@ -643,7 +643,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
     }
   };
 
-  const hasActionColumn = stage === 'doctor' || stage === 'pharmacist' || stage === 'approved';
+  const hasActionColumn = stage === 'doctor' || stage === 'pharmacist';
 
   return (
     <>
@@ -1126,39 +1126,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                                 </>
                               )}
 
-                              {stage === 'approved' && (
-                                <>
-                                  <button
-                                    type="button"
-                                    className="btn-action-pill btn-action-print"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handlePrintAddress(item);
-                                    }}
-                                    title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ เบอร์โทร (A5 แนวตั้ง)"
-                                  >
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <polyline points="6 9 6 2 18 2 18 9" />
-                                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-                                      <rect x="6" y="14" width="12" height="8" />
-                                    </svg>
-                                    <span>พิมพ์ที่อยู่</span>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="btn-action-pill btn-action-deliver"
-                                    onClick={() => openDeliveryModal(item)}
-                                  >
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                      <rect x="1" y="3" width="15" height="13" />
-                                      <polygon points="16 8 20 8 23 11 23 16 16 16 8" />
-                                      <circle cx="5.5" cy="18.5" r="2.5" />
-                                      <circle cx="18.5" cy="18.5" r="2.5" />
-                                    </svg>
-                                    <span>จัดส่งยา</span>
-                                  </button>
-                                </>
-                              )}
+
                             </div>
                           </td>
                         )}
