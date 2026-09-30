@@ -84,32 +84,29 @@ function getPatientInitials(name) {
   return clean ? clean.slice(0, 2) : 'ผป';
 }
 
-function generateAddressHtml(item, extraVn = '') {
-  const patientName = item.patient_name || 'ไม่ระบุชื่อผู้ป่วย';
-  const hn = item.hn || '';
+function generateAddressHtml(item, pttype = '') {
+  const patientName = item.patient_name || 'ไม่ระบุชื่อ';
+  const hn = item.hn || '—';
   const phone = formatPhone(item.phone) || item.phone || '—';
-  const address = item.address || '—';
-  const trackingNumber = item.tracking_number || '';
-  const reqId = item.id || '';
-  const vn = item.vn || extraVn || '';
-
-  // Extract 5-digit postcode
-  let postcode = (item.postcode || '').trim();
-  if (postcode.length !== 5 && address) {
-    const match = address.match(/\b\d{5}\b/);
-    if (match) postcode = match[0];
+  
+  let fullAddress = (item.address || '').trim();
+  const postcode = (item.postcode || '').trim();
+  if (postcode && !fullAddress.includes(postcode)) {
+    fullAddress = `${fullAddress} ${postcode}`.trim();
   }
-  const digits = postcode.length === 5 ? postcode.split('') : [];
+  if (!fullAddress) fullAddress = '—';
+
+  const pttypeDisplay = pttype || item.pttype_name || '—';
 
   return `<!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <title>ใบปะหน้าพัสดุจัดส่งยา - ${patientName}</title>
+  <title>${patientName} (HN: ${hn})</title>
   <style>
     @page {
       size: A5 portrait;
-      margin: 8mm 10mm;
+      margin: 12mm 14mm;
     }
     * {
       box-sizing: border-box;
@@ -122,228 +119,106 @@ function generateAddressHtml(item, extraVn = '') {
       font-family: 'Sarabun', 'TH Sarabun New', 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       color: #000;
       background: #fff;
-      font-size: 13pt;
-      line-height: 1.35;
     }
-    .page-wrap {
-      width: 100%;
-      height: 100%;
-      min-height: 188mm;
-      border: 2px solid #1e293b;
+    .print-box {
+      border: 3px solid #000;
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 26px 22px;
+      min-height: 180mm;
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
+      gap: 18px;
     }
-    .sender-card {
-      border-bottom: 2px dashed #94a3b8;
-      padding-bottom: 10px;
-      margin-bottom: 10px;
-    }
-    .sender-title {
-      font-size: 10.5pt;
-      font-weight: 700;
-      color: #475569;
+    .field-row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      align-items: baseline;
+      gap: 14px;
     }
-    .sender-name {
-      font-size: 13pt;
-      font-weight: 800;
-      color: #0f172a;
-      margin: 2px 0;
-    }
-    .sender-address {
-      font-size: 11pt;
-      color: #334155;
-      line-height: 1.35;
-    }
-    .sender-phone {
-      font-size: 11pt;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    .recipient-card {
-      flex: 1;
-      border: 3px solid #0f172a;
-      border-radius: 8px;
-      padding: 14px 16px;
-      background: #fafafa;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
-    .recipient-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #0f172a;
-      padding-bottom: 6px;
-      margin-bottom: 8px;
-    }
-    .recipient-heading {
-      font-size: 14pt;
-      font-weight: 900;
-      color: #0f172a;
-      letter-spacing: 0.5px;
-    }
-    .recipient-hn-badge {
-      font-size: 13pt;
-      font-weight: 800;
-      font-family: monospace;
-      background: #0f172a;
-      color: #fff;
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-    .recipient-name {
-      font-size: 19pt;
-      font-weight: 900;
-      color: #000;
-      margin: 4px 0 8px 0;
-      line-height: 1.25;
-    }
-    .recipient-address-label {
-      font-size: 11pt;
-      font-weight: 700;
-      color: #475569;
-      margin-bottom: 2px;
-    }
-    .recipient-address {
-      font-size: 14.5pt;
-      font-weight: 600;
-      color: #0f172a;
-      line-height: 1.45;
-      min-height: 55px;
-      word-break: break-word;
-    }
-    .postcode-wrap {
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      gap: 8px;
-      margin: 10px 0;
-    }
-    .postcode-label {
-      font-size: 12pt;
-      font-weight: 800;
-      color: #1e293b;
-    }
-    .postcode-boxes {
-      display: flex;
-      gap: 4px;
-    }
-    .postcode-cell {
-      width: 32px;
-      height: 38px;
-      border: 2px solid #0f172a;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18pt;
-      font-weight: 900;
-      font-family: monospace;
-      background: #fff;
-    }
-    .postcode-text {
-      font-size: 16pt;
-      font-weight: 900;
-      font-family: monospace;
-      letter-spacing: 2px;
-    }
-    .recipient-phone-box {
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1.5px dashed #cbd5e1;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .recipient-phone-label {
-      font-size: 13pt;
-      font-weight: 700;
-      color: #334155;
-    }
-    .recipient-phone-val {
-      font-size: 18pt;
-      font-weight: 900;
-      color: #000;
-      letter-spacing: 0.5px;
-    }
-    .slip-footer {
-      margin-top: 10px;
+    .field-col {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-    .warning-banner {
-      border: 1.5px solid #dc2626;
-      background: #fef2f2;
-      color: #991b1b;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 10.5pt;
+    .label {
+      font-size: 17pt;
       font-weight: 700;
-      text-align: center;
+      color: #111;
+      white-space: nowrap;
+      min-width: 80px;
     }
-    .meta-info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 9.5pt;
-      color: #64748b;
-      padding: 0 4px;
+    .val-name {
+      font-size: 26pt;
+      font-weight: 900;
+      color: #000;
+      line-height: 1.25;
+    }
+    .val-hn {
+      font-size: 22pt;
+      font-weight: 800;
+      font-family: monospace, sans-serif;
+      color: #000;
+    }
+    .val-pttype {
+      font-size: 19pt;
+      font-weight: 800;
+      color: #000;
+      line-height: 1.35;
+    }
+    .val-address {
+      font-size: 20pt;
+      font-weight: 700;
+      color: #000;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .val-phone {
+      font-size: 24pt;
+      font-weight: 900;
+      color: #000;
+      letter-spacing: 1px;
+    }
+    .divider {
+      border-bottom: 2px dashed #94a3b8;
+      margin: 4px 0;
     }
   </style>
 </head>
 <body>
-  <div class="page-wrap">
-    <div class="sender-card">
-      <div class="sender-title">
-        <span>ผู้ส่ง (SENDER)</span>
-        <span>โครงการจัดส่งยาทางไปรษณีย์ (Virtual Hospital)</span>
-      </div>
-      <div class="sender-name">กลุ่มงานเภสัชกรรม โรงพยาบาลราชบุรี</div>
-      <div class="sender-address">85 ถนนสมบูรณ์กุล ตำบลหน้าเมือง อำเภอเมือง จังหวัดราชบุรี 70000</div>
-      <div class="sender-phone">โทรศัพท์: 032-719600</div>
+  <div class="print-box">
+    <!-- 1. ชื่อ -->
+    <div class="field-row">
+      <span class="label">ชื่อ:</span>
+      <span class="val-name">${patientName}</span>
     </div>
 
-    <div class="recipient-card">
-      <div class="recipient-header">
-        <span class="recipient-heading">กรุณาส่ง (DELIVER TO)</span>
-        ${hn ? `<span class="recipient-hn-badge">HN: ${hn}</span>` : ''}
-      </div>
-
-      <div class="recipient-name">${patientName}</div>
-
-      <div class="recipient-address-label">ที่อยู่จัดส่งพัสดุ:</div>
-      <div class="recipient-address">${address}</div>
-
-      <div class="postcode-wrap">
-        <span class="postcode-label">รหัสไปรษณีย์:</span>
-        ${digits.length === 5
-          ? `<div class="postcode-boxes">${digits.map(d => `<div class="postcode-cell">${d}</div>`).join('')}</div>`
-          : `<span class="postcode-text">${postcode || '—'}</span>`
-        }
-      </div>
-
-      <div class="recipient-phone-box">
-        <span class="recipient-phone-label">เบอร์โทรศัพท์ติดต่อ:</span>
-        <span class="recipient-phone-val">${phone}</span>
-      </div>
+    <!-- 2. HN -->
+    <div class="field-row">
+      <span class="label">HN:</span>
+      <span class="val-hn">${hn}</span>
     </div>
 
-    <div class="slip-footer">
-      <div class="warning-banner">
-        ⚠️ สำคัญ: ภายในบรรจุ <strong>ยาและเวชภัณฑ์</strong> โปรดส่งมอบให้ผู้รับโดยเร็ว หลีกเลี่ยงความร้อนและแสงแดดจัด
-      </div>
-      <div class="meta-info-row">
-        <span>คำขอรับยาเลขที่: <strong>#${reqId}</strong> ${vn ? `| VN: ${vn}` : ''}</span>
-        ${trackingNumber ? `<span>เลขพัสดุ: <strong>${trackingNumber}</strong></span>` : ''}
-        <span>พิมพ์เมื่อ: ${new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })} น.</span>
-      </div>
+    <div class="divider"></div>
+
+    <!-- 3. สิทธิ์ -->
+    <div class="field-row" style="align-items: flex-start;">
+      <span class="label">สิทธิ์:</span>
+      <span class="val-pttype">${pttypeDisplay}</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 4. ที่อยู่ -->
+    <div class="field-col">
+      <span class="label">ที่อยู่:</span>
+      <span class="val-address">${fullAddress}</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 5. เบอร์โทร -->
+    <div class="field-row">
+      <span class="label">เบอร์โทร:</span>
+      <span class="val-phone">${phone}</span>
     </div>
   </div>
 </body>
@@ -709,10 +584,25 @@ export default function RequestTelemedPage({ stage = 'all' }) {
     );
   };
 
-  // Trigger A5 portrait address print
-  const handlePrintAddress = (item) => {
+  // Trigger A5 portrait address print (ชื่อ, HN, สิทธิ์, ที่อยู่, เบอร์โทร)
+  const handlePrintAddress = async (item) => {
     if (!item) return;
-    const html = generateAddressHtml(item, visitDetail?.vn || '');
+
+    // Resolve pttype from visitDetail or fetch if not present
+    let pttype = '';
+    if (visitModalItem?.id === item.id && visitDetail) {
+      pttype = visitDetail?.visit_pttype?.[0]?.pttype_name || visitDetail?.visit?.pttype_name || '';
+    }
+    if (!pttype && item.id) {
+      try {
+        const vd = await api.getVisitDetail(item.id);
+        pttype = vd?.visit_pttype?.[0]?.pttype_name || vd?.visit?.pttype_name || '';
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    const html = generateAddressHtml(item, pttype);
 
     try {
       const iframe = document.createElement('iframe');
