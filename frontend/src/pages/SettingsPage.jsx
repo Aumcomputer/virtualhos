@@ -62,15 +62,15 @@ export default function SettingsPage() {
     }
   }, [isAdmin, navigate]);
 
-  const fetchAdminUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchAdminUsers = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const result = await api.getAdminUsers();
       setAdminUsers(result.data);
     } catch (err) {
       console.error('Failed to fetch admin users');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
@@ -202,12 +202,16 @@ export default function SettingsPage() {
   };
 
   const handleDelete = async (id) => {
+    const currentScrollY = window.scrollY;
     setActionLoading(id);
     try {
       await api.deleteAdminUser(id);
       setDeleteConfirmId(null);
-      await fetchAdminUsers();
+      await fetchAdminUsers(true);
       await fetchRoles();
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: currentScrollY, behavior: 'instant' });
+      });
     } catch (err) {
       console.error('Failed to delete user');
     } finally {
@@ -217,14 +221,35 @@ export default function SettingsPage() {
 
   const handleUserAdded = () => {
     setShowModal(false);
-    fetchAdminUsers();
+    fetchAdminUsers(true);
     fetchRoles();
   };
 
-  const handleRoleUpdated = () => {
+  const handleRoleUpdated = (updatedUserId, newRole) => {
+    const currentScrollY = window.scrollY;
+    if (updatedUserId && newRole) {
+      setAdminUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === updatedUserId) {
+            const roleObj = roles.find((r) => r.role_key === newRole);
+            return {
+              ...u,
+              role: newRole,
+              role_name: roleObj?.role_name || newRole,
+              role_icon: roleObj?.icon || '👤',
+              role_badge_color: roleObj?.badge_color || 'blue',
+            };
+          }
+          return u;
+        })
+      );
+    }
     setEditingRoleUser(null);
-    fetchAdminUsers();
+    fetchAdminUsers(true);
     fetchRoles();
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: currentScrollY, behavior: 'instant' });
+    });
   };
 
   const handleSaveCronSettings = async () => {
@@ -1010,7 +1035,7 @@ function EditRoleModal({ user, roles, onClose, onSuccess }) {
     setError('');
     try {
       await api.updateAdminUser(user.id, { role: selectedRole });
-      onSuccess();
+      onSuccess(user.id, selectedRole);
     } catch (err) {
       setError(err.message || 'เกิดข้อผิดพลาดในการบันทึกสิทธิ์');
     } finally {
