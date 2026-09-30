@@ -59,7 +59,6 @@ export default function Sidebar({ isOpen, onClose }) {
               <div className="sidebar-brand-titles">
                 <h1 className="sidebar-main-title">RBH Virtual Hospital</h1>
                 <div className="sidebar-sub-row">
-                  <span className="sidebar-sub-label">ระบบหลังบ้าน</span>
                   <button
                     type="button"
                     className={`sidebar-version-chip ${versionStatus.hasNewVersion ? 'has-update' : ''}`}
