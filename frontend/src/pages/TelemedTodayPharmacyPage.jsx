@@ -538,12 +538,15 @@ export default function TelemedTodayPharmacyPage() {
                               )}
                             </td>
 
-                            <td style={{ textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                               <div style={{ display: 'inline-flex', gap: '6px' }}>
                                 <button
                                   type="button"
                                   className="btn btn-secondary rtm-btn-action"
-                                  onClick={() => handlePrintAddress(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePrintAddress(item);
+                                  }}
                                   title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
                                 >
                                   🖨️ พิมพ์ที่อยู่
@@ -551,7 +554,10 @@ export default function TelemedTodayPharmacyPage() {
                                 <button
                                   type="button"
                                   className="btn btn-primary rtm-btn-action"
-                                  onClick={() => openDeliveryModal(item)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDeliveryModal(item);
+                                  }}
                                 >
                                   🚚 จัดส่งยา
                                 </button>
