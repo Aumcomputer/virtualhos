@@ -79,7 +79,7 @@ export default function PrescreeningPage() {
   const [selectedDate, setSelectedDate] = useState(getTomorrowStr());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [expandedRowId, setExpandedRowId] = useState(null);
+  const [selectedPrescreenItem, setSelectedPrescreenItem] = useState(null);
   const [images, setImages] = useState([]);
   const [imagesLoading, setImagesLoading] = useState(false);
   const [lightboxImageSrc, setLightboxImageSrc] = useState(null);
@@ -107,23 +107,23 @@ export default function PrescreeningPage() {
   const lineSentCount = data.filter(r => r.line_sent === 'Y').length;
   const noLineCount = data.filter(r => r.line_sent === 'NO_LINE').length;
 
-  const toggleExpandRow = async (id) => {
-    if (expandedRowId === id) {
-      setExpandedRowId(null);
-      setImages([]);
-    } else {
-      setExpandedRowId(id);
-      setImages([]);
-      setImagesLoading(true);
-      try {
-        const result = await api.getPrescreeningImages(id);
-        setImages(result || []);
-      } catch (err) {
-        console.error('Failed to fetch prescreening images:', err.message);
-      } finally {
-        setImagesLoading(false);
-      }
+  const openDetailModal = async (item) => {
+    setSelectedPrescreenItem(item);
+    setImages([]);
+    setImagesLoading(true);
+    try {
+      const result = await api.getPrescreeningImages(item.id);
+      setImages(result || []);
+    } catch (err) {
+      console.error('Failed to fetch prescreening images:', err.message);
+    } finally {
+      setImagesLoading(false);
     }
+  };
+
+  const closeDetailModal = () => {
+    setSelectedPrescreenItem(null);
+    setImages([]);
   };
 
   return (
@@ -243,10 +243,10 @@ export default function PrescreeningPage() {
             </div>
           ) : (
             <div className="data-table-wrapper">
-              <table className="data-table">
+              <table className="data-table telemed-workflow-table rtm-table">
                 <thead>
                   <tr>
-                    <th style={{ width: '40px' }}></th>
+                    <th style={{ width: '45px', textAlign: 'center' }}>#</th>
                     <th style={{ width: '110px' }}>HN</th>
                     <th>ชื่อ-นามสกุล</th>
                     <th>คลินิก</th>
@@ -255,291 +255,120 @@ export default function PrescreeningPage() {
                     <th style={{ textAlign: 'center', width: '130px' }}>สถานะกรอกข้อมูล</th>
                     <th style={{ textAlign: 'center' }}>สัญญาณชีพ (Vital Signs)</th>
                     <th>นัดหมาย / วันเวลากรอก</th>
+                    <th style={{ textAlign: 'center', width: '110px' }}>การดำเนินการ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.map((row) => {
-                    const isExpanded = expandedRowId === row.id;
+                  {data.map((row, idx) => {
                     const isCompleted = row.status === 'completed' || row.status === 'confirmed';
                     return (
-                      <React.Fragment key={row.id}>
-                        <tr 
-                          onClick={() => toggleExpandRow(row.id)}
-                          style={{ cursor: 'pointer', transition: 'background-color 0.2s' }}
-                          className={isExpanded ? 'expanded-parent-row' : ''}
-                        >
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span style={{ fontSize: '10px', minWidth: '10px', color: '#64748b' }}>
-                                {isExpanded ? '▼' : '▶'}
-                              </span>
-                              {row.image_count > 0 && (
-                                <span title={`มีรูปภาพแนบ ${row.image_count} รูป`} style={{ fontSize: '14px', cursor: 'pointer' }}>
-                                  📷
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <span className="font-mono font-bold" style={{ color: '#1e293b' }}>{row.hn}</span>
-                          </td>
-                          <td>
-                            <strong style={{ color: '#0f172a' }}>{row.patient_name || '-'}</strong>
-                          </td>
-                          <td>
-                            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#334155' }}>
-                              {row.clinic || '-'}
+                      <tr 
+                        key={row.id}
+                        onClick={() => openDetailModal(row)}
+                        style={{ cursor: 'pointer' }}
+                        className="table-row-clickable"
+                        title="คลิกเพื่อดูรายละเอียดผลการคัดกรอง (Popup)"
+                      >
+                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
+                          {idx + 1}
+                        </td>
+                        <td>
+                          <span className="rtm-hn-pill font-mono">{row.hn}</span>
+                        </td>
+                        <td>
+                          <strong style={{ color: '#0f172a' }}>{row.patient_name || '-'}</strong>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#334155' }}>
+                            {row.clinic || '-'}
+                          </span>
+                        </td>
+                        <td>
+                          {row.doctor_name ? (
+                            <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
+                              🩺 {row.doctor_name}
                             </span>
-                          </td>
-                          <td>
-                            {row.doctor_name ? (
-                              <span style={{ fontSize: '0.8125rem', color: '#475569' }}>
-                                🩺 {row.doctor_name}
+                          ) : (
+                            <span style={{ color: '#cbd5e1' }}>-</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {row.line_sent === 'Y' && (
+                            <span className="prescreen-badge-line success">
+                              ✅ ส่งสำเร็จ
+                            </span>
+                          )}
+                          {row.line_sent === 'N' && (
+                            <span className="prescreen-badge-line failed">
+                              ❌ ส่งล้มเหลว
+                            </span>
+                          )}
+                          {row.line_sent === 'NO_LINE' && (
+                            <span className="prescreen-badge-line noline">
+                              ⚠️ ไม่มี LINE
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {row.status === 'pending' && (
+                            <span className="prescreen-badge-status pending">
+                              ⏳ รอกรอกข้อมูล
+                            </span>
+                          )}
+                          {row.status === 'completed' && (
+                            <span className="prescreen-badge-status completed">
+                              ✅ กรอกสำเร็จ
+                            </span>
+                          )}
+                          {row.status === 'confirmed' && (
+                            <span className="prescreen-badge-status confirmed">
+                              🩺 ยืนยันแล้ว
+                            </span>
+                          )}
+                          {row.status === 'expired' && (
+                            <span className="prescreen-badge-status expired">
+                              🛑 หมดอายุ
+                            </span>
+                          )}
+                          {row.image_count > 0 && (
+                            <div style={{ marginTop: '4px' }}>
+                              <span style={{ background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                📷 {row.image_count} รูป
                               </span>
-                            ) : (
-                              <span style={{ color: '#cbd5e1' }}>-</span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {row.line_sent === 'Y' && (
-                              <span className="prescreen-badge-line success">
-                                ✅ ส่งสำเร็จ
-                              </span>
-                            )}
-                            {row.line_sent === 'N' && (
-                              <span className="prescreen-badge-line failed">
-                                ❌ ส่งล้มเหลว
-                              </span>
-                            )}
-                            {row.line_sent === 'NO_LINE' && (
-                              <span className="prescreen-badge-line noline">
-                                ⚠️ ไม่มี LINE
-                              </span>
-                            )}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {row.status === 'pending' && (
-                              <span className="prescreen-badge-status pending">
-                                ⏳ รอกรอกข้อมูล
-                              </span>
-                            )}
-                            {row.status === 'completed' && (
-                              <span className="prescreen-badge-status completed">
-                                ✅ กรอกสำเร็จ
-                              </span>
-                            )}
-                            {row.status === 'confirmed' && (
-                              <span className="prescreen-badge-status confirmed">
-                                🩺 ยืนยันแล้ว
-                              </span>
-                            )}
-                            {row.status === 'expired' && (
-                              <span className="prescreen-badge-status expired">
-                                🛑 หมดอายุ
-                              </span>
-                            )}
-                            {row.image_count > 0 && (
-                              <div style={{ marginTop: '4px' }}>
-                                <span style={{ background: '#e0f2fe', color: '#0369a1', borderRadius: '9999px', padding: '2px 8px', fontSize: '0.6875rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  📷 {row.image_count} รูป
-                                </span>
-                              </div>
-                            )}
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {isCompleted ? (
-                              <div style={{ fontSize: '0.8125rem', textAlign: 'left', display: 'inline-block' }}>
-                                <div>💓 <strong>Pulse:</strong> {row.pulse || '-'} bpm | 🩸 <strong>BP:</strong> {row.sbp || '-'}/{row.dbp || '-'}</div>
-                                <div style={{ marginTop: '2px' }}>🌡️ <strong>Temp:</strong> {row.temperature || '-'} °C</div>
-                              </div>
-                            ) : (
-                              <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>ไม่มีข้อมูล</span>
-                            )}
-                          </td>
-                          <td>
-                            <div style={{ fontSize: '0.8125rem' }}>
-                              <div><strong>นัด:</strong> {formatThaiDate(row.appointment_date)}</div>
-                              {isCompleted && row.completed_at && (
-                                <div style={{ color: '#64748b', marginTop: '2px' }}>
-                                  <strong>ส่งข้อมูล:</strong> {formatDateTime(row.completed_at)}
-                                </div>
-                              )}
                             </div>
-                          </td>
-                        </tr>
-
-                        {isExpanded && (
-                          <tr className="prescreen-expanded-row">
-                            <td colSpan="9">
-                              <div className="prescreen-detail-grid">
-                                <div className="prescreen-detail-card">
-                                  <div className="prescreen-detail-title">
-                                    📋 ข้อมูลทั่วไปและการติดต่อ
-                                  </div>
-                                  <table className="prescreen-kv-table">
-                                    <tbody>
-                                      <tr>
-                                        <td className="lbl">HN:</td>
-                                        <td className="val font-mono">{row.hn}</td>
-                                      </tr>
-                                      <tr>
-                                        <td className="lbl">ชื่อคนไข้:</td>
-                                        <td className="val font-bold">{row.patient_name || '-'}</td>
-                                      </tr>
-                                      <tr>
-                                        <td className="lbl">ที่อยู่:</td>
-                                        <td className="val" style={{ whiteSpace: 'pre-wrap' }}>{row.address || 'ไม่มีข้อมูลที่อยู่'}</td>
-                                      </tr>
-                                      <tr>
-                                        <td className="lbl">รหัสไปรษณีย์:</td>
-                                        <td className="val">{row.postal_code || '-'}</td>
-                                      </tr>
-                                      <tr>
-                                        <td className="lbl">เบอร์โทร:</td>
-                                        <td className="val">{row.phone || '-'}</td>
-                                      </tr>
-                                      <tr>
-                                        <td className="lbl">นัดหมาย:</td>
-                                        <td className="val">{formatThaiDate(row.appointment_date)} ({row.note || '-'})</td>
-                                      </tr>
-                                      {row.line_sent_timestamp && (
-                                        <tr>
-                                          <td className="lbl">ส่ง LINE:</td>
-                                          <td className="val">{formatDateTime(row.line_sent_timestamp)}</td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
-
-                                <div className="prescreen-detail-card">
-                                  <div className="prescreen-detail-title">
-                                    🩺 ผลการคัดกรองสัญญาณชีพ
-                                  </div>
-                                  {isCompleted ? (
-                                    <div className="prescreen-vitals-grid">
-                                      <div className="prescreen-vital-item">
-                                        <span className="prescreen-vital-lbl">💓 ชีพจร (Pulse Rate)</span>
-                                        <span className="prescreen-vital-val">{row.pulse ? `${row.pulse} bpm` : '-'}</span>
-                                      </div>
-                                      <div className="prescreen-vital-item">
-                                        <span className="prescreen-vital-lbl">🩸 ความดันโลหิต (BP)</span>
-                                        <span className="prescreen-vital-val">{row.sbp || row.dbp ? `${row.sbp || '-'}/${row.dbp || '-'}` : '-'}</span>
-                                      </div>
-                                      <div className="prescreen-vital-item">
-                                        <span className="prescreen-vital-lbl">🌡️ อุณหภูมิ (Temp)</span>
-                                        <span className="prescreen-vital-val">{row.temperature ? `${row.temperature} °C` : '-'}</span>
-                                      </div>
-                                      <div className="prescreen-vital-item">
-                                        <span className="prescreen-vital-lbl">🫁 ออกซิเจน (SpO2)</span>
-                                        <span className="prescreen-vital-val">{row.spo2 ? `${row.spo2} %` : '-'}</span>
-                                      </div>
-                                      <div className="prescreen-vital-item">
-                                        <span className="prescreen-vital-lbl">🫁 อัตราหายใจ (RR)</span>
-                                        <span className="prescreen-vital-val">{row.rr ? `${row.rr} /min` : '-'}</span>
-                                      </div>
-                                      <div className="prescreen-vital-item">
-                                        <span className="prescreen-vital-lbl">⚖️ นน. / สส.</span>
-                                        <span className="prescreen-vital-val">{row.weight ? `${row.weight} กก.` : '-'} / {row.height ? `${row.height} ซม.` : '-'}</span>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div style={{ color: '#94a3b8', fontSize: '0.8125rem', fontStyle: 'italic', padding: '16px 0' }}>
-                                      ยังไม่ได้รับการกรอกข้อมูล
-                                    </div>
-                                  )}
-                                </div>
-
-                                <div className="prescreen-detail-card">
-                                  <div className="prescreen-detail-title">
-                                    📝 อาการและประวัติ
-                                  </div>
-                                  {isCompleted ? (
-                                    <div style={{ fontSize: '0.8125rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                                      <div>
-                                        <span style={{ fontWeight: 600, color: '#475569' }}>อาการสำคัญ (CC):</span>
-                                        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: '6px', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
-                                          {row.chief_complaint || 'ไม่มีข้อมูล'}
-                                        </div>
-                                      </div>
-                                      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
-                                        <div>
-                                          <span style={{ fontWeight: 600, color: '#475569' }}>🍺 ดื่มสุรา:</span>{' '}
-                                          {row.alcohol === 'yes' ? (
-                                            <span style={{ color: '#dc2626', fontWeight: 600 }}>ดื่ม ({row.alcohol_detail || 'ไม่ระบุ'})</span>
-                                          ) : (
-                                            <span style={{ color: '#64748b' }}>ไม่ดื่ม</span>
-                                          )}
-                                        </div>
-                                        <div>
-                                          <span style={{ fontWeight: 600, color: '#475569' }}>🚬 สูบบุหรี่:</span>{' '}
-                                          {row.smoking === 'yes' ? (
-                                            <span style={{ color: '#dc2626', fontWeight: 600 }}>สูบ ({row.smoking_detail || 'ไม่ระบุ'})</span>
-                                          ) : (
-                                            <span style={{ color: '#64748b' }}>ไม่สูบ</span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      {row.additional_notes && (
-                                        <div>
-                                          <span style={{ fontWeight: 600, color: '#475569' }}>เพิ่มเติม:</span>
-                                          <div style={{ padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', marginTop: '2px', color: '#334155' }}>
-                                            {row.additional_notes}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <div style={{ color: '#94a3b8', fontSize: '0.8125rem', fontStyle: 'italic', padding: '16px 0' }}>
-                                      ยังไม่มีข้อมูลการส่งฟอร์ม
-                                    </div>
-                                  )}
-                                </div>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          {isCompleted ? (
+                            <div style={{ fontSize: '0.8125rem', textAlign: 'left', display: 'inline-block' }}>
+                              <div>💓 <strong>Pulse:</strong> {row.pulse || '-'} bpm | 🩸 <strong>BP:</strong> {row.sbp || '-'}/{row.dbp || '-'}</div>
+                              <div style={{ marginTop: '2px' }}>🌡️ <strong>Temp:</strong> {row.temperature || '-'} °C</div>
+                            </div>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.8125rem' }}>ไม่มีข้อมูล</span>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ fontSize: '0.8125rem' }}>
+                            <div><strong>นัด:</strong> {formatThaiDate(row.appointment_date)}</div>
+                            {isCompleted && row.completed_at && (
+                              <div style={{ color: '#64748b', marginTop: '2px' }}>
+                                <strong>ส่งข้อมูล:</strong> {formatDateTime(row.completed_at)}
                               </div>
-
-                              {/* รูปภาพแนบเพิ่มเติม */}
-                              {isCompleted && (
-                                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
-                                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af', marginBottom: '8px' }}>
-                                    📷 รูปภาพแนบเพิ่มเติม ({images.length} รูป)
-                                  </div>
-                                  {imagesLoading ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                      <div className="spinner-sm"></div>
-                                      <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>กำลังโหลดรูปภาพ...</span>
-                                    </div>
-                                  ) : images.length > 0 ? (
-                                    <div className="prescreen-images-wrap">
-                                      {images.map((img) => (
-                                        <button
-                                          type="button"
-                                          key={img.id}
-                                          className="prescreen-thumb-btn"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setLightboxImageSrc(`/api/prescreening/images/${img.id}`);
-                                          }}
-                                          title="คลิกเพื่อดูภาพขนาดเต็ม"
-                                        >
-                                          <img
-                                            src={`/api/prescreening/images/${img.id}`}
-                                            alt="รูปภาพคัดกรอง"
-                                            className="prescreen-thumb-img"
-                                          />
-                                        </button>
-                                      ))}
-                                    </div>
-                                  ) : (
-                                    <div style={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
-                                      ไม่มีรูปภาพแนบสำหรับเคสนี้
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary rtm-btn-action"
+                            onClick={() => openDetailModal(row)}
+                            title="ดูรายละเอียดการคัดกรอง"
+                          >
+                            👁️ ดูข้อมูล
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
@@ -548,6 +377,244 @@ export default function PrescreeningPage() {
           )}
         </div>
       </div>
+
+      {/* ========================================================================
+          Prescreening Detail Modal Popup
+          ======================================================================== */}
+      {selectedPrescreenItem && (
+        <div className="visit-modal-overlay" onClick={closeDetailModal}>
+          <div className="visit-modal-card" style={{ maxWidth: '1000px' }} onClick={(e) => e.stopPropagation()}>
+            {/* Modal Header */}
+            <div className="visit-modal-header">
+              <div className="visit-modal-title">
+                <span>รายละเอียดข้อมูลคัดกรองก่อนพบแพทย์</span>
+                <span className="font-mono" style={{ fontSize: '0.8125rem', color: '#0369a1', marginLeft: '10px' }}>
+                  HN: {selectedPrescreenItem.hn}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="visit-modal-close"
+                onClick={closeDetailModal}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="visit-modal-body" style={{ maxHeight: 'calc(85vh - 120px)', overflowY: 'auto', padding: '20px' }}>
+              {/* Patient Banner */}
+              <div className="patient-quick-banner rtm-patient-banner" style={{ marginBottom: '16px' }}>
+                <div className="patient-banner-left">
+                  <div className="patient-banner-name-block">
+                    <div className="patient-banner-name">{selectedPrescreenItem.patient_name || '—'}</div>
+                    <div className="patient-banner-sub">
+                      <span className="font-mono" style={{ fontWeight: 600, color: 'var(--primary-700)' }}>
+                        HN: {selectedPrescreenItem.hn}
+                      </span>
+                      <span>• วันนัดหมาย: {formatThaiDate(selectedPrescreenItem.appointment_date)}</span>
+                      <span>• คลินิก: {selectedPrescreenItem.clinic || '—'}</span>
+                      <span>• แพทย์: {selectedPrescreenItem.doctor_name || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="patient-banner-right">
+                  {selectedPrescreenItem.status === 'completed' || selectedPrescreenItem.status === 'confirmed' ? (
+                    <span className="prescreen-badge-status completed">
+                      ✓ กรอกข้อมูลสำเร็จ
+                    </span>
+                  ) : (
+                    <span className="prescreen-badge-status pending">
+                      ⏳ รอกรอกข้อมูล
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Grid 3 Columns */}
+              <div className="prescreen-detail-grid">
+                {/* 1. General Info */}
+                <div className="prescreen-detail-card">
+                  <div className="prescreen-detail-title">
+                    📋 ข้อมูลทั่วไปและการติดต่อ
+                  </div>
+                  <table className="prescreen-kv-table">
+                    <tbody>
+                      <tr>
+                        <td className="lbl">HN:</td>
+                        <td className="val font-mono">{selectedPrescreenItem.hn}</td>
+                      </tr>
+                      <tr>
+                        <td className="lbl">ชื่อคนไข้:</td>
+                        <td className="val font-bold">{selectedPrescreenItem.patient_name || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="lbl">ที่อยู่:</td>
+                        <td className="val" style={{ whiteSpace: 'pre-wrap' }}>{selectedPrescreenItem.address || 'ไม่มีข้อมูลที่อยู่'}</td>
+                      </tr>
+                      <tr>
+                        <td className="lbl">รหัสไปรษณีย์:</td>
+                        <td className="val">{selectedPrescreenItem.postal_code || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="lbl">เบอร์โทร:</td>
+                        <td className="val">{selectedPrescreenItem.phone || '-'}</td>
+                      </tr>
+                      <tr>
+                        <td className="lbl">นัดหมาย:</td>
+                        <td className="val">{formatThaiDate(selectedPrescreenItem.appointment_date)} ({selectedPrescreenItem.note || '-'})</td>
+                      </tr>
+                      {selectedPrescreenItem.line_sent_timestamp && (
+                        <tr>
+                          <td className="lbl">ส่ง LINE:</td>
+                          <td className="val">{formatDateTime(selectedPrescreenItem.line_sent_timestamp)}</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 2. Vital Signs */}
+                <div className="prescreen-detail-card">
+                  <div className="prescreen-detail-title">
+                    🩺 ผลการคัดกรองสัญญาณชีพ
+                  </div>
+                  {selectedPrescreenItem.status === 'completed' || selectedPrescreenItem.status === 'confirmed' ? (
+                    <div className="prescreen-vitals-grid">
+                      <div className="prescreen-vital-item">
+                        <span className="prescreen-vital-lbl">💓 ชีพจร (Pulse Rate)</span>
+                        <span className="prescreen-vital-val">{selectedPrescreenItem.pulse ? `${selectedPrescreenItem.pulse} bpm` : '-'}</span>
+                      </div>
+                      <div className="prescreen-vital-item">
+                        <span className="prescreen-vital-lbl">🩸 ความดันโลหิต (BP)</span>
+                        <span className="prescreen-vital-val">{selectedPrescreenItem.sbp || selectedPrescreenItem.dbp ? `${selectedPrescreenItem.sbp || '-'}/${selectedPrescreenItem.dbp || '-'}` : '-'}</span>
+                      </div>
+                      <div className="prescreen-vital-item">
+                        <span className="prescreen-vital-lbl">🌡️ อุณหภูมิ (Temp)</span>
+                        <span className="prescreen-vital-val">{selectedPrescreenItem.temperature ? `${selectedPrescreenItem.temperature} °C` : '-'}</span>
+                      </div>
+                      <div className="prescreen-vital-item">
+                        <span className="prescreen-vital-lbl">🫁 ออกซิเจน (SpO2)</span>
+                        <span className="prescreen-vital-val">{selectedPrescreenItem.spo2 ? `${selectedPrescreenItem.spo2} %` : '-'}</span>
+                      </div>
+                      <div className="prescreen-vital-item">
+                        <span className="prescreen-vital-lbl">🫁 อัตราหายใจ (RR)</span>
+                        <span className="prescreen-vital-val">{selectedPrescreenItem.rr ? `${selectedPrescreenItem.rr} /min` : '-'}</span>
+                      </div>
+                      <div className="prescreen-vital-item">
+                        <span className="prescreen-vital-lbl">⚖️ นน. / สส.</span>
+                        <span className="prescreen-vital-val">{selectedPrescreenItem.weight ? `${selectedPrescreenItem.weight} กก.` : '-'} / {selectedPrescreenItem.height ? `${selectedPrescreenItem.height} ซม.` : '-'}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#94a3b8', fontSize: '0.8125rem', fontStyle: 'italic', padding: '16px 0' }}>
+                      ยังไม่ได้รับการกรอกข้อมูล
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Symptoms & History */}
+                <div className="prescreen-detail-card">
+                  <div className="prescreen-detail-title">
+                    📝 อาการและประวัติ
+                  </div>
+                  {selectedPrescreenItem.status === 'completed' || selectedPrescreenItem.status === 'confirmed' ? (
+                    <div style={{ fontSize: '0.8125rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#475569' }}>อาการสำคัญ (CC):</span>
+                        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #f1f5f9', borderRadius: '6px', marginTop: '4px', whiteSpace: 'pre-wrap' }}>
+                          {selectedPrescreenItem.chief_complaint || 'ไม่มีข้อมูล'}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap' }}>
+                        <div>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>🍺 ดื่มสุรา:</span>{' '}
+                          {selectedPrescreenItem.alcohol === 'yes' ? (
+                            <span style={{ color: '#dc2626', fontWeight: 600 }}>ดื่ม ({selectedPrescreenItem.alcohol_detail || 'ไม่ระบุ'})</span>
+                          ) : (
+                            <span style={{ color: '#64748b' }}>ไม่ดื่ม</span>
+                          )}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>🚬 สูบบุหรี่:</span>{' '}
+                          {selectedPrescreenItem.smoking === 'yes' ? (
+                            <span style={{ color: '#dc2626', fontWeight: 600 }}>สูบ ({selectedPrescreenItem.smoking_detail || 'ไม่ระบุ'})</span>
+                          ) : (
+                            <span style={{ color: '#64748b' }}>ไม่สูบ</span>
+                          )}
+                        </div>
+                      </div>
+                      {selectedPrescreenItem.additional_notes && (
+                        <div>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>เพิ่มเติม:</span>
+                          <div style={{ padding: '6px 10px', background: '#f8fafc', borderRadius: '6px', marginTop: '2px', color: '#334155' }}>
+                            {selectedPrescreenItem.additional_notes}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#94a3b8', fontSize: '0.8125rem', fontStyle: 'italic', padding: '16px 0' }}>
+                      ยังไม่มีข้อมูลการส่งฟอร์ม
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Attached Images */}
+              {(selectedPrescreenItem.status === 'completed' || selectedPrescreenItem.status === 'confirmed') && (
+                <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid #e2e8f0' }}>
+                  <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e40af', marginBottom: '8px' }}>
+                    📷 รูปภาพแนบเพิ่มเติม ({images.length} รูป)
+                  </div>
+                  {imagesLoading ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="spinner-sm"></div>
+                      <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>กำลังโหลดรูปภาพ...</span>
+                    </div>
+                  ) : images.length > 0 ? (
+                    <div className="prescreen-images-wrap">
+                      {images.map((img) => (
+                        <button
+                          type="button"
+                          key={img.id}
+                          className="prescreen-thumb-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setLightboxImageSrc(`/api/prescreening/images/${img.id}`);
+                          }}
+                          title="คลิกเพื่อดูภาพขนาดเต็ม"
+                        >
+                          <img
+                            src={`/api/prescreening/images/${img.id}`}
+                            alt="รูปภาพคัดกรอง"
+                            className="prescreen-thumb-img"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.8125rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                      ไม่มีรูปภาพแนบสำหรับเคสนี้
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="visit-modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', padding: '14px 20px', borderTop: '1px solid #f1f5f9' }}>
+              <button
+                type="button"
+                className="btn btn-secondary rtm-btn-action"
+                onClick={closeDetailModal}
+              >
+                ปิดหน้าต่าง
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Lightbox Modal */}
       {lightboxImageSrc && (

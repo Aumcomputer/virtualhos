@@ -58,6 +58,8 @@ export default function TelemedTodayFinancePage() {
 
   // Pay Modal State
   const [selectedItem, setSelectedItem] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
   const [paying, setPaying] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -83,13 +85,32 @@ export default function TelemedTodayFinancePage() {
     return () => clearTimeout(t);
   }, [toast]);
 
+  const openPayModal = async (item) => {
+    setSelectedItem(item);
+    setDetailData(null);
+    setDetailLoading(true);
+    try {
+      const res = await api.getTelemedTodayDetail(item.id);
+      setDetailData(res);
+    } catch (err) {
+      console.error('Error fetching detail in finance:', err);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const closePayModal = () => {
+    setSelectedItem(null);
+    setDetailData(null);
+  };
+
   const handleConfirmPay = async () => {
     if (!selectedItem) return;
     setPaying(true);
     try {
       const res = await api.financePayTelemedToday(selectedItem.id);
       setToast({ type: 'success', message: res.message });
-      setSelectedItem(null);
+      closePayModal();
       fetchData();
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกชำระเงิน' });
@@ -254,8 +275,8 @@ export default function TelemedTodayFinancePage() {
                       <tr
                         key={item.id}
                         className="table-row-clickable"
-                        onClick={() => setSelectedItem(item)}
-                        title="คลิกเพื่อดูรายละเอียดและบันทึกชำระเงิน"
+                        onClick={() => openPayModal(item)}
+                        title="คลิกเพื่อดูรายละเอียดและบันทึกชำระเงิน (Popup)"
                       >
                         {/* 1. Index */}
                         <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
@@ -329,7 +350,7 @@ export default function TelemedTodayFinancePage() {
                           <button
                             type="button"
                             className="btn btn-primary rtm-btn-action btn-pay"
-                            onClick={() => setSelectedItem(item)}
+                            onClick={() => openPayModal(item)}
                           >
                             💳 ชำระเงินแล้ว
                           </button>
@@ -348,41 +369,53 @@ export default function TelemedTodayFinancePage() {
               แสดงทั้งหมด <strong style={{ color: '#0f172a' }}>{data.length}</strong> รายการที่รอชำระเงิน
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              💡 เมื่อกด "ชำระเงินแล้ว" รายการจะย้ายไปยังแท็บ "รอจัดส่ง" ของห้องยาโดยอัตโนมัติ
+              💡 คลิกที่แถวหรือปุ่ม "💳 ชำระเงินแล้ว" เพื่อเปิดหน้าต่าง Popup ดูรายละเอียดและบันทึก
             </div>
           </div>
         </div>
       </div>
 
       {/* ========================================================================
-          Finance Payment Modal
+          Finance Payment Modal Popup
           ======================================================================== */}
       {selectedItem && (
-        <div className="dialog-modal-overlay" onClick={() => setSelectedItem(null)}>
-          <div className="dialog-modal-card" style={{ maxWidth: '560px' }} onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>บันทึกการชำระเงินค่ายา / ค่าบริการ</span>
+        <div className="visit-modal-overlay" onClick={closePayModal}>
+          <div className="visit-modal-card" style={{ maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
+            <div className="visit-modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div className="visit-modal-title">
+                <span>บันทึกการชำระเงินค่ายา / ค่าบริการ</span>
+                {selectedItem.vn_today && (
+                  <span className="font-mono" style={{ fontSize: '0.8125rem', color: '#0369a1', marginLeft: '10px' }}>
+                    VN วันนี้: {selectedItem.vn_today}
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
                 className="visit-modal-close"
-                onClick={() => setSelectedItem(null)}
+                onClick={closePayModal}
               >
                 ✕
               </button>
             </div>
 
-            <div className="dialog-modal-body">
-              {/* Patient brief */}
-              <div style={{ background: '#f8fafc', padding: '12px 14px', borderRadius: '10px', border: '1px solid #e2e8f0', marginBottom: '16px' }}>
-                <div style={{ fontSize: '1rem', fontWeight: 700, color: '#0f172a' }}>
-                  {selectedItem.patient_name}
-                </div>
-                <div style={{ fontSize: '0.8125rem', color: '#475569', marginTop: '6px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                  <span>HN: <strong className="font-mono" style={{ color: '#1e293b' }}>{selectedItem.hn}</strong></span>
-                  {selectedItem.vn_today && (
-                    <span>VN วันนี้: <strong className="font-mono" style={{ color: '#0284c7' }}>{selectedItem.vn_today}</strong></span>
-                  )}
-                  <span>สิทธิ: <strong>{selectedItem.pttype_name || '—'}</strong></span>
+            <div className="visit-modal-body" style={{ maxHeight: 'calc(85vh - 120px)', overflowY: 'auto', padding: '20px' }}>
+              {/* Patient Banner */}
+              <div className="patient-quick-banner rtm-patient-banner" style={{ marginBottom: '16px' }}>
+                <div className="patient-banner-left">
+                  <div className="patient-banner-name-block">
+                    <div className="patient-banner-name">{selectedItem.patient_name}</div>
+                    <div className="patient-banner-sub">
+                      <span className="font-mono" style={{ fontWeight: 600, color: 'var(--primary-700)' }}>
+                        HN: {selectedItem.hn}
+                      </span>
+                      {detailData?.currentVisit?.age_y !== undefined && (
+                        <span>• อายุ {detailData.currentVisit.age_y} ปี {detailData.currentVisit.age_m || 0} เดือน</span>
+                      )}
+                      <span>• สิทธิ: {selectedItem.pttype_name || '—'}</span>
+                      {selectedItem.clinic_name && <span>• คลินิก: {selectedItem.clinic_name}</span>}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -398,23 +431,62 @@ export default function TelemedTodayFinancePage() {
                 </div>
                 <div className="finance-price-card fp-paid">
                   <span className="fp-label">ยอดต้องชำระ (paid_money)</span>
-                  <span className="fp-amount" style={{ fontSize: '1.25rem' }}>{formatMoney(selectedItem.paid_money)} ฿</span>
+                  <span className="fp-amount" style={{ fontSize: '1.35rem' }}>{formatMoney(selectedItem.paid_money)} ฿</span>
                 </div>
               </div>
+
+              {/* Doctor Ordered Medicine List */}
+              {detailLoading ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: '#64748b' }}>
+                  กำลังดึงข้อมูลรายการยาที่แพทย์สั่ง...
+                </div>
+              ) : detailData?.currentVisit?.drugs && detailData.currentVisit.drugs.length > 0 ? (
+                <div className="clinical-card" style={{ marginBottom: '16px' }}>
+                  <div className="clinical-card-header" style={{ background: '#f8fafc' }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.8125rem', color: '#1e293b' }}>
+                      💊 รายการยาที่แพทย์สั่งใน Visit วันนี้ ({detailData.currentVisit.drugs.length} รายการ)
+                    </span>
+                  </div>
+                  <div className="clinical-card-body" style={{ padding: '0' }}>
+                    <table className="mini-med-table" style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f1f5f9', borderBottom: '1px solid #e2e8f0' }}>
+                          <th style={{ padding: '6px 10px', textAlign: 'left' }}>ชื่อยา</th>
+                          <th style={{ padding: '6px 10px', textAlign: 'right', width: '60px' }}>จำนวน</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {detailData.currentVisit.drugs.map((d, i) => (
+                          <tr key={i} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                            <td style={{ padding: '6px 10px' }}>
+                              <div style={{ fontWeight: 600, color: '#1e293b' }}>{d.drug_name || d.name}</div>
+                              <div style={{ color: '#64748b', fontSize: '0.6875rem' }}>{d.usage_line1 || d.drugusage}</div>
+                            </td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>
+                              {d.qty || d.amount}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : null}
 
               {/* Delivery Address overview */}
               <div style={{ fontSize: '0.8125rem', color: '#334155', lineHeight: 1.6, background: '#ffffff', border: '1px solid #e2e8f0', padding: '12px 14px', borderRadius: '10px' }}>
                 <div><strong>📍 ที่อยู่จัดส่ง:</strong> {selectedItem.address} {selectedItem.postcode}</div>
                 <div><strong>📞 เบอร์โทรศัพท์:</strong> {formatPhone(selectedItem.phone)}</div>
+                {selectedItem.reason && <div><strong>เหตุผลความจำเป็น:</strong> {selectedItem.reason}</div>}
                 <div><strong>💊 ห้องยาส่งเรื่องเมื่อ:</strong> {formatThaiDateTime(selectedItem.pharmacy_dispense_at)} โดย {selectedItem.pharmacy_dispense_by}</div>
               </div>
             </div>
 
-            <div className="dialog-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="visit-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderTop: '1px solid #f1f5f9' }}>
               <button
                 type="button"
                 className="btn btn-secondary rtm-btn-action"
-                onClick={() => setSelectedItem(null)}
+                onClick={closePayModal}
                 disabled={paying}
               >
                 ปิดหน้าต่าง

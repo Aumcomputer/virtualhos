@@ -441,9 +441,9 @@ export default function TelemedTodayPharmacyPage() {
                     return (
                       <tr
                         key={item.id}
-                        className={tab === 'today' ? 'table-row-clickable' : ''}
-                        onClick={() => tab === 'today' && openDetailModal(item)}
-                        title={tab === 'today' ? 'คลิกเพื่อดูรายละเอียดและจัดยา' : undefined}
+                        className="table-row-clickable"
+                        onClick={() => openDetailModal(item)}
+                        title="คลิกเพื่อดูรายละเอียดผู้ป่วย (Popup)"
                       >
                         {/* 1. Index */}
                         <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
@@ -887,37 +887,61 @@ export default function TelemedTodayPharmacyPage() {
               )}
             </div>
 
-            {/* Modal Footer: 2 Action Buttons */}
+            {/* Modal Footer */}
             <div className="visit-modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <button
                 type="button"
-                className="btn btn-secondary"
+                className="btn btn-secondary rtm-btn-action"
                 onClick={() => setDetailModalItem(null)}
               >
                 ปิดหน้าต่าง
               </button>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  className="btn btn-success"
-                  style={{ background: '#059669', borderColor: '#047857' }}
-                  onClick={() => handleDispenseAction('FREE')}
-                  disabled={dispenseSubmitting}
-                >
-                  ✓ ไม่ต้องชำระเงิน (ไปแท็บรอจัดส่ง)
-                </button>
+              {tab === 'today' ? (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-success rtm-btn-action btn-pay"
+                    style={{ background: '#059669', borderColor: '#047857' }}
+                    onClick={() => handleDispenseAction('FREE')}
+                    disabled={dispenseSubmitting}
+                  >
+                    ✓ ไม่ต้องชำระเงิน (ไปแท็บรอจัดส่ง)
+                  </button>
 
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ background: '#ea580c', borderColor: '#c2410c' }}
-                  onClick={() => handleDispenseAction('PAID')}
-                  disabled={dispenseSubmitting}
-                >
-                  💰 ต้องชำระเงิน (ส่งไปเมนูการเงิน)
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    className="btn btn-primary rtm-btn-action"
+                    style={{ background: '#ea580c', borderColor: '#c2410c' }}
+                    onClick={() => handleDispenseAction('PAID')}
+                    disabled={dispenseSubmitting}
+                  >
+                    💰 ต้องชำระเงิน (ส่งไปเมนูการเงิน)
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary rtm-btn-action"
+                    onClick={() => handlePrintAddress(detailModalItem)}
+                    title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
+                  >
+                    🖨️ พิมพ์ที่อยู่ (A5)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary rtm-btn-action"
+                    onClick={() => {
+                      const it = detailModalItem;
+                      setDetailModalItem(null);
+                      openDeliveryModal(it);
+                    }}
+                  >
+                    🚚 บันทึกจัดส่งยา
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
