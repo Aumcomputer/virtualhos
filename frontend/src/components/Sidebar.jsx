@@ -46,6 +46,8 @@ export default function Sidebar({ isOpen, onClose }) {
         return '🛡️ ผู้ดูแลระบบ';
       case 'clinic_manager':
         return '🏥 ผู้จัดการคลินิก';
+      case 'medical_records':
+        return '📋 เจ้าหน้าที่เวชระเบียน';
       case 'operator':
         return '🎧 เจ้าหน้าที่คัดกรอง';
       case 'pharmacy':
