@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
+import './PrescreeningPage.css';
 import './RequestTelemedPage.css';
 import './TelemedToday.css';
 
@@ -257,252 +258,334 @@ export default function TelemedTodayPharmacyPage() {
   };
 
   return (
-    <div className="request-telemed-page">
+    <>
       {/* Toast */}
       {toast && (
-        <div className={`rtm-toast ${toast.type}`}>
-          {toast.type === 'success' ? '✓ ' : 'ℹ '}
-          {toast.message}
+        <div className={`toast-notification toast-${toast.type === 'error' ? 'danger' : toast.type === 'success' ? 'success' : 'info'}`}>
+          <div className="toast-content">
+            <span>{toast.message}</span>
+            <button type="button" className="toast-close" onClick={() => setToast(null)}>
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="rtm-header">
-        <div className="rtm-header-left">
-          <h1 className="rtm-title">ห้องยา (Pharmacy Telemed)</h1>
-          <p className="rtm-subtitle">
-            ตรวจสอบข้อมูลยา ค่ารักษาพยาบาล จัดยา และเลือกสถานะการชำระเงินสำหรับผู้ป่วยรับยาไม่พบแพทย์
-          </p>
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-title-row">
+          <div>
+            <h2 className="page-title">ห้องยา (Pharmacy Telemed)</h2>
+            <p className="page-subtitle">
+              ตรวจสอบข้อมูลยา ค่ารักษาพยาบาล จัดยา และเลือกสถานะการชำระเงินสำหรับผู้ป่วยรับยาไม่พบแพทย์
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Two Tabs: 1. รายการวันนี้, 2. รอจัดส่ง */}
-      <div className="tt-tabs-bar">
-        <button
-          type="button"
-          className={`tt-tab-btn ${tab === 'today' ? 'active' : ''}`}
-          onClick={() => setTab('today')}
-        >
-          <span>💊 รายการวันนี้</span>
-          <span className="tt-tab-count">{summary.today_count}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`tt-tab-btn ${tab === 'delivery' ? 'active' : ''}`}
-          onClick={() => setTab('delivery')}
-        >
-          <span>📦 รอจัดส่ง</span>
-          <span className="tt-tab-count">{summary.delivery_count}</span>
-        </button>
-      </div>
-
-      {/* Main Table Card */}
-      <div className="rtm-card">
-        {/* Toolbar */}
-        <div className="rtm-toolbar">
-          <div className="rtm-search-wrap" style={{ minWidth: '320px' }}>
-            <input
-              type="text"
-              className="rtm-search-input"
-              placeholder="ค้นหา HN, ชื่อผู้ป่วย, VN วันนี้, คลินิก..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <div className="page-body prescreening-container">
+        {/* Navigation Stage Chips (Tabs) */}
+        <div className="rtm-stage-bar">
+          <button
+            type="button"
+            className={`rtm-stage-chip rtm-chip-pharmacist ${tab === 'today' ? 'active' : ''}`}
+            onClick={() => setTab('today')}
+          >
+            <span className="rtm-chip-icon">💊</span>
+            <span>รายการวันนี้ (รอตรวจ/จัดยา)</span>
+            <span className="rtm-chip-count">{summary.today_count || 0}</span>
+          </button>
 
           <button
             type="button"
-            className="btn btn-secondary"
-            onClick={fetchData}
-            disabled={loading}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            className={`rtm-stage-chip rtm-chip-approved ${tab === 'delivery' ? 'active' : ''}`}
+            onClick={() => setTab('delivery')}
           >
-            <svg className={loading ? 'spin-icon' : ''} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-            </svg>
-            <span>รีเฟรช</span>
+            <span className="rtm-chip-icon">📦</span>
+            <span>รอจัดส่งยา</span>
+            <span className="rtm-chip-count">{summary.delivery_count || 0}</span>
           </button>
         </div>
 
-        {/* Table Content */}
-        <div className="table-responsive">
-          <table className="queue-table">
-            <thead>
-              <tr>
-                <th style={{ width: '48px', textAlign: 'center' }}>#</th>
-                <th>VN วันนี้</th>
-                <th>HN</th>
-                <th>ชื่อ-นามสกุล</th>
-                <th>คลินิก / แพทย์</th>
-                <th>สิทธิการรักษา</th>
-                {tab === 'today' ? (
-                  <>
-                    <th style={{ textAlign: 'right' }}>ยอดรวม</th>
-                    <th style={{ textAlign: 'right' }}>เบิกได้</th>
-                    <th style={{ textAlign: 'right', color: '#b91c1c' }}>ต้องชำระ</th>
-                    <th style={{ textAlign: 'center', width: '130px' }}>การจัดการ</th>
-                  </>
-                ) : (
-                  <>
-                    <th style={{ textAlign: 'center' }}>สถานะการชำระเงิน</th>
-                    <th>ที่อยู่จัดส่งยา</th>
-                    <th style={{ textAlign: 'center', width: '180px' }}>การจัดส่ง</th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={tab === 'today' ? 10 : 8} style={{ textAlign: 'center', padding: '48px 20px' }}>
-                    <div className="loading-state">
-                      <svg className="spin-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                      </svg>
-                      <span style={{ fontSize: '0.875rem' }}>กำลังโหลดข้อมูลห้องยา...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={tab === 'today' ? 10 : 8} style={{ textAlign: 'center', padding: '56px 20px' }}>
-                    <div className="empty-state-box">
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
-                        {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยาในวันนี้' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
-                        {tab === 'today'
-                          ? 'เมื่อเวชระเบียนเปิด Visit และแพทย์สั่งยา รายการจะแสดงเพื่อรอเภสัชตรวจสอบ'
-                          : 'รายการที่ระบุ "ไม่ต้องชำระเงิน" หรือผ่าน "การเงินชำระแล้ว" จะปรากฏในแท็บนี้'}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                data.map((item, idx) => {
-                  return (
-                    <tr
-                      key={item.id}
-                      className={tab === 'today' ? 'table-row-clickable' : ''}
-                      onClick={() => tab === 'today' && openDetailModal(item)}
-                    >
-                      <td style={{ textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
-                        {idx + 1}
-                      </td>
-
-                      <td>
-                        {item.vn_today ? (
-                          <span className="font-mono" style={{ fontWeight: 600, color: '#0284c7' }}>
-                            {item.vn_today}
-                          </span>
-                        ) : (
-                          <span style={{ color: '#d97706', fontSize: '0.75rem' }}>รอเปิด Visit</span>
-                        )}
-                      </td>
-
-                      <td>
-                        <span className="hn-badge font-mono">{item.hn}</span>
-                      </td>
-
-                      <td>
-                        <span className="font-semibold" style={{ color: 'var(--gray-900)' }}>
-                          {item.patient_name || '—'}
-                        </span>
-                      </td>
-
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
-                        <div>{item.clinic_name || '—'}</div>
-                        <div style={{ color: 'var(--gray-500)', fontSize: '0.75rem', marginTop: '2px' }}>
-                          {formatDoctorName(item.doctor_name)}
-                        </div>
-                      </td>
-
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
-                        {item.pttype_name || '—'}
-                      </td>
-
-                      {/* Tab 1: Today items columns */}
-                      {tab === 'today' && (
-                        <>
-                          <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 500 }}>
-                            {item.item_money !== undefined ? formatMoney(item.item_money) : '—'}
-                          </td>
-                          <td style={{ textAlign: 'right', fontFamily: 'monospace', color: '#16a34a' }}>
-                            {item.uc_money !== undefined ? formatMoney(item.uc_money) : '—'}
-                          </td>
-                          <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 700, color: Number(item.paid_money) > 0 ? '#b91c1c' : '#059669' }}>
-                            {item.paid_money !== undefined ? formatMoney(item.paid_money) : '—'}
-                          </td>
-                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className="btn btn-primary"
-                              style={{ padding: '4px 12px', fontSize: '0.75rem' }}
-                              onClick={() => openDetailModal(item)}
-                            >
-                              ตรวจ / จัดยา
-                            </button>
-                          </td>
-                        </>
-                      )}
-
-                      {/* Tab 2: Delivery items columns */}
-                      {tab === 'delivery' && (
-                        <>
-                          <td style={{ textAlign: 'center' }}>
-                            {item.pharmacy_pay_type === 'FREE' ? (
-                              <span className="pay-pill-free">✓ ไม่ต้องชำระเงิน</span>
-                            ) : item.finance_status === 'PAID' ? (
-                              <span className="pay-pill-paid">✓ ชำระเงินแล้ว</span>
-                            ) : (
-                              <span className="pay-pill-pending">รอการเงิน</span>
-                            )}
-                          </td>
-
-                          <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)', maxWidth: '280px' }}>
-                            <div>{item.address} {item.postcode}</div>
-                            {item.phone && (
-                              <div style={{ color: 'var(--gray-500)', fontSize: '0.75rem', marginTop: '2px' }}>
-                                โทร: {formatPhone(item.phone)}
-                              </div>
-                            )}
-                          </td>
-
-                          <td style={{ textAlign: 'center' }}>
-                            <div style={{ display: 'inline-flex', gap: '6px' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary"
-                                style={{ padding: '4px 8px', fontSize: '0.75rem' }}
-                                onClick={() => handlePrintAddress(item)}
-                                title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
-                              >
-                                🖨️ พิมพ์ที่อยู่
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-primary"
-                                style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                                onClick={() => openDeliveryModal(item)}
-                              >
-                                จัดส่งยา
-                              </button>
-                            </div>
-                          </td>
-                        </>
-                      )}
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+        {/* Stats Row */}
+        <div className="prescreen-stats-grid">
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon total">📋</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">เคสห้องยาทั้งหมดวันนี้</span>
+              <span className="prescreen-stat-val" style={{ color: '#2563eb' }}>
+                {(summary.today_count || 0) + (summary.delivery_count || 0)}
+              </span>
+            </div>
+          </div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon dispense">💊</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">รอตรวจและจัดยา</span>
+              <span className="prescreen-stat-val" style={{ color: '#7c3aed' }}>
+                {summary.today_count || 0}
+              </span>
+            </div>
+          </div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon delivery">🚚</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">พร้อม / รอจัดส่งยา</span>
+              <span className="prescreen-stat-val" style={{ color: '#059669' }}>
+                {summary.delivery_count || 0}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
-          แสดงทั้งหมด <strong>{data.length}</strong> รายการ
+        {/* Main Table Card */}
+        <div className="table-card rtm-card">
+          {/* Toolbar */}
+          <div className="table-toolbar rtm-toolbar">
+            <div className="search-box rtm-search-wrap" style={{ maxWidth: '440px' }}>
+              <svg className="search-icon rtm-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="search-input rtm-search-input"
+                placeholder={tab === 'today' ? 'ค้นหา HN, ชื่อผู้ป่วย, VN วันนี้, คลินิก...' : 'ค้นหา HN, ชื่อผู้ป่วย, เบอร์โทร, ที่อยู่จัดส่ง...'}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="search-clear-btn rtm-search-clear"
+                  onClick={() => setSearch('')}
+                  title="ล้างการค้นหา"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="rtm-actions-right">
+              <button
+                type="button"
+                className="btn btn-secondary rtm-btn-refresh"
+                onClick={fetchData}
+                disabled={loading}
+                title="รีเฟรชข้อมูล"
+              >
+                <svg className={loading ? 'spin-icon' : ''} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                </svg>
+                <span>รีเฟรช</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Table Content */}
+          <div className="data-table-wrapper rtm-table-container">
+            <table className="data-table telemed-workflow-table rtm-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '45px', textAlign: 'center' }}>#</th>
+                  <th style={{ width: '120px' }}>VN วันนี้</th>
+                  <th style={{ width: '110px' }}>HN</th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>คลินิก / แพทย์</th>
+                  <th>สิทธิการรักษา</th>
+                  {tab === 'today' ? (
+                    <>
+                      <th style={{ textAlign: 'right' }}>ยอดรวม (บาท)</th>
+                      <th style={{ textAlign: 'right' }}>เบิกได้ (บาท)</th>
+                      <th style={{ textAlign: 'right', color: '#b91c1c' }}>ต้องชำระ (บาท)</th>
+                      <th style={{ textAlign: 'center', width: '140px' }}>การจัดการ</th>
+                    </>
+                  ) : (
+                    <>
+                      <th style={{ textAlign: 'center', width: '140px' }}>สถานะการชำระเงิน</th>
+                      <th>ที่อยู่จัดส่งยา</th>
+                      <th style={{ textAlign: 'center', width: '190px' }}>การจัดส่ง</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={tab === 'today' ? 10 : 8} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                      <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
+                        <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                        <span style={{ fontSize: '0.875rem' }}>กำลังโหลดข้อมูลห้องยา...</span>
+                      </div>
+                    </td>
+                  </tr>
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={tab === 'today' ? 10 : 8} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                      <div className="empty-state-box">
+                        <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
+                          {tab === 'today' ? 'ไม่มีรายการยาที่รอตรวจสอบ/จัดยาในวันนี้' : 'ไม่มีรายการที่รอจัดส่งในขณะนี้'}
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
+                          {tab === 'today'
+                            ? 'เมื่อเวชระเบียนเปิด Visit และแพทย์สั่งยา รายการจะแสดงเพื่อรอเภสัชตรวจสอบ'
+                            : 'รายการที่ระบุ "ไม่ต้องชำระเงิน" หรือผ่าน "การเงินชำระแล้ว" จะปรากฏในแท็บนี้'}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((item, idx) => {
+                    return (
+                      <tr
+                        key={item.id}
+                        className={tab === 'today' ? 'table-row-clickable' : ''}
+                        onClick={() => tab === 'today' && openDetailModal(item)}
+                        title={tab === 'today' ? 'คลิกเพื่อดูรายละเอียดและจัดยา' : undefined}
+                      >
+                        {/* 1. Index */}
+                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
+                          {idx + 1}
+                        </td>
+
+                        {/* 2. VN */}
+                        <td>
+                          {item.vn_today ? (
+                            <span className="tt-vn-tag">
+                              VN: {item.vn_today}
+                            </span>
+                          ) : (
+                            <span className="prescreen-badge-status pending" style={{ fontSize: '0.6875rem' }}>
+                              รอเปิด Visit
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 3. HN */}
+                        <td>
+                          <span className="rtm-hn-pill font-mono">{item.hn}</span>
+                        </td>
+
+                        {/* 4. Patient Name */}
+                        <td style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          {item.patient_name || '—'}
+                        </td>
+
+                        {/* 5. Clinic & Doctor */}
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.8125rem' }}>{item.clinic_name || '—'}</div>
+                          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>🩺</span>
+                            <span>{formatDoctorName(item.doctor_name)}</span>
+                          </div>
+                        </td>
+
+                        {/* 6. Entitlement */}
+                        <td style={{ fontSize: '0.8125rem', color: '#475569' }}>
+                          {item.pttype_name || '—'}
+                        </td>
+
+                        {/* Tab 1: Today items columns */}
+                        {tab === 'today' && (
+                          <>
+                            <td style={{ textAlign: 'right' }}>
+                              <span className="tt-money tt-money-total">
+                                {item.item_money !== undefined ? formatMoney(item.item_money) : '—'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              <span className="tt-money tt-money-uc">
+                                {item.uc_money !== undefined ? formatMoney(item.uc_money) : '—'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              {item.paid_money !== undefined ? (
+                                Number(item.paid_money) > 0 ? (
+                                  <span className="tt-money tt-money-paid-active">{formatMoney(item.paid_money)}</span>
+                                ) : (
+                                  <span className="tt-money tt-money-paid-zero">0.00 (ฟรี)</span>
+                                )
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                className="btn btn-primary rtm-btn-action"
+                                onClick={() => openDetailModal(item)}
+                              >
+                                🩺 ตรวจ / จัดยา
+                              </button>
+                            </td>
+                          </>
+                        )}
+
+                        {/* Tab 2: Delivery items columns */}
+                        {tab === 'delivery' && (
+                          <>
+                            <td style={{ textAlign: 'center' }}>
+                              {item.pharmacy_pay_type === 'FREE' ? (
+                                <span className="pay-pill-free">✓ ไม่ต้องชำระเงิน</span>
+                              ) : item.finance_status === 'PAID' ? (
+                                <span className="pay-pill-paid">✓ ชำระเงินแล้ว</span>
+                              ) : (
+                                <span className="pay-pill-pending">⏳ รอการเงิน</span>
+                              )}
+                            </td>
+
+                            <td style={{ fontSize: '0.8125rem', color: '#334155', maxWidth: '320px' }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
+                                <span style={{ flexShrink: 0 }}>📍</span>
+                                <span>{item.address} {item.postcode}</span>
+                              </div>
+                              {item.phone && (
+                                <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '3px', marginLeft: '18px' }}>
+                                  📞 โทร: {formatPhone(item.phone)}
+                                </div>
+                              )}
+                            </td>
+
+                            <td style={{ textAlign: 'center' }}>
+                              <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary rtm-btn-action"
+                                  onClick={() => handlePrintAddress(item)}
+                                  title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
+                                >
+                                  🖨️ พิมพ์ที่อยู่
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-primary rtm-btn-action"
+                                  onClick={() => openDeliveryModal(item)}
+                                >
+                                  🚚 จัดส่งยา
+                                </button>
+                              </div>
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', fontSize: '0.8125rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              แสดงทั้งหมด <strong style={{ color: '#0f172a' }}>{data.length}</strong> รายการ
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+              {tab === 'today' ? '💡 คลิกที่แถวหรือปุ่ม "ตรวจ / จัดยา" เพื่อเปิดหน้าต่างเปรียบเทียบประวัติและดำเนินการ' : '💡 พิมพ์ใบปะหน้าซองยาขนาด A5 และบันทึกหมายเลขพัสดุเมื่อจัดส่งยา'}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -889,6 +972,6 @@ export default function TelemedTodayPharmacyPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

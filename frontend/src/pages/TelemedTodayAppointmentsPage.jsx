@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
+import './PrescreeningPage.css';
 import './RequestTelemedPage.css';
 import './TelemedToday.css';
 
@@ -23,23 +24,6 @@ function formatThaiDate(dateStr) {
     return `${d.getDate()} ${months[d.getMonth() + 1]} ${d.getFullYear() + 543}`;
   } catch {
     return dateStr;
-  }
-}
-
-function formatThaiDateTime(dateTimeStr) {
-  if (!dateTimeStr) return '—';
-  try {
-    const d = new Date(dateTimeStr);
-    if (isNaN(d.getTime())) return dateTimeStr;
-    const months = [
-      '', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
-      'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
-    ];
-    const hours = String(d.getHours()).padStart(2, '0');
-    const mins = String(d.getMinutes()).padStart(2, '0');
-    return `${d.getDate()} ${months[d.getMonth() + 1]} ${d.getFullYear() + 543} ${hours}:${mins} น.`;
-  } catch {
-    return dateTimeStr;
   }
 }
 
@@ -108,274 +92,280 @@ export default function TelemedTodayAppointmentsPage() {
   };
 
   return (
-    <div className="request-telemed-page">
+    <>
       {/* Toast Notification */}
       {toast && (
-        <div className={`rtm-toast ${toast.type}`}>
-          {toast.type === 'success' ? '✓ ' : 'ℹ '}
-          {toast.message}
+        <div className={`toast-notification toast-${toast.type === 'error' ? 'danger' : toast.type === 'success' ? 'success' : 'info'}`}>
+          <div className="toast-content">
+            <span>{toast.message}</span>
+            <button type="button" className="toast-close" onClick={() => setToast(null)}>
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="rtm-header">
-        <div className="rtm-header-left">
-          <h1 className="rtm-title">“รับยาไม่พบแพทย์” วันนี้</h1>
-          <p className="rtm-subtitle">
-            รายชื่อผู้ป่วยที่ผ่านการอนุมัติ Pre-screening และมีนัดหมายรับบริการวันนี้ พร้อมตรวจสอบสถานะการเปิด Visit จาก HOSxP
-          </p>
-        </div>
-      </div>
-
-      {/* Summary KPI Badges */}
-      <div className="rtm-summary-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '20px' }}>
-        <div className="rtm-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-title-row">
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', fontWeight: 600, textTransform: 'uppercase' }}>
-              นัดหมายทั้งหมดวันนี้
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--gray-900)', marginTop: '4px' }}>
-              {summary.total} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--gray-500)' }}>คน</span>
-            </div>
-          </div>
-          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb', fontSize: '1.25rem' }}>
-            📅
-          </div>
-        </div>
-
-        <div className="rtm-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, textTransform: 'uppercase' }}>
-              เปิด Visit วันนี้แล้ว (มี VN)
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
-              {summary.has_visit} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--gray-500)' }}>คน</span>
-            </div>
-          </div>
-          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#059669', fontSize: '1.25rem' }}>
-            ✓
-          </div>
-        </div>
-
-        <div className="rtm-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 600, textTransform: 'uppercase' }}>
-              รอเวชระเบียนเปิด Visit
-            </div>
-            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#d97706', marginTop: '4px' }}>
-              {summary.no_visit} <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--gray-500)' }}>คน</span>
-            </div>
-          </div>
-          <div style={{ width: '42px', height: '42px', borderRadius: '10px', background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706', fontSize: '1.25rem' }}>
-            ⏳
+            <h2 className="page-title">
+              {selectedDate === getTodayStr() ? '“รับยาไม่พบแพทย์” วันนี้' : `“รับยาไม่พบแพทย์” วันที่ ${formatThaiDate(selectedDate)}`}
+            </h2>
+            <p className="page-subtitle">
+              รายชื่อผู้ป่วยที่ผ่านการอนุมัติ Pre-screening และมีนัดหมายรับบริการวันที่ {formatThaiDate(selectedDate)} พร้อมตรวจสอบสถานะการเปิด Visit จาก HOSxP
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <div className="rtm-card">
-        {/* Toolbar */}
-        <div className="rtm-toolbar" style={{ flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-            <div className="rtm-date-picker-wrap" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '0.8125rem', color: 'var(--gray-600)', fontWeight: 500 }}>
-                วันนัดหมาย:
-              </span>
+      <div className="page-body prescreening-container">
+        {/* Stats Row */}
+        <div className="prescreen-stats-grid">
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon total">📋</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">นัดหมายทั้งหมดวันนี้</span>
+              <span className="prescreen-stat-val" style={{ color: '#2563eb' }}>{summary.total}</span>
+            </div>
+          </div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon completed">✅</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">เปิด Visit วันนี้แล้ว (มี VN)</span>
+              <span className="prescreen-stat-val" style={{ color: '#059669' }}>{summary.has_visit}</span>
+            </div>
+          </div>
+          <div className="prescreen-stat-card">
+            <div className="prescreen-stat-icon pending">⏳</div>
+            <div className="prescreen-stat-content">
+              <span className="prescreen-stat-label">รอเวชระเบียนเปิด Visit</span>
+              <span className="prescreen-stat-val" style={{ color: '#d97706' }}>{summary.no_visit}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Table Card containing Toolbar & Data Table */}
+        <div className="table-card rtm-card">
+          {/* Table Toolbar */}
+          <div className="table-toolbar rtm-toolbar">
+            <div className="search-box rtm-search-wrap" style={{ maxWidth: '440px' }}>
+              <svg className="search-icon rtm-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <input
-                type="date"
-                className="rtm-date-input font-mono"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
+                type="text"
+                className="search-input rtm-search-input"
+                placeholder="ค้นหา HN, ชื่อผู้ป่วย, คลินิก, แพทย์, VN..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
-              {selectedDate !== getTodayStr() && (
+              {search && (
                 <button
                   type="button"
-                  className="btn btn-secondary"
-                  style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                  onClick={() => setSelectedDate(getTodayStr())}
+                  className="search-clear-btn rtm-search-clear"
+                  onClick={() => setSearch('')}
+                  title="ล้างการค้นหา"
                 >
-                  วันนี้
+                  ✕
                 </button>
               )}
             </div>
 
-            <div className="rtm-search-wrap">
-              <input
-                type="text"
-                className="rtm-search-input"
-                placeholder="ค้นหา HN, ชื่อผู้ป่วย, คลินิก, VN..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
+            <div className="rtm-actions-right">
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#475569' }}>วันนัดหมาย:</span>
+                <input
+                  type="date"
+                  className="prescreen-date-input"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                />
+                {selectedDate !== getTodayStr() && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary rtm-btn-action"
+                    onClick={() => setSelectedDate(getTodayStr())}
+                    title="กลับไปดูวันนี้"
+                  >
+                    วันนี้
+                  </button>
+                )}
+              </div>
+
+              <button
+                type="button"
+                className="btn btn-secondary rtm-btn-refresh"
+                onClick={fetchData}
+                disabled={loading}
+                title="รีเฟรชข้อมูล"
+              >
+                <svg className={loading ? 'spin-icon' : ''} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
+                </svg>
+                <span>รีเฟรช</span>
+              </button>
             </div>
           </div>
 
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={fetchData}
-            disabled={loading}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            <svg className={loading ? 'spin-icon' : ''} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-            </svg>
-            <span>รีเฟรชข้อมูล</span>
-          </button>
-        </div>
-
-        {/* Table */}
-        <div className="table-responsive">
-          <table className="queue-table">
-            <thead>
-              <tr>
-                <th style={{ width: '48px', textAlign: 'center' }}>#</th>
-                <th>วันนัดหมาย</th>
-                <th>HN</th>
-                <th>ชื่อ-นามสกุล</th>
-                <th>คลินิก / แพทย์ผู้นัด</th>
-                <th>สิทธิการรักษา</th>
-                <th>เบอร์โทร</th>
-                <th style={{ textAlign: 'center' }}>มี Visit วันนี้หรือยัง</th>
-                <th style={{ width: '130px', textAlign: 'center' }}>การเชื่อมโยง VN</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+          {/* Data Table Wrapper */}
+          <div className="data-table-wrapper rtm-table-container">
+            <table className="data-table telemed-workflow-table rtm-table">
+              <thead>
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '48px 20px' }}>
-                    <div className="loading-state">
-                      <svg className="spin-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                      </svg>
-                      <span style={{ fontSize: '0.875rem' }}>กำลังโหลดและตรวจสอบข้อมูลกับ HOSxP...</span>
-                    </div>
-                  </td>
+                  <th style={{ width: '45px', textAlign: 'center' }}>#</th>
+                  <th style={{ width: '130px' }}>วันนัดหมาย</th>
+                  <th style={{ width: '110px' }}>HN</th>
+                  <th>ชื่อ-นามสกุล</th>
+                  <th>คลินิก / แพทย์ผู้นัด</th>
+                  <th>สิทธิการรักษา</th>
+                  <th>เบอร์โทร</th>
+                  <th style={{ textAlign: 'center', width: '160px' }}>สถานะ Visit วันนี้</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>การเชื่อมโยง VN</th>
                 </tr>
-              ) : data.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '56px 20px' }}>
-                    <div className="empty-state-box">
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
-                        ไม่มีรายการนัดหมายรับยาไม่พบแพทย์ในวันที่ {formatThaiDate(selectedDate)}
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                      <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
+                        <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                        </svg>
+                        <span style={{ fontSize: '0.875rem' }}>กำลังโหลดและตรวจสอบข้อมูลกับ HOSxP...</span>
                       </div>
-                      <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
-                        {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างช่องค้นหา' : 'รายการที่ผ่านการอนุมัติในขั้นตอน Pre-screening จะปรากฏในหน้านี้เมื่อถึงวันนัดจริง'}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                data.map((item, idx) => {
-                  const isSyncing = syncingId === item.id;
-                  return (
-                    <tr key={item.id}>
-                      <td style={{ textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
-                        {idx + 1}
-                      </td>
-
-                      <td>
-                        <span className="appt-date-badge">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                            <line x1="16" y1="2" x2="16" y2="6" />
-                            <line x1="8" y1="2" x2="8" y2="6" />
-                            <line x1="3" y1="10" x2="21" y2="10" />
-                          </svg>
-                          <span>{formatThaiDate(item.nextdate)}</span>
-                        </span>
-                      </td>
-
-                      <td>
-                        <span className="hn-badge font-mono">{item.hn}</span>
-                      </td>
-
-                      <td>
-                        <span className="font-semibold" style={{ color: 'var(--gray-900)' }}>
-                          {item.patient_name || '—'}
-                        </span>
-                      </td>
-
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
-                        <div style={{ fontWeight: 500 }}>{item.clinic_name || '—'}</div>
-                        <div style={{ color: 'var(--gray-500)', fontSize: '0.75rem', marginTop: '2px' }}>
-                          {formatDoctorName(item.doctor_name)}
+                    </td>
+                  </tr>
+                ) : data.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                      <div className="empty-state-box">
+                        <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
+                          ไม่มีรายการนัดหมายรับยาไม่พบแพทย์ในวันที่ {formatThaiDate(selectedDate)}
                         </div>
-                      </td>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
+                          {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างช่องค้นหา' : 'รายการที่ผ่านการอนุมัติในขั้นตอน Pre-screening จะปรากฏในหน้านี้เมื่อถึงวันนัดจริง'}
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  data.map((item, idx) => {
+                    const isSyncing = syncingId === item.id;
+                    return (
+                      <tr key={item.id} className="table-row-clickable">
+                        {/* 1. Index */}
+                        <td style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8125rem', fontFamily: 'monospace' }}>
+                          {idx + 1}
+                        </td>
 
-                      <td style={{ fontSize: '0.8125rem', color: 'var(--gray-700)' }}>
-                        {item.pttype_name || '—'}
-                      </td>
-
-                      <td>
-                        {item.phone ? (
-                          <span style={{ fontSize: '0.8125rem', fontFamily: 'monospace' }}>
-                            {item.phone}
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--gray-300)' }}>—</span>
-                        )}
-                      </td>
-
-                      {/* Status: มี Visit วันนี้หรือยัง */}
-                      <td style={{ textAlign: 'center' }}>
-                        {item.has_visit && item.vn_today ? (
-                          <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
-                            <span className="vn-badge-has">
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                              <span>มี Visit แล้ว</span>
-                            </span>
-                            <span className="font-mono" style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>
-                              VN: {item.vn_today}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="vn-badge-none">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <circle cx="12" cy="12" r="10" />
-                              <line x1="12" y1="8" x2="12" y2="12" />
-                              <line x1="12" y1="16" x2="12.01" y2="16" />
+                        {/* 2. Appointment Date */}
+                        <td>
+                          <span className="appt-date-badge">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                              <line x1="16" y1="2" x2="16" y2="6" />
+                              <line x1="8" y1="2" x2="8" y2="6" />
+                              <line x1="3" y1="10" x2="21" y2="10" />
                             </svg>
-                            <span>ยังไม่มี Visit</span>
+                            <span>{formatThaiDate(item.nextdate)}</span>
                           </span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* Action: Sync VN */}
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn-sync-vn"
-                          onClick={() => handleSyncVn(item)}
-                          disabled={isSyncing}
-                          title="ตรวจสอบและดึงเลข VN ของวันนี้จากฐานข้อมูล HOSxP"
-                        >
-                          <svg className={isSyncing ? 'spin-icon' : ''} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                          </svg>
-                          <span>{isSyncing ? 'กำลังดึง...' : 'ดึง VN'}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        {/* 3. HN */}
+                        <td>
+                          <span className="rtm-hn-pill font-mono">{item.hn}</span>
+                        </td>
 
-        {/* Footer */}
-        <div style={{ padding: '12px 20px', borderTop: '1px solid #f1f5f9', fontSize: '0.8125rem', color: 'var(--gray-500)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            แสดงทั้งหมด <strong>{data.length}</strong> รายการ
+                        {/* 4. Patient Name */}
+                        <td style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                          {item.patient_name || '—'}
+                        </td>
+
+                        {/* 5. Clinic & Doctor */}
+                        <td>
+                          <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.8125rem' }}>{item.clinic_name || '—'}</div>
+                          <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span>🩺</span>
+                            <span>{formatDoctorName(item.doctor_name)}</span>
+                          </div>
+                        </td>
+
+                        {/* 6. Entitlement */}
+                        <td style={{ fontSize: '0.8125rem', color: '#475569' }}>
+                          {item.pttype_name || '—'}
+                        </td>
+
+                        {/* 7. Phone */}
+                        <td>
+                          {item.phone ? (
+                            <span style={{ fontSize: '0.8125rem', fontFamily: 'monospace', color: '#334155' }}>
+                              {item.phone}
+                            </span>
+                          ) : (
+                            <span style={{ color: '#cbd5e1' }}>—</span>
+                          )}
+                        </td>
+
+                        {/* 8. Has Visit Status */}
+                        <td style={{ textAlign: 'center' }}>
+                          {item.has_visit && item.vn_today ? (
+                            <div className="tt-vn-cell">
+                              <span className="vn-badge-has">
+                                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                                <span>มี Visit แล้ว</span>
+                              </span>
+                              <span className="tt-vn-tag">VN: {item.vn_today}</span>
+                            </div>
+                          ) : (
+                            <span className="vn-badge-none">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <circle cx="12" cy="12" r="10" />
+                                <line x1="12" y1="8" x2="12" y2="12" />
+                                <line x1="12" y1="16" x2="12.01" y2="16" />
+                              </svg>
+                              <span>ยังไม่มี Visit</span>
+                            </span>
+                          )}
+                        </td>
+
+                        {/* 9. Action: Sync VN */}
+                        <td style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn-sync-vn"
+                            onClick={() => handleSyncVn(item)}
+                            disabled={isSyncing}
+                            title="ตรวจสอบและดึงเลข VN ของวันนี้จากฐานข้อมูล HOSxP"
+                          >
+                            <svg className={isSyncing ? 'spin-icon' : ''} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                            </svg>
+                            <span>{isSyncing ? 'กำลังดึง...' : 'ดึง VN'}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>
-            💡 เมื่อเวชระเบียนเปิด Visit ใน HOSxP ระบบจะตรวจจับและบันทึกเลข VN ให้โดยอัตโนมัติ
+
+          {/* Footer */}
+          <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', fontSize: '0.8125rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <div>
+              แสดงทั้งหมด <strong style={{ color: '#0f172a' }}>{data.length}</strong> รายการ
+            </div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+              💡 เมื่อเวชระเบียนเปิด Visit ใน HOSxP ระบบจะตรวจจับและบันทึกเลข VN ให้โดยอัตโนมัติ
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
