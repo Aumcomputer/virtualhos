@@ -15,6 +15,7 @@ const cronSettingsRoutes = require('./routes/cronSettings');
 const prescreeningRoutes = require('./routes/prescreening');
 const requestTelemedRoutes = require('./routes/request-telemed');
 const telemedTodayRoutes = require('./routes/telemed-today');
+const roleRoutes = require('./routes/roles');
 const systemRoutes = require('./routes/system');
 const { getAppVersion } = require('./lib/version');
 
@@ -88,6 +89,7 @@ app.use('/api/cron-settings', cronSettingsRoutes); // /api/cron-settings queries
 app.use('/api/prescreening', prescreeningRoutes); // /api/prescreening queries/actions
 app.use('/api/request-telemed', requestTelemedRoutes); // /api/request-telemed queries
 app.use('/api/telemed-today', telemedTodayRoutes);       // /api/telemed-today queries (real-date workflow)
+app.use('/api/roles', roleRoutes);                       // /api/roles & /api/roles/menus dynamic permissions
 
 // ---------------------------------------------------------------------------
 // Start Scheduler (node-cron)

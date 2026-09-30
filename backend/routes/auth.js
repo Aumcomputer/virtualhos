@@ -62,14 +62,29 @@ router.post('/login', loginLimiter, async (req, res) => {
       [username]
     );
 
-    let role = 'viewer'; // Default role for HOSxP users not yet in admin_users
+    let role = 'operator'; // Default role for HOSxP users not yet in admin_users
 
     if (adminCheck.length > 0) {
       // User is registered in admin_users — respect their is_active flag
       if (!adminCheck[0].is_active) {
         return res.status(403).json({ error: 'บัญชีผู้ใช้งานนี้ถูกระงับการใช้งาน' });
       }
-      role = adminCheck[0].role;
+      role = adminCheck[0].role || 'operator';
+    }
+
+    // Fetch permitted menus for this role
+    let permissions = [];
+    try {
+      if (role === 'admin') {
+        const all = await connVhos.query('SELECT menu_key FROM system_menus ORDER BY sort_order ASC');
+        permissions = all.map(m => m.menu_key);
+      } else {
+        const perms = await connVhos.query('SELECT menu_key FROM system_role_permissions WHERE role_key = ?', [role]);
+        permissions = perms.map(p => p.menu_key);
+      }
+    } catch (permErr) {
+      console.warn('Could not fetch permissions:', permErr.message);
+      if (role === 'admin') permissions = ['settings', 'today_registrations', 'all_registrations'];
     }
 
     // 3. Issue JWT with role
@@ -93,7 +108,7 @@ router.post('/login', loginLimiter, async (req, res) => {
       path: '/',
     });
 
-    res.json({ user });
+    res.json({ user, permissions });
 
     // Fire-and-forget: log successful login
     logActivity({
@@ -132,9 +147,47 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
-// GET /api/me — check current session
-router.get('/me', authenticateToken, (req, res) => {
-  res.json({ user: { name: req.user.name, displayName: req.user.displayName, role: req.user.role || 'admin' } });
+// GET /api/me — check current session & fetch permissions
+router.get('/me', authenticateToken, async (req, res) => {
+  let connVhos;
+  try {
+    connVhos = await pool_vhos.getConnection();
+    const adminCheck = await connVhos.query(
+      'SELECT role, is_active FROM admin_users WHERE username = ? LIMIT 1',
+      [req.user.name]
+    );
+
+    let role = req.user.role || 'operator';
+    if (adminCheck.length > 0) {
+      if (!adminCheck[0].is_active) {
+        return res.status(403).json({ error: 'บัญชีผู้ใช้งานนี้ถูกระงับการใช้งาน' });
+      }
+      role = adminCheck[0].role || 'operator';
+    }
+
+    let permissions = [];
+    if (role === 'admin') {
+      const all = await connVhos.query('SELECT menu_key FROM system_menus ORDER BY sort_order ASC');
+      permissions = all.map(m => m.menu_key);
+    } else {
+      const perms = await connVhos.query('SELECT menu_key FROM system_role_permissions WHERE role_key = ?', [role]);
+      permissions = perms.map(p => p.menu_key);
+    }
+
+    res.json({
+      user: {
+        name: req.user.name,
+        displayName: req.user.displayName,
+        role,
+      },
+      permissions,
+    });
+  } catch (err) {
+    console.error('Error in /me:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    if (connVhos) connVhos.release();
+  }
 });
 
 module.exports = router;

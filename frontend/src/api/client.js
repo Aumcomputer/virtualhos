@@ -98,6 +98,24 @@ export const api = {
     return request(`/admin-users/search-opduser?${params}`);
   },
 
+  // Dynamic Roles & Permissions
+  getRoles: () => request('/roles'),
+  getMenus: () => request('/roles/menus'),
+  createRole: (roleData) =>
+    request('/roles', {
+      method: 'POST',
+      body: JSON.stringify(roleData),
+    }),
+  updateRole: (roleKey, roleData) =>
+    request(`/roles/${roleKey}`, {
+      method: 'PUT',
+      body: JSON.stringify(roleData),
+    }),
+  deleteRole: (roleKey) =>
+    request(`/roles/${roleKey}`, {
+      method: 'DELETE',
+    }),
+
   getTelemedCasesWithDoctor: (date) => {
     const params = new URLSearchParams({ date });
     return request(`/telemed-cases/visit-with-doctor?${params}`);

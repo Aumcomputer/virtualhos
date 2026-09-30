@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -31,13 +31,22 @@ export default function SettingsPage() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'cron'
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'roles' | 'cron'
   const [adminUsers, setAdminUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingRoleUser, setEditingRoleUser] = useState(null);
   const [actionLoading, setActionLoading] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+
+  // Dynamic Roles & Permissions States
+  const [roles, setRoles] = useState([]);
+  const [menus, setMenus] = useState([]);
+  const [selectedRoleKey, setSelectedRoleKey] = useState(null);
+  const [selectedRolePerms, setSelectedRolePerms] = useState([]);
+  const [savingRolePerms, setSavingRolePerms] = useState(false);
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [deletingRoleKey, setDeletingRoleKey] = useState(null);
 
   // Pre-screening Cron Settings States
   const [cronTime, setCronTime] = useState('08:00');
@@ -65,6 +74,33 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await api.getRoles();
+      setRoles(res.data);
+      if (!selectedRoleKey && res.data.length > 0) {
+        setSelectedRoleKey(res.data[0].role_key);
+        setSelectedRolePerms(res.data[0].menu_keys || []);
+      } else if (selectedRoleKey) {
+        const current = res.data.find((r) => r.role_key === selectedRoleKey);
+        if (current) {
+          setSelectedRolePerms(current.menu_keys || []);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch roles:', err);
+    }
+  }, [selectedRoleKey]);
+
+  const fetchMenus = useCallback(async () => {
+    try {
+      const res = await api.getMenus();
+      setMenus(res.data);
+    } catch (err) {
+      console.error('Failed to fetch menus:', err);
+    }
+  }, []);
+
   const fetchCronSettings = useCallback(async () => {
     try {
       const res = await api.getCronSettings();
@@ -89,15 +125,80 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isAdmin) {
       fetchAdminUsers();
+      fetchRoles();
+      fetchMenus();
       fetchCronSettings();
       fetchCronLogs();
     }
-  }, [fetchAdminUsers, fetchCronSettings, fetchCronLogs, isAdmin]);
+  }, [fetchAdminUsers, fetchRoles, fetchMenus, fetchCronSettings, fetchCronLogs, isAdmin]);
 
-  const ROLE_CONFIG = {
-    admin: { label: 'Admin', icon: '🛡️', badgeClass: 'settings-role-admin' },
-    request_telemed: { label: 'Request Telemed', icon: '📦', badgeClass: 'settings-role-request_telemed' },
-    viewer: { label: 'Viewer', icon: '👁️', badgeClass: 'settings-role-viewer' },
+  const menuGroups = useMemo(() => {
+    const groups = {};
+    for (const m of menus) {
+      const grp = m.group_name || 'ทั่วไป';
+      if (!groups[grp]) groups[grp] = [];
+      groups[grp].push(m);
+    }
+    return groups;
+  }, [menus]);
+
+  const selectedRole = useMemo(() => {
+    if (!selectedRoleKey) return roles[0] || null;
+    return roles.find((r) => r.role_key === selectedRoleKey) || roles[0] || null;
+  }, [roles, selectedRoleKey]);
+
+  const handleSelectRole = (r) => {
+    setSelectedRoleKey(r.role_key);
+    setSelectedRolePerms([...(r.menu_keys || [])]);
+  };
+
+  const handleTogglePerm = (menuKey) => {
+    setSelectedRolePerms((prev) =>
+      prev.includes(menuKey) ? prev.filter((k) => k !== menuKey) : [...prev, menuKey]
+    );
+  };
+
+  const handleSelectAllPerms = () => {
+    setSelectedRolePerms(menus.map((m) => m.menu_key));
+  };
+
+  const handleClearAllPerms = () => {
+    setSelectedRolePerms([]);
+  };
+
+  const handleSaveRolePerms = async () => {
+    if (!selectedRole) return;
+    setSavingRolePerms(true);
+    try {
+      await api.updateRole(selectedRole.role_key, {
+        menu_keys: selectedRolePerms,
+      });
+      alert(`💾 บันทึกการตั้งค่าสิทธิ์ "${selectedRole.role_name}" เรียบร้อยแล้ว`);
+      await fetchRoles();
+    } catch (err) {
+      alert(`❌ เกิดข้อผิดพลาดในการบันทึกสิทธิ์: ${err.message}`);
+    } finally {
+      setSavingRolePerms(false);
+    }
+  };
+
+  const handleDeleteRole = async (r) => {
+    if (!window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการลบสิทธิ์ "${r.role_name}" (@${r.role_key})?`)) {
+      return;
+    }
+    setDeletingRoleKey(r.role_key);
+    try {
+      await api.deleteRole(r.role_key);
+      alert(`ลบสิทธิ์ "${r.role_name}" สำเร็จ`);
+      if (selectedRoleKey === r.role_key) {
+        setSelectedRoleKey('admin');
+      }
+      await fetchRoles();
+    } catch (err) {
+      alert(`❌ ไม่สามารถลบสิทธิ์ได้: ${err.message}`);
+    } finally {
+      setDeletingRoleKey(null);
+    }
   };
 
   const handleDelete = async (id) => {
@@ -106,6 +207,7 @@ export default function SettingsPage() {
       await api.deleteAdminUser(id);
       setDeleteConfirmId(null);
       await fetchAdminUsers();
+      await fetchRoles();
     } catch (err) {
       console.error('Failed to delete user');
     } finally {
@@ -116,11 +218,13 @@ export default function SettingsPage() {
   const handleUserAdded = () => {
     setShowModal(false);
     fetchAdminUsers();
+    fetchRoles();
   };
 
   const handleRoleUpdated = () => {
     setEditingRoleUser(null);
     fetchAdminUsers();
+    fetchRoles();
   };
 
   const handleSaveCronSettings = async () => {
@@ -155,17 +259,13 @@ export default function SettingsPage() {
 
   if (!isAdmin) return null;
 
-  const totalAdmin = adminUsers.filter((u) => u.role === 'admin').length;
-  const totalViewer = adminUsers.filter((u) => u.role === 'viewer').length;
-  const totalRequestTelemed = adminUsers.filter((u) => u.role === 'request_telemed').length;
-
   return (
     <>
       <div className="page-header">
         <div className="page-title-row">
           <div>
             <h2 className="page-title">ตั้งค่าระบบและผู้ใช้งาน</h2>
-            <p className="page-subtitle">จัดการสิทธิ์บัญชีผู้ใช้ และตั้งค่าการดึงข้อมูลคัดกรองอัตโนมัติ</p>
+            <p className="page-subtitle">จัดการสิทธิ์บัญชีผู้ใช้ สิทธิ์การเข้าถึงเมนู และตั้งค่าการดึงข้อมูลคัดกรองอัตโนมัติ</p>
           </div>
           {activeTab === 'users' && (
             <button
@@ -180,6 +280,21 @@ export default function SettingsPage() {
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               เพิ่มผู้ใช้งาน
+            </button>
+          )}
+          {activeTab === 'roles' && (
+            <button
+              className="btn btn-primary"
+              onClick={() => setShowAddRoleModal(true)}
+              type="button"
+              id="btn-add-role"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              เพิ่มสิทธิ์ใหม่
             </button>
           )}
         </div>
@@ -199,8 +314,21 @@ export default function SettingsPage() {
               <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
               <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
-            <span>ผู้ใช้งานและสิทธิ์</span>
+            <span>ผู้ใช้งาน</span>
             <span className="settings-tab-badge">{adminUsers.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`settings-tab-btn ${activeTab === 'roles' ? 'active' : ''}`}
+            onClick={() => setActiveTab('roles')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            <span>สิทธิ์และเมนูเข้าถึง</span>
+            <span className="settings-tab-badge">{roles.length}</span>
           </button>
 
           <button
@@ -237,45 +365,18 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="settings-stat-card">
-                <div>
-                  <div className="settings-stat-label">Admin</div>
-                  <div className="settings-stat-value" style={{ color: '#be123c' }}>{totalAdmin}</div>
-                  <div className="settings-stat-sub">สิทธิ์ผู้ดูแลระบบสูงสุด</div>
+              {roles.slice(0, 4).map((r) => (
+                <div key={r.role_key} className="settings-stat-card">
+                  <div>
+                    <div className="settings-stat-label">{r.role_name}</div>
+                    <div className="settings-stat-value">{adminUsers.filter((u) => u.role === r.role_key).length}</div>
+                    <div className="settings-stat-sub">@{r.role_key}</div>
+                  </div>
+                  <div className="settings-stat-icon" style={{ fontSize: '1.5rem', background: '#f8fafc' }}>
+                    {r.icon || '👤'}
+                  </div>
                 </div>
-                <div className="settings-stat-icon rose">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="settings-stat-card">
-                <div>
-                  <div className="settings-stat-label">Request Telemed</div>
-                  <div className="settings-stat-value" style={{ color: '#7c3aed' }}>{totalRequestTelemed}</div>
-                  <div className="settings-stat-sub">สิทธิ์จัดการคำขอและยา</div>
-                </div>
-                <div className="settings-stat-icon purple">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                  </svg>
-                </div>
-              </div>
-
-              <div className="settings-stat-card">
-                <div>
-                  <div className="settings-stat-label">Viewer</div>
-                  <div className="settings-stat-value" style={{ color: '#475569' }}>{totalViewer}</div>
-                  <div className="settings-stat-sub">สิทธิ์ดูรายงานอย่างเดียว</div>
-                </div>
-                <div className="settings-stat-icon slate">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Users Table Card */}
@@ -319,7 +420,10 @@ export default function SettingsPage() {
                     <tbody>
                       {adminUsers.map((u) => {
                         const initial = (u.display_name?.charAt(0) || u.username?.charAt(0) || '?').toUpperCase();
-                        const roleMeta = ROLE_CONFIG[u.role] || { label: u.role, icon: '👤', badgeClass: 'settings-role-viewer' };
+                        const roleObj = roles.find((r) => r.role_key === u.role);
+                        const roleLabel = roleObj ? roleObj.role_name : (u.role_name || u.role);
+                        const roleIcon = roleObj ? (roleObj.icon || '👤') : (u.role_icon || '👤');
+                        const roleColor = roleObj ? (roleObj.badge_color || 'blue') : (u.role_badge_color || 'blue');
 
                         return (
                           <tr key={u.id}>
@@ -338,9 +442,9 @@ export default function SettingsPage() {
 
                             {/* Role Badge */}
                             <td>
-                              <span className={`settings-role-badge ${roleMeta.badgeClass}`}>
-                                <span>{roleMeta.icon}</span>
-                                <span>{roleMeta.label}</span>
+                              <span className={`settings-role-badge badge-${roleColor}`}>
+                                <span>{roleIcon}</span>
+                                <span>{roleLabel}</span>
                               </span>
                             </td>
 
@@ -434,7 +538,214 @@ export default function SettingsPage() {
           </>
         )}
 
-        {/* TAB 2: CRON JOB & AUTOMATION */}
+        {/* TAB 2: ROLES & PERMISSIONS MANAGEMENT */}
+        {activeTab === 'roles' && (
+          <div className="settings-roles-layout">
+            {/* Left Master List */}
+            <div className="roles-master-list">
+              {roles.map((r) => {
+                const isSelected = (selectedRoleKey || roles[0]?.role_key) === r.role_key;
+                return (
+                  <div
+                    key={r.role_key}
+                    className={`role-master-card ${isSelected ? 'active' : ''}`}
+                    onClick={() => handleSelectRole(r)}
+                  >
+                    <div className="role-master-card-header">
+                      <div className="role-master-card-left">
+                        <span className="role-master-icon">{r.icon || '👤'}</span>
+                        <div>
+                          <div className="role-master-title">{r.role_name}</div>
+                          <div className="role-master-key">@{r.role_key}</div>
+                        </div>
+                      </div>
+                      {!r.is_system && (
+                        <button
+                          type="button"
+                          className="settings-btn-icon"
+                          title="ลบสิทธิ์นี้"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteRole(r);
+                          }}
+                          disabled={deletingRoleKey === r.role_key}
+                          style={{ color: '#ef4444' }}
+                        >
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="role-master-desc">
+                      {r.description || 'ไม่มีคำอธิบาย'}
+                    </div>
+
+                    <div className="role-master-meta">
+                      <span className={`role-badge-tag ${r.is_system ? 'system' : ''}`}>
+                        {r.is_system ? '🛡️ สิทธิ์ระบบ' : '✨ กำหนดเอง'}
+                      </span>
+                      <span className="role-badge-tag users-count">
+                        👤 {r.user_count || 0} ผู้ใช้
+                      </span>
+                      <span className="role-badge-tag perms-count">
+                        📋 {r.role_key === 'admin' ? 'ทุกเมนู' : `${(r.menu_keys || []).length} เมนู`}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Right Permissions Panel */}
+            <div className="role-detail-card">
+              {selectedRole ? (
+                <>
+                  <div className="role-detail-header">
+                    <div className="role-detail-title-group">
+                      <div className="role-detail-icon-circle">{selectedRole.icon || '👤'}</div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedRole.role_name}
+                          </h3>
+                          <span className={`role-badge-tag badge-${selectedRole.badge_color || 'blue'}`}>
+                            @{selectedRole.role_key}
+                          </span>
+                          <span className={`role-badge-tag ${selectedRole.is_system ? 'system' : ''}`}>
+                            {selectedRole.is_system ? 'สิทธิ์ระบบ' : 'กำหนดเอง'}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: '#64748b', marginTop: '3px' }}>
+                          {selectedRole.description || 'กำหนดสิทธิ์การมองเห็นและเข้าถึงเมนูต่างๆ ในระบบ'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="role-detail-actions">
+                      {selectedRole.role_key !== 'admin' && (
+                        <>
+                          <button
+                            type="button"
+                            className="loa-btn loa-btn-secondary"
+                            onClick={handleSelectAllPerms}
+                            style={{ fontSize: '0.8125rem', height: '34px' }}
+                          >
+                            เลือกทั้งหมด
+                          </button>
+                          <button
+                            type="button"
+                            className="loa-btn loa-btn-secondary"
+                            onClick={handleClearAllPerms}
+                            style={{ fontSize: '0.8125rem', height: '34px' }}
+                          >
+                            ล้างทั้งหมด
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="role-perms-body">
+                    {selectedRole.role_key === 'admin' ? (
+                      <div style={{
+                        background: '#eff6ff',
+                        border: '1px solid #bfdbfe',
+                        borderRadius: '12px',
+                        padding: '20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '14px',
+                        color: '#1e40af'
+                      }}>
+                        <span style={{ fontSize: '2rem' }}>👑</span>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#1e3a8a' }}>
+                            สิทธิ์ผู้ดูแลระบบสูงสุด (Super Administrator)
+                          </h4>
+                          <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#1d4ed8' }}>
+                            สิทธิ์ Admin มีสิทธิ์เข้าถึง ดูข้อมูล และจัดการทุกเมนูในระบบโดยอัตโนมัติ จึงไม่ต้องกำหนดแยกรายเมนู
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        {Object.entries(menuGroups).map(([groupName, items]) => (
+                          <div key={groupName} className="role-perms-group">
+                            <div className="role-perms-group-title">
+                              <span>📁 {groupName}</span>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>
+                                ({items.filter(m => selectedRolePerms.includes(m.menu_key)).length}/{items.length})
+                              </span>
+                            </div>
+                            <div className="role-perms-grid">
+                              {items.map((m) => {
+                                const checked = selectedRolePerms.includes(m.menu_key);
+                                return (
+                                  <div
+                                    key={m.menu_key}
+                                    className={`role-perm-checkbox-card ${checked ? 'selected' : ''}`}
+                                    onClick={() => handleTogglePerm(m.menu_key)}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {}}
+                                    />
+                                    <div className="role-perm-label-wrap">
+                                      <span className="role-perm-label">{m.menu_name}</span>
+                                      <span className="role-perm-path">{m.path}</span>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedRole.role_key !== 'admin' && (
+                    <div className="role-detail-footer">
+                      <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                        เลือกแล้ว {selectedRolePerms.length} จาก {menus.length} เมนู
+                      </span>
+                      <button
+                        type="button"
+                        className="loa-btn loa-btn-primary"
+                        onClick={handleSaveRolePerms}
+                        disabled={savingRolePerms}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        {savingRolePerms ? (
+                          '⏳ กำลังบันทึก...'
+                        ) : (
+                          <>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                              <polyline points="17 21 17 13 7 13 7 21" />
+                              <polyline points="7 3 7 8 15 8" />
+                            </svg>
+                            บันทึกการตั้งค่าสิทธิ์
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                  กรุณาเลือกสิทธิ์จากรายการทางซ้าย
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 3: CRON JOB & AUTOMATION */}
         {activeTab === 'cron' && (
           <>
             {/* Action Cards */}
@@ -613,6 +924,7 @@ export default function SettingsPage() {
       {editingRoleUser && (
         <EditRoleModal
           user={editingRoleUser}
+          roles={roles}
           onClose={() => setEditingRoleUser(null)}
           onSuccess={handleRoleUpdated}
         />
@@ -620,7 +932,25 @@ export default function SettingsPage() {
 
       {/* Add User Modal */}
       {showModal && (
-        <AddUserModal onClose={() => setShowModal(false)} onSuccess={handleUserAdded} />
+        <AddUserModal
+          roles={roles}
+          onClose={() => setShowModal(false)}
+          onSuccess={handleUserAdded}
+        />
+      )}
+
+      {/* Add Role Modal */}
+      {showAddRoleModal && (
+        <AddRoleModal
+          menus={menus}
+          onClose={() => setShowAddRoleModal(false)}
+          onSuccess={async (newRoleKey) => {
+            setShowAddRoleModal(false);
+            await fetchRoles();
+            setSelectedRoleKey(newRoleKey);
+            setActiveTab('roles');
+          }}
+        />
       )}
     </>
   );
@@ -629,8 +959,8 @@ export default function SettingsPage() {
 // ============================================================================
 // EditRoleModal — choose which role to assign to the user
 // ============================================================================
-function EditRoleModal({ user, onClose, onSuccess }) {
-  const [selectedRole, setSelectedRole] = useState(user.role || 'viewer');
+function EditRoleModal({ user, roles, onClose, onSuccess }) {
+  const [selectedRole, setSelectedRole] = useState(user.role || (roles[0]?.role_key || 'operator'));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -677,39 +1007,23 @@ function EditRoleModal({ user, onClose, onSuccess }) {
           {/* Role Selection */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label className="loa-form-label">เลือกสิทธิ์การใช้งานที่ต้องการกำหนด</label>
-            <div className="settings-roles-grid">
-              <div
-                className={`settings-role-radio-card ${selectedRole === 'admin' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('admin')}
-              >
-                <span className="settings-role-radio-icon">🛡️</span>
-                <div>
-                  <div className="settings-role-radio-title">Admin (ผู้ดูแลระบบ)</div>
-                  <div className="settings-role-radio-desc">เข้าถึงทุกเมนู จัดการผู้ใช้ ตั้งค่าระบบ และสร้างลิงก์ Telemed</div>
+            <div className="settings-roles-grid" style={{ maxHeight: '350px', overflowY: 'auto' }}>
+              {roles.map((r) => (
+                <div
+                  key={r.role_key}
+                  className={`settings-role-radio-card ${selectedRole === r.role_key ? 'selected' : ''}`}
+                  onClick={() => setSelectedRole(r.role_key)}
+                >
+                  <span className="settings-role-radio-icon">{r.icon || '👤'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div className="settings-role-radio-title">{r.role_name}</div>
+                      <span className={`role-badge-tag badge-${r.badge_color || 'blue'}`}>@{r.role_key}</span>
+                    </div>
+                    <div className="settings-role-radio-desc">{r.description || 'ไม่มีคำอธิบาย'}</div>
+                  </div>
                 </div>
-              </div>
-
-              <div
-                className={`settings-role-radio-card ${selectedRole === 'request_telemed' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('request_telemed')}
-              >
-                <span className="settings-role-radio-icon">📦</span>
-                <div>
-                  <div className="settings-role-radio-title">Request Telemed (เจ้าหน้าที่จัดส่งยาและคำขอ)</div>
-                  <div className="settings-role-radio-desc">เข้าถึงเฉพาะเมนู LINE OA และจัดการสถานะส่งยา Request Telemed</div>
-                </div>
-              </div>
-
-              <div
-                className={`settings-role-radio-card ${selectedRole === 'viewer' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('viewer')}
-              >
-                <span className="settings-role-radio-icon">👁️</span>
-                <div>
-                  <div className="settings-role-radio-title">Viewer (ผู้เข้าชม)</div>
-                  <div className="settings-role-radio-desc">ดูข้อมูลเคสและสถิติต่างๆ ในระบบได้อย่างเดียว ไม่สามารถแก้ไขได้</div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -742,12 +1056,14 @@ function EditRoleModal({ user, onClose, onSuccess }) {
 // ============================================================================
 // AddUserModal — search opduser + select role + add
 // ============================================================================
-function AddUserModal({ onClose, onSuccess }) {
+function AddUserModal({ roles, onClose, onSuccess }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [selectedRole, setSelectedRole] = useState('viewer');
+  const [selectedRole, setSelectedRole] = useState(
+    roles.find((r) => r.role_key === 'operator')?.role_key || roles[0]?.role_key || 'operator'
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const searchTimerRef = useRef(null);
@@ -780,13 +1096,6 @@ function AddUserModal({ onClose, onSuccess }) {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [searchQuery]);
-
-  // Close on clicking outside modal content
-  const handleOverlayClick = (e) => {
-    if (modalContentRef.current && !modalContentRef.current.contains(e.target)) {
-      onClose();
-    }
-  };
 
   // Close on Escape
   useEffect(() => {
@@ -823,8 +1132,8 @@ function AddUserModal({ onClose, onSuccess }) {
   };
 
   return (
-    <div className="settings-modal-overlay" onClick={handleOverlayClick} role="presentation">
-      <div className="settings-modal-card" ref={modalContentRef} role="dialog" aria-modal="true">
+    <div className="settings-modal-overlay" onClick={onClose} role="presentation">
+      <div className="settings-modal-card" ref={modalContentRef} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
         <div className="settings-modal-header">
           <h3 className="settings-modal-title">เพิ่มผู้ใช้งานระบบ</h3>
           <button className="settings-modal-close" onClick={onClose} type="button" aria-label="Close">
@@ -926,42 +1235,23 @@ function AddUserModal({ onClose, onSuccess }) {
           {/* Role Selection */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <label className="loa-form-label">กำหนดสิทธิ์การใช้งาน (Role)</label>
-            <div className="settings-roles-grid">
-              {/* Admin */}
-              <div
-                className={`settings-role-radio-card ${selectedRole === 'admin' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('admin')}
-              >
-                <span className="settings-role-radio-icon">🛡️</span>
-                <div>
-                  <div className="settings-role-radio-title">Admin (ผู้ดูแลระบบ)</div>
-                  <div className="settings-role-radio-desc">เข้าถึงทุกเมนู จัดการผู้ใช้ ตั้งค่าระบบ และสร้างลิงก์ Telemed</div>
+            <div className="settings-roles-grid" style={{ maxHeight: '280px', overflowY: 'auto' }}>
+              {roles.map((r) => (
+                <div
+                  key={r.role_key}
+                  className={`settings-role-radio-card ${selectedRole === r.role_key ? 'selected' : ''}`}
+                  onClick={() => setSelectedRole(r.role_key)}
+                >
+                  <span className="settings-role-radio-icon">{r.icon || '👤'}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div className="settings-role-radio-title">{r.role_name}</div>
+                      <span className={`role-badge-tag badge-${r.badge_color || 'blue'}`}>@{r.role_key}</span>
+                    </div>
+                    <div className="settings-role-radio-desc">{r.description || 'ไม่มีคำอธิบาย'}</div>
+                  </div>
                 </div>
-              </div>
-
-              {/* Request Telemed */}
-              <div
-                className={`settings-role-radio-card ${selectedRole === 'request_telemed' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('request_telemed')}
-              >
-                <span className="settings-role-radio-icon">📦</span>
-                <div>
-                  <div className="settings-role-radio-title">Request Telemed (เจ้าหน้าที่จัดส่งยาและคำขอ)</div>
-                  <div className="settings-role-radio-desc">เข้าถึงเฉพาะเมนู LINE OA และจัดการสถานะส่งยา Request Telemed</div>
-                </div>
-              </div>
-
-              {/* Viewer */}
-              <div
-                className={`settings-role-radio-card ${selectedRole === 'viewer' ? 'selected' : ''}`}
-                onClick={() => setSelectedRole('viewer')}
-              >
-                <span className="settings-role-radio-icon">👁️</span>
-                <div>
-                  <div className="settings-role-radio-title">Viewer (ผู้เข้าชม)</div>
-                  <div className="settings-role-radio-desc">ดูข้อมูลเคสและสถิติต่างๆ ในระบบได้อย่างเดียว ไม่สามารถแก้ไขได้</div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
 
@@ -992,6 +1282,266 @@ function AddUserModal({ onClose, onSuccess }) {
             {saving ? 'กำลังบันทึก...' : 'บันทึกผู้ใช้งาน'}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// AddRoleModal — Create a new custom role with menu permissions
+// ============================================================================
+function AddRoleModal({ menus, onClose, onSuccess }) {
+  const [roleKey, setRoleKey] = useState('');
+  const [roleName, setRoleName] = useState('');
+  const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('👤');
+  const [badgeColor, setBadgeColor] = useState('indigo');
+  const [selectedPerms, setSelectedPerms] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const ICONS = ['🛡️', '🏥', '🎧', '💊', '💰', '🩺', '🧑‍⚕️', '📋', '🔬', '⭐', '👤'];
+  const COLORS = [
+    { key: 'blue', label: 'น้ำเงิน', hex: '#2563eb' },
+    { key: 'rose', label: 'แดง', hex: '#e11d48' },
+    { key: 'purple', label: 'ม่วง', hex: '#7c3aed' },
+    { key: 'emerald', label: 'เขียว', hex: '#059669' },
+    { key: 'amber', label: 'ส้ม', hex: '#d97706' },
+    { key: 'indigo', label: 'คราม', hex: '#4f46e5' },
+    { key: 'slate', label: 'เทา', hex: '#475569' },
+  ];
+
+  // Group menus
+  const menuGroups = useMemo(() => {
+    const groups = {};
+    for (const m of menus) {
+      const grp = m.group_name || 'ทั่วไป';
+      if (!groups[grp]) groups[grp] = [];
+      groups[grp].push(m);
+    }
+    return groups;
+  }, [menus]);
+
+  const handleTogglePerm = (key) => {
+    setSelectedPerms((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedPerms(menus.map((m) => m.menu_key));
+  };
+
+  const handleClearAll = () => {
+    setSelectedPerms([]);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!roleKey.trim()) {
+      setError('กรุณาระบุรหัสสิทธิ์ (Role Key)');
+      return;
+    }
+    if (!roleName.trim()) {
+      setError('กรุณาระบุชื่อสิทธิ์ (Role Name)');
+      return;
+    }
+
+    setSaving(true);
+    setError('');
+    const cleanKey = roleKey.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    try {
+      await api.createRole({
+        role_key: cleanKey,
+        role_name: roleName.trim(),
+        description: description.trim() || null,
+        icon,
+        badge_color: badgeColor,
+        menu_keys: selectedPerms,
+      });
+      onSuccess(cleanKey);
+    } catch (err) {
+      setError(err.message || 'เกิดข้อผิดพลาดในการสร้างสิทธิ์');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="settings-modal-overlay" onClick={onClose} role="presentation">
+      <div className="settings-modal-card" style={{ maxWidth: '680px' }} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+        <div className="settings-modal-header">
+          <h3 className="settings-modal-title">✨ เพิ่มสิทธิ์การใช้งานใหม่ (New Role)</h3>
+          <button className="settings-modal-close" onClick={onClose} type="button" aria-label="Close">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="18" x2="18" y2="6" />
+            </svg>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="settings-modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            {/* Role Key & Name */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div>
+                <label className="loa-form-label">
+                  รหัสสิทธิ์ (Role Key) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="settings-modal-search-input"
+                  style={{ paddingLeft: '14px' }}
+                  placeholder="เช่น head_nurse, cashier"
+                  value={roleKey}
+                  onChange={(e) => setRoleKey(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
+                  required
+                />
+                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>ภาษาอังกฤษพิมพ์เล็กและขีดล่าง _</span>
+              </div>
+
+              <div>
+                <label className="loa-form-label">
+                  ชื่อสิทธิ์ (Role Name) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  className="settings-modal-search-input"
+                  style={{ paddingLeft: '14px' }}
+                  placeholder="เช่น พยาบาลหัวหน้าเวร"
+                  value={roleName}
+                  onChange={(e) => setRoleName(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div style={{ marginTop: '12px' }}>
+              <label className="loa-form-label">คำอธิบายหน้าที่ / ความรับผิดชอบ</label>
+              <input
+                type="text"
+                className="settings-modal-search-input"
+                style={{ paddingLeft: '14px' }}
+                placeholder="เช่น ดูแลจัดคิวเคส และติดตามคนไข้"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+              />
+            </div>
+
+            {/* Icon Picker */}
+            <div style={{ marginTop: '12px' }}>
+              <label className="loa-form-label">เลือกไอคอนสิทธิ์</label>
+              <div className="picker-grid">
+                {ICONS.map((ic) => (
+                  <button
+                    key={ic}
+                    type="button"
+                    className={`icon-picker-btn ${icon === ic ? 'selected' : ''}`}
+                    onClick={() => setIcon(ic)}
+                  >
+                    {ic}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Badge Color Picker */}
+            <div style={{ marginTop: '12px' }}>
+              <label className="loa-form-label">เลือกโทนสี Badge</label>
+              <div className="picker-grid">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    className={`color-picker-btn ${badgeColor === c.key ? 'selected' : ''}`}
+                    onClick={() => setBadgeColor(c.key)}
+                  >
+                    <span className="color-dot" style={{ backgroundColor: c.hex }} />
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Menu Permissions Checklist */}
+            <div style={{ marginTop: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label className="loa-form-label" style={{ margin: 0 }}>
+                  เลือกเมนูที่อนุญาตให้สิทธิ์นี้เข้าถึง ({selectedPerms.length}/{menus.length})
+                </label>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className="loa-btn loa-btn-secondary"
+                    style={{ padding: '3px 8px', fontSize: '0.75rem', height: 'auto' }}
+                    onClick={handleSelectAll}
+                  >
+                    เลือกทั้งหมด
+                  </button>
+                  <button
+                    type="button"
+                    className="loa-btn loa-btn-secondary"
+                    style={{ padding: '3px 8px', fontSize: '0.75rem', height: 'auto' }}
+                    onClick={handleClearAll}
+                  >
+                    ล้างทั้งหมด
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '10px' }}>
+                {Object.entries(menuGroups).map(([groupName, items]) => (
+                  <div key={groupName} className="role-perms-group">
+                    <div className="role-perms-group-title">{groupName}</div>
+                    <div className="role-perms-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                      {items.map((m) => {
+                        const checked = selectedPerms.includes(m.menu_key);
+                        return (
+                          <div
+                            key={m.menu_key}
+                            className={`role-perm-checkbox-card ${checked ? 'selected' : ''}`}
+                            onClick={() => handleTogglePerm(m.menu_key)}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => {}}
+                            />
+                            <div className="role-perm-label-wrap">
+                              <span className="role-perm-label">{m.menu_name}</span>
+                              <span className="role-perm-path">{m.path}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {error && <div className="loa-form-error" style={{ marginTop: '12px' }}>{error}</div>}
+          </div>
+
+          <div className="settings-modal-footer">
+            <button
+              type="button"
+              className="loa-btn loa-btn-secondary"
+              onClick={onClose}
+              disabled={saving}
+            >
+              ยกเลิก
+            </button>
+            <button
+              type="submit"
+              className="loa-btn loa-btn-primary"
+              disabled={saving}
+            >
+              {saving ? 'กำลังสร้าง...' : 'สร้างสิทธิ์ใหม่'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

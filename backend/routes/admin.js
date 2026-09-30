@@ -9,9 +9,15 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
   let conn;
   try {
     conn = await pool_vhos.getConnection();
-    const rows = await conn.query(
-      'SELECT id, username, display_name, role, is_active, created_by, created_at, updated_at FROM admin_users ORDER BY created_at DESC'
-    );
+    const rows = await conn.query(`
+      SELECT u.id, u.username, u.display_name, u.role, u.is_active, u.created_by, u.created_at, u.updated_at,
+             IFNULL(r.role_name, u.role) as role_name,
+             IFNULL(r.icon, '👤') as role_icon,
+             IFNULL(r.badge_color, 'blue') as role_badge_color
+      FROM admin_users u
+      LEFT JOIN system_roles r ON r.role_key = u.role
+      ORDER BY u.created_at DESC
+    `);
     res.json({ data: rows });
   } catch (err) {
     console.error('Error fetching admin users:', err.message);
@@ -32,8 +38,6 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
   if (username.length > 100) {
     return res.status(400).json({ error: 'Username too long' });
   }
-  const validRoles = ['admin', 'viewer', 'request_telemed'];
-  const finalRole = validRoles.includes(role) ? role : 'viewer';
 
   let conn;
   try {
@@ -46,6 +50,15 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
     );
     if (existing.length > 0) {
       return res.status(409).json({ error: 'ผู้ใช้งานนี้มีอยู่ในระบบแล้ว' });
+    }
+
+    // Verify role in system_roles
+    let finalRole = 'operator';
+    if (role) {
+      const roleCheck = await conn.query('SELECT role_key FROM system_roles WHERE role_key = ? LIMIT 1', [role]);
+      if (roleCheck && roleCheck.length > 0) {
+        finalRole = roleCheck[0].role_key;
+      }
     }
 
     await conn.query(
@@ -70,33 +83,34 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
   }
 
   const { role, is_active } = req.body;
-  const validRoles = ['admin', 'viewer', 'request_telemed'];
 
   const updates = [];
   const params = [];
 
-  if (role !== undefined) {
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be admin, viewer, or request_telemed.' });
-    }
-    updates.push('role = ?');
-    params.push(role);
-  }
-
-  if (is_active !== undefined) {
-    updates.push('is_active = ?');
-    params.push(is_active ? 1 : 0);
-  }
-
-  if (updates.length === 0) {
-    return res.status(400).json({ error: 'No fields to update' });
-  }
-
-  params.push(id);
-
   let conn;
   try {
     conn = await pool_vhos.getConnection();
+
+    if (role !== undefined) {
+      const roleCheck = await conn.query('SELECT role_key FROM system_roles WHERE role_key = ? LIMIT 1', [role]);
+      if (!roleCheck || roleCheck.length === 0) {
+        return res.status(400).json({ error: 'ไม่พบสิทธิ์นี้ในระบบ' });
+      }
+      updates.push('role = ?');
+      params.push(role);
+    }
+
+    if (is_active !== undefined) {
+      updates.push('is_active = ?');
+      params.push(is_active ? 1 : 0);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    params.push(id);
+
     const result = await conn.query(
       `UPDATE admin_users SET ${updates.join(', ')} WHERE id = ?`,
       params
