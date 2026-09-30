@@ -286,7 +286,7 @@ export default function TelemedTodayFinancePage() {
                         {/* 2. VN */}
                         <td>
                           <span className="tt-vn-tag">
-                            VN: {item.vn_today || '—'}
+                            {item.vn_today || '—'}
                           </span>
                         </td>
 

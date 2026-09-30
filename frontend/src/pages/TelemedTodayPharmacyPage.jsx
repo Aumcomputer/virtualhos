@@ -454,7 +454,7 @@ export default function TelemedTodayPharmacyPage() {
                         <td>
                           {item.vn_today ? (
                             <span className="tt-vn-tag">
-                              VN: {item.vn_today}
+                              {item.vn_today}
                             </span>
                           ) : (
                             <span className="prescreen-badge-status pending" style={{ fontSize: '0.6875rem' }}>

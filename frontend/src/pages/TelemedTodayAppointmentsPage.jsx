@@ -352,7 +352,7 @@ export default function TelemedTodayAppointmentsPage() {
                                 </svg>
                                 <span>มี Visit แล้ว</span>
                               </span>
-                              <span className="tt-vn-tag">VN: {item.vn_today}</span>
+                              <span className="tt-vn-tag">{item.vn_today}</span>
                             </div>
                           ) : (
                             <span className="vn-badge-none">
