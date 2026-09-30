@@ -61,59 +61,131 @@ export default function AllRegistrations() {
       <div className="page-header">
         <div className="page-title-row">
           <div>
-            <h2 className="page-title">ข้อมูลลงทะเบียน LINE OA</h2>
-            <p className="page-subtitle">รายชื่อผู้ป่วยที่ลงทะเบียนเชื่อมต่อ LINE OA ทั้งหมด</p>
+            <h2 className="page-title">ข้อมูลลงทะเบียน LINE OA ทั้งหมด</h2>
+            <p className="page-subtitle">รายชื่อและประวัติผู้ป่วยที่ลงทะเบียนเชื่อมต่อบัญชี LINE OA ทั้งหมดในระบบ</p>
           </div>
         </div>
       </div>
 
       <div className="page-body">
-        {/* Stats */}
-        <div className="stats-row">
-          <div className="stat-card">
-            <div className="stat-label">ลงทะเบียนทั้งหมด</div>
-            <div className="stat-value primary">{pagination.total}</div>
+        {/* Modern Stats Grid */}
+        <div className="loa-stats-grid">
+          {/* Card 1: Total */}
+          <div className="loa-stat-card">
+            <div className="loa-stat-info">
+              <span className="loa-stat-label">ลงทะเบียนทั้งหมด</span>
+              <div className="loa-stat-value-group">
+                <span className="loa-stat-value" style={{ color: '#2563eb' }}>{pagination.total}</span>
+                <span className="loa-stat-unit">คน</span>
+              </div>
+              <span className="loa-stat-badge blue">ฐานข้อมูลระบบทั้งหมด</span>
+            </div>
+            <div className="loa-stat-icon-wrapper blue">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">ลงทะเบียน Health ID</div>
-            <div className="stat-value success">{totalHealthId}</div>
+
+          {/* Card 2: Health ID in Current Page */}
+          <div className="loa-stat-card">
+            <div className="loa-stat-info">
+              <span className="loa-stat-label">ยืนยัน Health ID ในหน้านี้</span>
+              <div className="loa-stat-value-group">
+                <span className="loa-stat-value" style={{ color: '#059669' }}>{totalHealthId}</span>
+                <span className="loa-stat-unit">/ {data.length} คน</span>
+              </div>
+              <span className="loa-stat-badge green">
+                {data.length > 0 ? Math.round((totalHealthId / data.length) * 100) : 0}% ของหน้านี้
+              </span>
+            </div>
+            <div className="loa-stat-icon-wrapper green">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+            </div>
           </div>
-          <div className="stat-card">
-            <div className="stat-label">หน้าปัจจุบัน</div>
-            <div className="stat-value">{page} / {pagination.totalPages || 1}</div>
+
+          {/* Card 3: Pagination Position */}
+          <div className="loa-stat-card">
+            <div className="loa-stat-info">
+              <span className="loa-stat-label">หน้าปัจจุบัน</span>
+              <div className="loa-stat-value-group">
+                <span className="loa-stat-value" style={{ color: '#475569' }}>{page}</span>
+                <span className="loa-stat-unit">/ {pagination.totalPages || 1} หน้า</span>
+              </div>
+              <span className="loa-stat-badge amber">
+                จำกัด {limit} รายการ/หน้า
+              </span>
+            </div>
+            <div className="loa-stat-icon-wrapper amber">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="table-card">
-          <div className="table-toolbar">
-            <div className="search-box">
-              <span className="search-icon">🔍</span>
-              <input
-                className="search-input"
-                type="text"
-                placeholder="ค้นหา ชื่อ, HN, เบอร์โทร..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                id="search-all"
-              />
+        {/* Modern Table Card */}
+        <div className="loa-card">
+          <div className="loa-toolbar">
+            <div className="loa-toolbar-left" style={{ maxWidth: '480px' }}>
+              <div className="loa-search-box">
+                <span className="loa-search-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </span>
+                <input
+                  className="loa-search-input"
+                  type="text"
+                  placeholder="ค้นหา ชื่อ-สกุล, HN, เบอร์โทร, CID..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  id="search-all"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    className="loa-search-clear"
+                    onClick={() => setSearch('')}
+                    title="ล้างข้อความค้นหา"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="loa-toolbar-right">
+              <div style={{ fontSize: '0.8125rem', color: '#64748b', fontWeight: 500 }}>
+                ทั้งหมด <strong>{pagination.total}</strong> รายการ
+              </div>
             </div>
           </div>
 
           <DataTable data={data} loading={loading} onPhoneUpdated={handlePhoneUpdated} />
 
-          {/* Pagination */}
+          {/* Modern Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="table-footer">
-              <div className="table-info">
-                แสดง {(page - 1) * limit + 1}–{Math.min(page * limit, pagination.total)} จาก {pagination.total} รายการ
+            <div className="loa-footer">
+              <div className="loa-footer-info">
+                แสดง <strong>{(page - 1) * limit + 1}–{Math.min(page * limit, pagination.total)}</strong> จาก <strong>{pagination.total}</strong> รายการ
               </div>
-              <div className="pagination">
+              <div className="loa-pagination">
                 <button
-                  className="pagination-btn"
+                  type="button"
+                  className="loa-page-btn"
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                   id="btn-prev"
+                  title="หน้าก่อนหน้า"
                 >
                   ◀
                 </button>
@@ -130,8 +202,9 @@ export default function AllRegistrations() {
                   }
                   return (
                     <button
+                      type="button"
                       key={pageNum}
-                      className={`pagination-btn${pageNum === page ? ' active' : ''}`}
+                      className={`loa-page-btn ${pageNum === page ? 'active' : ''}`}
                       onClick={() => setPage(pageNum)}
                     >
                       {pageNum}
@@ -139,10 +212,12 @@ export default function AllRegistrations() {
                   );
                 })}
                 <button
-                  className="pagination-btn"
+                  type="button"
+                  className="loa-page-btn"
                   disabled={page >= pagination.totalPages}
                   onClick={() => setPage(page + 1)}
                   id="btn-next"
+                  title="หน้าถัดไป"
                 >
                   ▶
                 </button>
