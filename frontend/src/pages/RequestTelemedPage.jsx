@@ -121,61 +121,61 @@ function generateAddressHtml(item, pttype = '') {
       background: #fff;
     }
     .print-box {
-      border: 3px solid #000;
+      border: 2px solid #1e293b;
       border-radius: 8px;
-      padding: 26px 22px;
+      padding: 20px 22px;
       min-height: 180mm;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 14px;
     }
     .field-row {
       display: flex;
       align-items: baseline;
-      gap: 14px;
+      gap: 12px;
     }
     .field-col {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
     .label {
-      font-size: 17pt;
+      font-size: 14pt;
       font-weight: 700;
-      color: #111;
+      color: #334155;
       white-space: nowrap;
-      min-width: 80px;
+      min-width: 70px;
     }
     .val-name {
-      font-size: 26pt;
+      font-size: 20pt;
       font-weight: 900;
       color: #000;
       line-height: 1.25;
     }
     .val-hn {
-      font-size: 22pt;
+      font-size: 16pt;
       font-weight: 800;
       font-family: monospace, sans-serif;
       color: #000;
     }
     .val-pttype {
-      font-size: 19pt;
+      font-size: 15pt;
       font-weight: 800;
       color: #000;
       line-height: 1.35;
     }
     .val-address {
-      font-size: 20pt;
+      font-size: 15pt;
       font-weight: 700;
       color: #000;
       line-height: 1.45;
       word-break: break-word;
     }
     .val-phone {
-      font-size: 24pt;
+      font-size: 18pt;
       font-weight: 900;
       color: #000;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
     }
     .divider {
       border-bottom: 2px dashed #94a3b8;
