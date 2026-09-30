@@ -152,10 +152,22 @@ router.get('/', authenticateToken, async (req, res) => {
 
     // Status filter
     if (statusFilter && statusFilter !== 'all') {
-      const keywords = getStatusKeywords(statusFilter);
-      if (keywords.length > 0) {
-        whereConditions.push('(' + keywords.map(() => 'status LIKE ?').join(' OR ') + ')');
-        params.push(...keywords);
+      if (statusFilter === 'เปิด Visit แล้ว') {
+        whereConditions.push("(vn_today IS NOT NULL AND vn_today != '')");
+      } else if (statusFilter === 'รอชำระเงิน') {
+        whereConditions.push("(pharmacy_pay_type = 'PAID' AND (finance_status IS NULL OR finance_status != 'PAID'))");
+      } else if (statusFilter === 'รอจัดส่ง') {
+        whereConditions.push("((pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID')) AND (tracking_number IS NULL OR tracking_number = ''))");
+      } else if (statusFilter === 'กำลังจัดส่ง' || statusFilter === 'จัดส่งเรียบร้อย') {
+        whereConditions.push("(tracking_number IS NOT NULL AND tracking_number != '')");
+      } else if (statusFilter === 'อนุมัติแล้ว' || statusFilter === 'สามารถจัดส่งได้') {
+        whereConditions.push("((status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%') AND status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถ%')");
+      } else {
+        const keywords = getStatusKeywords(statusFilter);
+        if (keywords.length > 0) {
+          whereConditions.push('(' + keywords.map(() => 'status LIKE ?').join(' OR ') + ')');
+          params.push(...keywords);
+        }
       }
     }
 
@@ -230,6 +242,51 @@ router.get('/', authenticateToken, async (req, res) => {
     `;
     const rows = await conn.query(dataQuery, [...params, limit, offset]);
     const serializedRows = rows.map(serializeRow);
+
+    // Enrich with HOSxP vn_today and vn_stat.dx0 for dynamic status lifecycle
+    let connHos;
+    try {
+      connHos = await pool_hos.getConnection();
+      for (const item of serializedRows) {
+        // Look up vn_today if missing and nextdate is available
+        if (!item.vn_today && item.hn && item.nextdate) {
+          const targetDate = formatToYMD(item.nextdate);
+          const strippedHn = String(item.hn).replace(/^0+/, '') || item.hn;
+          try {
+            const ovstRows = await connHos.query(
+              'SELECT vn FROM ovst WHERE (hn = ? OR hn = ?) AND vstdate = ? ORDER BY vsttime DESC LIMIT 1',
+              [item.hn, strippedHn, targetDate]
+            );
+            if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
+              item.vn_today = ovstRows[0].vn;
+              conn.query('UPDATE virtualhos.req_telemed SET vn_today = ? WHERE id = ?', [item.vn_today, item.id]).catch(() => {});
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        // Look up vn_stat.dx0 (แพทย์ลงวินิจฉัย/สั่งยาแล้ว)
+        if (item.vn_today) {
+          try {
+            const statRows = await connHos.query(
+              'SELECT dx0, pdx FROM vn_stat WHERE vn = ? LIMIT 1',
+              [item.vn_today]
+            );
+            if (statRows && statRows.length > 0) {
+              item.dx0 = statRows[0].dx0 || statRows[0].pdx || null;
+              item.pdx = statRows[0].pdx || null;
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+    } catch (hosErr) {
+      console.warn('[req_telemed] HOSxP enrichment warning:', hosErr.message);
+    } finally {
+      if (connHos) connHos.release();
+    }
 
     res.json({
       data: serializedRows,

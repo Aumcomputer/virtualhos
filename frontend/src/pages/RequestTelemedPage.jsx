@@ -226,8 +226,12 @@ function generateAddressHtml(item, pttype = '') {
 </html>`;
 }
 
-function getStatusBadgeConfig(status) {
-  const str = String(status || '').trim();
+function getStatusBadgeConfig(status, item = {}) {
+  if (typeof status === 'object' && status !== null) {
+    item = status;
+    status = item.status;
+  }
+  const str = String(status || item?.status || '').trim();
   if (str.includes('รอตรวจสอบ')) {
     return {
       label: 'รอตรวจสอบ',
@@ -246,24 +250,67 @@ function getStatusBadgeConfig(status) {
       style: { background: '#f3e8ff', color: '#6b21a8', border: '1px solid #e9d5ff' },
     };
   }
-  if (str.includes('สามารถจัดส่งได้') && !str.includes('ไม่สามารถ')) {
-    return {
-      label: 'อนุมัติแล้ว (พร้อมส่ง)',
-      style: { background: '#dcfce7', color: '#166534', border: '1px solid #bbf7d0' },
-    };
-  }
+  // 1. ไม่อนุมัติ / ยาส่งไม่ได้
   if (str.includes('ไม่สามารถจัดส่งได้') || str.includes('ไม่อนุมัติ')) {
     return {
       label: str.includes('แพทย์') ? 'แพทย์ไม่อนุมัติ' : str.includes('ยา') ? 'ยาส่งไม่ได้' : 'ไม่อนุมัติ',
       style: { background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
     };
   }
-  if (str.includes('จัดส่งเรียบร้อย')) {
+
+  // 2. กำลังจัดส่ง : เมื่อลง tracking number แล้ว
+  if (item?.tracking_number || str.includes('จัดส่งเรียบร้อย')) {
     return {
-      label: 'จัดส่งเรียบร้อย',
-      style: { background: '#e0f2fe', color: '#075985', border: '1px solid #bae6fd' },
+      label: 'กำลังจัดส่ง',
+      style: { background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' },
     };
   }
+
+  // 3. รอจัดส่ง : เมื่อรายชื่ออยู่ในหน้ารอจัดส่งยา
+  // (pharmacy_pay_type = 'FREE' หรือ ('PAID' และ finance_status = 'PAID')) และยังไม่มีเลขพัสดุ
+  if (
+    (item?.pharmacy_pay_type === 'FREE' || (item?.pharmacy_pay_type === 'PAID' && item?.finance_status === 'PAID')) &&
+    !item?.tracking_number
+  ) {
+    return {
+      label: 'รอจัดส่ง',
+      style: { background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' },
+    };
+  }
+
+  // 4. รอชำระเงิน : เมื่อรายชื่ออยู่ในหน้าการเงิน
+  // (pharmacy_pay_type = 'PAID' และ finance_status != 'PAID')
+  if (item?.pharmacy_pay_type === 'PAID' && item?.finance_status !== 'PAID') {
+    return {
+      label: 'รอชำระเงิน',
+      style: { background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' },
+    };
+  }
+
+  // 5. แพทย์สั่งยาแล้ว : เมื่อมีการลงวินิจฉัย vn_stat.dx0 not null
+  if (item?.dx0 || item?.pdx) {
+    return {
+      label: 'แพทย์สั่งยาแล้ว',
+      style: { background: '#f3e8ff', color: '#7e22ce', border: '1px solid #e9d5ff' },
+    };
+  }
+
+  // 6. เปิด Visit แล้ว : เมื่อ vn วันปัจจุบัน
+  if (item?.vn_today) {
+    return {
+      label: 'เปิด Visit แล้ว',
+      style: { background: '#e0f2fe', color: '#0284c7', border: '1px solid #7dd3fc' },
+    };
+  }
+
+  // 7. อนุมัติแล้ว : เดิม "อนุมัติแล้ว (พร้อมส่ง)"
+  if (str.includes('สามารถจัดส่งได้') || (str.includes('อนุมัติ') && !str.includes('ไม่อนุมัติ'))) {
+    return {
+      label: 'อนุมัติแล้ว',
+      style: { background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' },
+    };
+  }
+
   return {
     label: str || 'ไม่ระบุ',
     style: { background: 'var(--gray-100)', color: 'var(--gray-600)', border: '1px solid var(--gray-200)' },
@@ -819,8 +866,12 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                   <option value="รอตรวจสอบ">รอตรวจสอบ (ใหม่)</option>
                   <option value="รอปรึกษาแพทย์">รอปรึกษาแพทย์</option>
                   <option value="รอเภสัช">รอเภสัชกร</option>
-                  <option value="สามารถจัดส่งได้">สามารถจัดส่งได้</option>
-                  <option value="จัดส่งเรียบร้อย">จัดส่งเรียบร้อย</option>
+                  <option value="อนุมัติแล้ว">อนุมัติแล้ว</option>
+                  <option value="เปิด Visit แล้ว">เปิด Visit แล้ว</option>
+                  <option value="แพทย์สั่งยาแล้ว">แพทย์สั่งยาแล้ว</option>
+                  <option value="รอชำระเงิน">รอชำระเงิน</option>
+                  <option value="รอจัดส่ง">รอจัดส่ง</option>
+                  <option value="กำลังจัดส่ง">กำลังจัดส่ง</option>
                   <option value="ไม่อนุมัติ">ไม่อนุมัติ / ยาส่งไม่ได้</option>
                 </select>
               )}
@@ -932,7 +983,7 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                 ) : (
                   data.map((item, idx) => {
                     const rowNumber = (page - 1) * limit + idx + 1;
-                    const badge = getStatusBadgeConfig(item.status);
+                    const badge = getStatusBadgeConfig(item.status, item);
 
                     return (
                       <tr
