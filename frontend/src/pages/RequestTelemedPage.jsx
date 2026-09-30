@@ -1025,6 +1025,12 @@ export default function RequestTelemedPage({ stage = 'all' }) {
                       {visitDetail?.vn && (
                         <span>• VN: {visitDetail.vn}</span>
                       )}
+                      {(visitDetail?.visit_pttype?.[0]?.pttype_name || visitDetail?.visit?.pttype_name) && (
+                        <span style={{ color: '#0369a1', fontWeight: 600 }}>
+                          • สิทธิ: {visitDetail?.visit_pttype?.[0]?.pttype_name || visitDetail?.visit?.pttype_name}
+                          {visitDetail?.visit_pttype?.[0]?.pttype ? ` (${visitDetail.visit_pttype[0].pttype})` : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1090,6 +1096,83 @@ export default function RequestTelemedPage({ stage = 'all' }) {
 
                       {visitDetail?.visit ? (
                         <div className="clinical-col-content">
+                          {/* สิทธิการรักษา (ดึงจาก table visit_pttype) */}
+                          {((visitDetail?.visit_pttype && visitDetail.visit_pttype.length > 0) || visitDetail?.visit?.pttype_name) && (
+                            <div className="clinical-card entitlement-card">
+                              <div className="clinical-card-header">
+                                <div className="header-title-left">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                                    <line x1="2" y1="10" x2="22" y2="10" />
+                                  </svg>
+                                  <span>สิทธิการรักษา (Entitlement - visit_pttype)</span>
+                                </div>
+                                {visitDetail?.visit_pttype && visitDetail.visit_pttype.length > 1 && (
+                                  <span className="badge badge-info" style={{ fontSize: '0.6875rem' }}>
+                                    {visitDetail.visit_pttype.length} สิทธิ
+                                  </span>
+                                )}
+                              </div>
+                              <div className="clinical-card-body" style={{ padding: '8px 12px' }}>
+                                <div className="entitlement-badge-list">
+                                  {(visitDetail.visit_pttype && visitDetail.visit_pttype.length > 0
+                                    ? visitDetail.visit_pttype
+                                    : [{
+                                        pttype: visitDetail.visit.pttype,
+                                        pttype_name: visitDetail.visit.pttype_name,
+                                      }]
+                                  ).map((pt, ptIdx) => {
+                                    const hasValidExpire = pt.expire_date && new Date(pt.expire_date).getFullYear() > 2000;
+                                    return (
+                                      <div key={ptIdx} className="entitlement-item">
+                                        <div className="entitlement-main">
+                                          {pt.pttype && (
+                                            <span className="pttype-code-pill font-mono">{pt.pttype}</span>
+                                          )}
+                                          <span className="pttype-title-text font-bold">
+                                            {pt.pttype_name || 'ไม่ระบุชื่อสิทธิ'}
+                                          </span>
+                                          {pt.pttype_number && visitDetail?.visit_pttype?.length > 1 && (
+                                            <span className="pttype-tag-role">
+                                              {pt.pttype_number === 1 ? 'สิทธิหลัก' : `สิทธิรอง (${pt.pttype_number})`}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="entitlement-details">
+                                          {pt.pttypeno && pt.pttypeno.trim() && (
+                                            <span className="entitlement-detail-item">
+                                              เลขที่สิทธิ: <strong className="font-mono">{pt.pttypeno}</strong>
+                                            </span>
+                                          )}
+                                          {(pt.hospmain_name || pt.hospmain) && (
+                                            <span className="entitlement-detail-item">
+                                              สถานพยาบาลหลัก: <strong>{pt.hospmain_name || pt.hospmain}</strong>
+                                            </span>
+                                          )}
+                                          {(pt.hospsub_name || pt.hospsub) && (
+                                            <span className="entitlement-detail-item">
+                                              สถานพยาบาลรอง: <strong>{pt.hospsub_name || pt.hospsub}</strong>
+                                            </span>
+                                          )}
+                                          {hasValidExpire && (
+                                            <span className="entitlement-detail-item">
+                                              วันหมดอายุ: <strong>{formatThaiDate(pt.expire_date)}</strong>
+                                            </span>
+                                          )}
+                                          {pt.claim_code && pt.claim_code.trim() && (
+                                            <span className="entitlement-detail-item">
+                                              Claim Code: <strong className="font-mono">{pt.claim_code}</strong>
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           {/* 1. Vitals */}
                           <div className="clinical-card">
                             <div className="clinical-card-header">

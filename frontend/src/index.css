@@ -3487,6 +3487,88 @@ a {
 }
 
 /* CC & PE Cards (Stack vertically: CC on top, PE below) */
+/* Patient Entitlements (visit_pttype) */
+.entitlement-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.entitlement-badge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entitlement-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.entitlement-item:hover {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+.entitlement-main {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pttype-code-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.pttype-title-text {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.pttype-tag-role {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.entitlement-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.entitlement-detail-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.entitlement-detail-item strong {
+  color: #334155;
+  font-weight: 600;
+}
+
 .clinical-cc-pe-grid {
   display: flex;
   flex-direction: column;

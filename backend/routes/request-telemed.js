@@ -607,6 +607,7 @@ router.get('/:id/visit-detail', authenticateToken, async (req, res) => {
       SELECT o.vn, o.vstdate, o.vsttime, p.hn, v.age_y, v.age_m, v.age_d,
              od.bps, od.bpd, od.height, od.bw, od.pulse, od.temperature, od.cc, od.hr, od.pe, od.rr, od.bmi,
              ovstist.name AS ovstist_name,
+             o.pttype,
              pt.name AS pttype_name,
              (SELECT GROUP_CONCAT(IF(ovstdiag.diagtype = 1, CONCAT(ovstdiag.icd10, ':', icd101.name, ' (PDX)'), CONCAT(ovstdiag.icd10, ':', icd101.name)) SEPARATOR '\n')
               FROM ovstdiag
@@ -653,6 +654,8 @@ router.get('/:id/visit-detail', authenticateToken, async (req, res) => {
         SELECT o.vn, o.vstdate, o.vsttime, p.hn, v.age_y, v.age_m, v.age_d,
                od.bps, od.bpd, od.height, od.bw, od.pulse, od.temperature, od.cc, od.hr, od.pe, od.rr, od.bmi,
                ovstist.name AS ovstist_name,
+               o.pttype,
+               pt.name AS pttype_name,
                (SELECT GROUP_CONCAT(CONCAT(ovstdiag.icd10, ':', icd101.name) SEPARATOR '\n')
                 FROM ovstdiag
                 LEFT OUTER JOIN icd101 ON icd101.code = ovstdiag.icd10
@@ -660,6 +663,7 @@ router.get('/:id/visit-detail', authenticateToken, async (req, res) => {
         FROM ovst o
         LEFT OUTER JOIN vn_stat v ON v.vn = o.vn
         LEFT OUTER JOIN patient p ON p.hn = o.hn
+        LEFT OUTER JOIN pttype pt ON pt.pttype = o.pttype
         LEFT OUTER JOIN opdscreen od ON od.vn = o.vn
         LEFT OUTER JOIN ovstist ON ovstist.ovstist = o.ovstist
         WHERE o.vn = ?
@@ -671,10 +675,62 @@ router.get('/:id/visit-detail', authenticateToken, async (req, res) => {
       }
     }
 
+    // 3. Query patient entitlements from visit_pttype table
+    let visitPttypes = [];
+    try {
+      const pttypeSql = `
+        SELECT 
+          vp.vn,
+          vp.pttype,
+          pt.name AS pttype_name,
+          pt.pcode,
+          vp.pttypeno,
+          vp.begin_date,
+          vp.expire_date,
+          vp.hospmain,
+          hm.name AS hospmain_name,
+          vp.hospsub,
+          hs.name AS hospsub_name,
+          vp.claim_code,
+          vp.auth_code,
+          vp.pttype_number,
+          vp.pttype_order
+        FROM visit_pttype vp
+        LEFT OUTER JOIN pttype pt ON pt.pttype = vp.pttype
+        LEFT OUTER JOIN hospcode hm ON hm.hospcode = vp.hospmain
+        LEFT OUTER JOIN hospcode hs ON hs.hospcode = vp.hospsub
+        WHERE vp.vn = ?
+        ORDER BY vp.pttype_number ASC, vp.pttype_order ASC
+      `;
+      const pttypeRows = await connHos.query(pttypeSql, [targetVn]);
+      if (pttypeRows && pttypeRows.length > 0) {
+        visitPttypes = pttypeRows.map(r => serializeRow(r));
+      }
+    } catch (vpErr) {
+      console.warn('[req_telemed] visit_pttype query warning:', vpErr.message);
+    }
+
+    // Fallback if visit_pttype table has no records for this vn but visit has pttype_name
+    if (visitPttypes.length === 0 && visit?.pttype_name) {
+      visitPttypes.push({
+        vn: targetVn,
+        pttype: visit.pttype || '',
+        pttype_name: visit.pttype_name,
+        pttypeno: null,
+        hospmain: null,
+        hospmain_name: null,
+      });
+    }
+
+    if (visit) {
+      visit.visit_pttype = visitPttypes;
+    }
+
     res.json({
       request: serializeRow(requestItem),
       oapp: oappRow ? serializeRow(oappRow) : null,
       visit,
+      visit_pttype: visitPttypes,
       vn: targetVn,
     });
   } catch (err) {
