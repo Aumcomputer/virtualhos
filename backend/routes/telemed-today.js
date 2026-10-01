@@ -359,7 +359,7 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
     if (tab === 'today') {
       // 1. รายการยาวันนี้ + ย้อนหลังที่ยังไม่ได้กด dispense: นัดวันนี้หรือย้อนหลัง (<= CURDATE()) และยังไม่ได้กดยืนยันการชำระเงิน/จัดยา
       whereClause += `
-        AND (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%')
+        AND (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%' OR status LIKE '%เปิด%visit%' OR approve = 'APPROVED')
         AND (status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถจัดส่งได้%')
         AND (DATE(nextdate) <= CURDATE() OR nextdate IS NULL)
         AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '')
