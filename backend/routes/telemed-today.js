@@ -688,12 +688,9 @@ router.post('/:id/finance-pay', authenticateToken, async (req, res) => {
 // ---------------------------------------------------------------------------
 router.post('/:id/delivery', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const { tracking_number } = req.body;
+  const { tracking_number } = req.body || {};
   const officerName = req.user.displayName || req.user.name || req.user.username || 'เจ้าหน้าที่ห้องยา';
-
-  if (!tracking_number || !tracking_number.trim()) {
-    return res.status(400).json({ error: 'กรุณาระบุเลขพัสดุจัดส่ง (Tracking Number)' });
-  }
+  const cleanTracking = (tracking_number || '').trim();
 
   let conn;
   try {
@@ -707,13 +704,15 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
         status = 'จัดส่งเรียบร้อย',
         updated_at = NOW()
       WHERE id = ?
-    `, [tracking_number.trim(), id]);
+    `, [cleanTracking || null, id]);
 
     const updated = await conn.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
 
     res.json({
       success: true,
-      message: `บันทึกจัดส่งยาเรียบร้อยแล้ว (เลขพัสดุ: ${tracking_number.trim()})`,
+      message: cleanTracking
+        ? `บันทึกจัดส่งยาเรียบร้อยแล้ว (เลขพัสดุ: ${cleanTracking})`
+        : `บันทึกจัดส่งยาเรียบร้อยแล้ว`,
       data: serializeRow(updated[0]),
     });
   } catch (err) {

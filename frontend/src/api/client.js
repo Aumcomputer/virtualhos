@@ -263,10 +263,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
 
-  deliveryTelemedToday: (id, { tracking_number }) =>
+  deliveryTelemedToday: (id, payload = {}) =>
     request(`/telemed-today/${id}/delivery`, {
       method: 'POST',
-      body: JSON.stringify({ tracking_number }),
+      body: JSON.stringify(payload),
     }),
 
   // System version & updates

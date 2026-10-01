@@ -138,6 +138,10 @@ export default function TelemedTodayPharmacyPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [dispenseSubmitting, setDispenseSubmitting] = useState(false);
 
+  // Delivery Modal State (without tracking input)
+  const [deliveryModalItem, setDeliveryModalItem] = useState(null);
+  const [deliverySubmitting, setDeliverySubmitting] = useState(false);
+
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -197,6 +201,28 @@ export default function TelemedTodayPharmacyPage() {
       setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึก' });
     } finally {
       setDispenseSubmitting(false);
+    }
+  };
+
+  // Open delivery modal (confirmation without tracking input)
+  const openDeliveryModal = (item) => {
+    setDeliveryModalItem(item);
+  };
+
+  const handleConfirmDelivery = async (e) => {
+    if (e) e.preventDefault();
+    if (!deliveryModalItem) return;
+
+    setDeliverySubmitting(true);
+    try {
+      const res = await api.deliveryTelemedToday(deliveryModalItem.id);
+      setToast({ type: 'success', message: res.message || 'บันทึกจัดส่งยาเรียบร้อยแล้ว' });
+      setDeliveryModalItem(null);
+      fetchData();
+    } catch (err) {
+      setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกจัดส่ง' });
+    } finally {
+      setDeliverySubmitting(false);
     }
   };
 
@@ -408,7 +434,7 @@ export default function TelemedTodayPharmacyPage() {
                     <>
                       <th style={{ textAlign: 'center', width: '140px' }}>สถานะการชำระเงิน</th>
                       <th>ที่อยู่จัดส่งยา</th>
-                      <th style={{ textAlign: 'center', width: '150px' }}>การดำเนินการ</th>
+                      <th style={{ textAlign: 'center', width: '190px' }}>การจัดส่ง</th>
                     </>
                   ) : (
                     <>
@@ -658,11 +684,13 @@ export default function TelemedTodayPharmacyPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn btn-secondary rtm-btn-action"
-                                  onClick={() => openDetailModal(item)}
-                                  title="ดูรายละเอียดผู้ป่วย"
+                                  className="btn btn-primary rtm-btn-action"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openDeliveryModal(item);
+                                  }}
                                 >
-                                  👁️ ดูข้อมูล
+                                  🚚 จัดส่งยา
                                 </button>
                               </div>
                             </td>
@@ -1324,6 +1352,28 @@ export default function TelemedTodayPharmacyPage() {
                     💰 ต้องชำระเงิน
                   </button>
                 </div>
+              ) : tab === 'delivery' ? (
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary rtm-btn-action"
+                    onClick={() => handlePrintAddress(detailModalItem)}
+                    title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
+                  >
+                    🖨️ พิมพ์ที่อยู่ (A5)
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary rtm-btn-action"
+                    onClick={() => {
+                      const it = detailModalItem;
+                      setDetailModalItem(null);
+                      openDeliveryModal(it);
+                    }}
+                  >
+                    🚚 บันทึกจัดส่งยา
+                  </button>
+                </div>
               ) : (
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
@@ -1337,6 +1387,44 @@ export default function TelemedTodayPharmacyPage() {
                 </div>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Confirmation Modal (Without Tracking Input) */}
+      {deliveryModalItem && (
+        <div className="dialog-modal-overlay" onClick={() => setDeliveryModalItem(null)}>
+          <div className="dialog-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="dialog-modal-header">ยืนยันการจัดส่งยาทางไปรษณีย์</div>
+            <form onSubmit={handleConfirmDelivery}>
+              <div className="dialog-modal-body">
+                <div>ผู้ป่วย: <strong>{deliveryModalItem.patient_name}</strong> (HN: {deliveryModalItem.hn})</div>
+                <div style={{ fontSize: '0.8125rem', color: 'var(--gray-600)', marginTop: '4px' }}>
+                  ที่อยู่: {deliveryModalItem.address} {deliveryModalItem.postcode} {deliveryModalItem.phone ? `(โทร: ${formatPhone(deliveryModalItem.phone)})` : ''}
+                </div>
+                <div style={{ marginTop: '14px', padding: '12px 14px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.875rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📦</span>
+                  <span>ยืนยันบันทึกจัดส่งยาสำหรับผู้ป่วยรายนี้</span>
+                </div>
+              </div>
+              <div className="dialog-modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setDeliveryModalItem(null)}
+                  disabled={deliverySubmitting}
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={deliverySubmitting}
+                >
+                  {deliverySubmitting ? 'กำลังบันทึก...' : '🚚 บันทึกจัดส่งเรียบร้อย'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
