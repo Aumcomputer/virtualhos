@@ -331,45 +331,6 @@ export default function TelemedTodayPharmacyPage() {
           </button>
         </div>
 
-        {/* Stats Row */}
-        <div className="prescreen-stats-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))' }}>
-          <div className="prescreen-stat-card">
-            <div className="prescreen-stat-icon total">📋</div>
-            <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">เคสห้องยาทั้งหมด</span>
-              <span className="prescreen-stat-val" style={{ color: '#2563eb' }}>
-                {(summary.today_count || 0) + (summary.delivery_count || 0) + (summary.history_count || 0)}
-              </span>
-            </div>
-          </div>
-          <div className="prescreen-stat-card">
-            <div className="prescreen-stat-icon dispense">💊</div>
-            <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">รอตรวจและจัดยา</span>
-              <span className="prescreen-stat-val" style={{ color: '#7c3aed' }}>
-                {summary.today_count || 0}
-              </span>
-            </div>
-          </div>
-          <div className="prescreen-stat-card">
-            <div className="prescreen-stat-icon delivery">🚚</div>
-            <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">พร้อม / รอจัดส่งยา</span>
-              <span className="prescreen-stat-val" style={{ color: '#059669' }}>
-                {summary.delivery_count || 0}
-              </span>
-            </div>
-          </div>
-          <div className="prescreen-stat-card">
-            <div className="prescreen-stat-icon completed" style={{ background: '#e0f2fe' }}>📜</div>
-            <div className="prescreen-stat-content">
-              <span className="prescreen-stat-label">จัดส่งแล้ว (History)</span>
-              <span className="prescreen-stat-val" style={{ color: '#0284c7' }}>
-                {summary.history_count || 0}
-              </span>
-            </div>
-          </div>
-        </div>
 
         {/* Main Table Card */}
         <div className="table-card rtm-card">
