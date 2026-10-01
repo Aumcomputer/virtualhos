@@ -79,6 +79,98 @@ function parseLines(text) {
     .filter(Boolean);
 }
 
+function getStatusBadgeConfig(status, item = {}) {
+  if (typeof status === 'object' && status !== null) {
+    item = status;
+    status = item.status;
+  }
+  const str = String(status || item?.status || '').trim();
+
+  if (str.includes('รอตรวจสอบ') || str.includes('รอรับเรื่อง') || str.includes('คำขอใหม่')) {
+    return {
+      label: 'รอตรวจสอบ',
+      style: { background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' },
+    };
+  }
+  if (str.includes('รอปรึกษาแพทย์')) {
+    return {
+      label: 'รอปรึกษาแพทย์',
+      style: { background: '#e0e7ff', color: '#3730a3', border: '1px solid #c7d2fe' },
+    };
+  }
+  if (str.includes('รอเภสัช')) {
+    return {
+      label: 'รอเภสัชกร',
+      style: { background: '#f3e8ff', color: '#6b21a8', border: '1px solid #e9d5ff' },
+    };
+  }
+  // 1. ไม่อนุมัติ / ยาส่งไม่ได้
+  if (str.includes('ไม่สามารถจัดส่งได้') || str.includes('ไม่อนุมัติ')) {
+    return {
+      label: str.includes('แพทย์') ? 'แพทย์ไม่อนุมัติ' : str.includes('ยา') ? 'ยาส่งไม่ได้' : 'ไม่อนุมัติ',
+      style: { background: '#fee2e2', color: '#991b1b', border: '1px solid #fecaca' },
+    };
+  }
+
+  // 2. กำลังจัดส่ง : เมื่อลง tracking number แล้ว
+  if (item?.tracking_number || str.includes('จัดส่งเรียบร้อย')) {
+    return {
+      label: 'กำลังจัดส่ง',
+      style: { background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' },
+    };
+  }
+
+  // 3. รอจัดส่ง : เมื่อรายชื่ออยู่ในหน้ารอจัดส่งยา
+  // (pharmacy_pay_type = 'FREE' หรือ ('PAID' และ finance_status = 'PAID')) และยังไม่มีเลขพัสดุ
+  if (
+    (item?.pharmacy_pay_type === 'FREE' || (item?.pharmacy_pay_type === 'PAID' && item?.finance_status === 'PAID')) &&
+    !item?.tracking_number
+  ) {
+    return {
+      label: 'รอจัดส่ง',
+      style: { background: '#fef3c7', color: '#b45309', border: '1px solid #fde68a' },
+    };
+  }
+
+  // 4. รอชำระเงิน : เมื่อรายชื่ออยู่ในหน้าการเงิน
+  // (pharmacy_pay_type = 'PAID' และ finance_status != 'PAID')
+  if (item?.pharmacy_pay_type === 'PAID' && item?.finance_status !== 'PAID') {
+    return {
+      label: 'รอชำระเงิน',
+      style: { background: '#fee2e2', color: '#dc2626', border: '1px solid #fecaca' },
+    };
+  }
+
+  // 5. แพทย์สั่งยาแล้ว : เมื่อมีการลงวินิจฉัย vn_stat.dx0 not null
+  if (item?.dx0 || item?.pdx) {
+    return {
+      label: 'แพทย์สั่งยาแล้ว',
+      style: { background: '#f3e8ff', color: '#7e22ce', border: '1px solid #e9d5ff' },
+    };
+  }
+
+  // 6. เปิด Visit แล้ว : เมื่อ vn วันปัจจุบัน
+  if (item?.vn_today) {
+    return {
+      label: 'เปิด Visit แล้ว',
+      style: { background: '#e0f2fe', color: '#0284c7', border: '1px solid #7dd3fc' },
+    };
+  }
+
+  // 7. อนุมัติแล้ว : เดิม "อนุมัติแล้ว (พร้อมส่ง)"
+  if (str.includes('สามารถจัดส่งได้') || (str.includes('อนุมัติ') && !str.includes('ไม่อนุมัติ'))) {
+    return {
+      label: 'อนุมัติแล้ว',
+      style: { background: '#dcfce7', color: '#15803d', border: '1px solid #bbf7d0' },
+    };
+  }
+
+  return {
+    label: str || 'ไม่ระบุ',
+    style: { background: 'var(--gray-100)', color: 'var(--gray-600)', border: '1px solid var(--gray-200)' },
+  };
+}
+
 export default function TelemedTodayAppointmentsPage() {
   const [data, setData] = useState([]);
   const [summary, setSummary] = useState({ total: 0, has_visit: 0, no_visit: 0 });
@@ -184,7 +276,7 @@ export default function TelemedTodayAppointmentsPage() {
               {selectedDate === getTodayStr() ? '“รับยาไม่พบแพทย์” วันนี้' : `“รับยาไม่พบแพทย์” วันที่ ${formatThaiDate(selectedDate)}`}
             </h2>
             <p className="page-subtitle">
-              รายชื่อผู้ป่วยที่ผ่านการอนุมัติ Pre-screening และมีนัดหมายรับบริการวันที่ {formatThaiDate(selectedDate)} พร้อมตรวจสอบสถานะการเปิด Visit จาก HOSxP
+              รายชื่อผู้ป่วยที่มีนัดหมายรับบริการวันที่ {formatThaiDate(selectedDate)} พร้อมตรวจสอบสถานะการเปิด Visit จาก HOSxP
             </p>
           </div>
         </div>
@@ -292,6 +384,7 @@ export default function TelemedTodayAppointmentsPage() {
                   <th>คลินิก / แพทย์ผู้นัด</th>
                   <th>สิทธิการรักษา</th>
                   <th>เบอร์โทร</th>
+                  <th style={{ textAlign: 'center', width: '130px' }}>สถานะคำขอ</th>
                   <th style={{ textAlign: 'center', width: '160px' }}>สถานะ Visit วันนี้</th>
                   <th style={{ textAlign: 'center', width: '180px' }}>การดำเนินการ</th>
                 </tr>
@@ -299,7 +392,7 @@ export default function TelemedTodayAppointmentsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -310,13 +403,13 @@ export default function TelemedTodayAppointmentsPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={10} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           ไม่มีรายการนัดหมายรับยาไม่พบแพทย์ในวันที่ {formatThaiDate(selectedDate)}
                         </div>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
-                          {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างช่องค้นหา' : 'รายการที่ผ่านการอนุมัติในขั้นตอน Pre-screening จะปรากฏในหน้านี้เมื่อถึงวันนัดจริง'}
+                          {search ? 'ลองค้นหาด้วยคำค้นอื่น หรือล้างช่องค้นหา' : 'รายการคำขอรับยาไม่พบแพทย์จะปรากฏในหน้านี้เมื่อถึงวันนัด'}
                         </div>
                       </div>
                     </td>
@@ -324,6 +417,7 @@ export default function TelemedTodayAppointmentsPage() {
                 ) : (
                   data.map((item, idx) => {
                     const isSyncing = syncingId === item.id;
+                    const statusBadge = getStatusBadgeConfig(item.status, item);
                     return (
                       <tr
                         key={item.id}
@@ -384,7 +478,25 @@ export default function TelemedTodayAppointmentsPage() {
                           )}
                         </td>
 
-                        {/* 8. Has Visit Status */}
+                        {/* 8. Status */}
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className="status-pill"
+                            style={{
+                              ...statusBadge.style,
+                              display: 'inline-block',
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {statusBadge.label}
+                          </span>
+                        </td>
+
+                        {/* 9. Has Visit Status */}
                         <td style={{ textAlign: 'center' }}>
                           {item.has_visit && item.vn_today ? (
                             <div className="tt-vn-cell">
@@ -505,7 +617,25 @@ export default function TelemedTodayAppointmentsPage() {
                 </div>
 
                 <div className="patient-banner-right">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {(() => {
+                      const reqItem = detailData?.request || detailModalItem;
+                      const badge = getStatusBadgeConfig(reqItem.status, reqItem);
+                      return (
+                        <span
+                          className="status-pill"
+                          style={{
+                            ...badge.style,
+                            padding: '3px 10px',
+                            borderRadius: '9999px',
+                            fontSize: '0.8125rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                      );
+                    })()}
                     {detailModalItem.has_visit && (detailModalItem.vn_today || detailData?.currentVn) ? (
                       <span className="vn-badge-has">
                         ✓ มี Visit วันนี้แล้ว (VN: {detailModalItem.vn_today || detailData?.currentVn})

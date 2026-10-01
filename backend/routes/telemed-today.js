@@ -141,10 +141,7 @@ router.get('/appointments', authenticateToken, async (req, res) => {
     connVhos = await pool_vhos.getConnection();
     connHos = await pool_hos.getConnection();
 
-    let whereClause = `
-      (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%')
-      AND (status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถจัดส่งได้%')
-    `;
+    let whereClause = '1=1';
     const params = [];
 
     if (targetDate) {
@@ -155,9 +152,9 @@ router.get('/appointments', authenticateToken, async (req, res) => {
     }
 
     if (search) {
-      whereClause += ` AND (hn LIKE ? OR patient_name LIKE ? OR phone LIKE ? OR clinic_name LIKE ? OR doctor_name LIKE ?)`;
+      whereClause += ` AND (hn LIKE ? OR patient_name LIKE ? OR phone LIKE ? OR clinic_name LIKE ? OR doctor_name LIKE ? OR vn_today LIKE ? OR status LIKE ?)`;
       const s = `%${search}%`;
-      params.push(s, s, s, s, s);
+      params.push(s, s, s, s, s, s, s);
     }
 
     const query = `
@@ -202,6 +199,21 @@ router.get('/appointments', authenticateToken, async (req, res) => {
           }
         } catch (ovstErr) {
           console.warn('[telemed-today] Error checking ovst for hn:', item.hn, ovstErr.message);
+        }
+      }
+
+      // Look up vn_stat.dx0 for dynamic status lifecycle
+      if (currentVn) {
+        try {
+          const statRows = await connHos.query(
+            'SELECT dx0, pdx FROM vn_stat WHERE vn = ? LIMIT 1',
+            [currentVn]
+          );
+          if (statRows && statRows.length > 0) {
+            item.dx0 = statRows[0].dx0 || statRows[0].pdx || null;
+          }
+        } catch (dxErr) {
+          // ignore
         }
       }
 
