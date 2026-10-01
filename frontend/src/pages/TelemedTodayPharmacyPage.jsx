@@ -321,7 +321,7 @@ export default function TelemedTodayPharmacyPage() {
             onClick={() => setTab('history')}
           >
             <span className="rtm-chip-icon">📜</span>
-            <span>History (ประวัติจัดส่ง)</span>
+            <span>History</span>
             <span className="rtm-chip-count">{summary.history_count || 0}</span>
           </button>
         </div>
@@ -441,7 +441,6 @@ export default function TelemedTodayPharmacyPage() {
                       <th style={{ textAlign: 'center', width: '150px' }}>วันที่จัดส่งยา</th>
                       <th style={{ textAlign: 'center', width: '160px' }}>เลขพัสดุ (Tracking)</th>
                       <th style={{ textAlign: 'center', width: '130px' }}>สถานะชำระเงิน</th>
-                      <th>ที่อยู่จัดส่ง</th>
                       <th style={{ textAlign: 'center', width: '140px' }}>การดำเนินการ</th>
                     </>
                   )}
@@ -450,7 +449,7 @@ export default function TelemedTodayPharmacyPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={tab === 'history' ? 12 : tab === 'today' ? 11 : 10} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={tab === 'delivery' ? 10 : 11} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -461,7 +460,7 @@ export default function TelemedTodayPharmacyPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={tab === 'history' ? 12 : tab === 'today' ? 11 : 10} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={tab === 'delivery' ? 10 : 11} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           {tab === 'today'
@@ -743,19 +742,6 @@ export default function TelemedTodayPharmacyPage() {
                                 <span className="pay-pill-paid">✓ ชำระเงินแล้ว</span>
                               ) : (
                                 <span className="pay-pill-pending">รอชำระเงิน</span>
-                              )}
-                            </td>
-
-                            {/* ที่อยู่จัดส่ง */}
-                            <td style={{ fontSize: '0.8125rem', color: '#334155', maxWidth: '280px' }}>
-                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                                <span style={{ flexShrink: 0 }}>📍</span>
-                                <span>{item.address} {item.postcode}</span>
-                              </div>
-                              {item.phone && (
-                                <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '2px', marginLeft: '18px' }}>
-                                  📞 {formatPhone(item.phone)}
-                                </div>
                               )}
                             </td>
 
