@@ -236,6 +236,7 @@ export const api = {
     const qs = new URLSearchParams();
     if (params.tab) qs.set('tab', params.tab);
     if (params.search) qs.set('search', params.search);
+    if (params.delivery_date) qs.set('delivery_date', params.delivery_date);
     const qStr = qs.toString();
     return request(`/telemed-today/pharmacy${qStr ? `?${qStr}` : ''}`);
   },

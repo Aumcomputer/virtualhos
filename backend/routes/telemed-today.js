@@ -110,7 +110,9 @@ async function fetchVnStat(connHos, targetVn) {
              IFNULL(v.uc_money, 0) AS uc_money,
              IFNULL(v.paid_money, 0) AS paid_money,
              IFNULL(v.rcpt_money, 0) AS rcpt_money,
-             IFNULL(v.remain_money, 0) AS remain_money
+             IFNULL(v.remain_money, 0) AS remain_money,
+             v.dx0, v.pdx,
+             (SELECT COUNT(*) FROM opitemrece o1 INNER JOIN drugitems d ON o1.icode = d.icode WHERE o1.vn = v.vn) AS drug_count
       FROM vn_stat v
       LEFT OUTER JOIN pttype pt ON pt.pttype = v.pttype
       WHERE v.vn = ?
@@ -120,6 +122,32 @@ async function fetchVnStat(connHos, targetVn) {
     if (rows && rows.length > 0) {
       return serializeRow(rows[0]);
     }
+
+    // Fallback if vn_stat row is not yet created for a newly opened visit
+    const opRows = await connHos.query(`
+      SELECT COUNT(*) AS drug_count
+      FROM opitemrece o1
+      INNER JOIN drugitems d ON o1.icode = d.icode
+      WHERE o1.vn = ?
+    `, [targetVn]);
+    const drugCount = opRows && opRows.length > 0 ? Number(opRows[0].drug_count || 0) : 0;
+
+    const diagRows = await connHos.query(`
+      SELECT icd10 FROM ovstdiag WHERE vn = ? LIMIT 1
+    `, [targetVn]);
+    const dx0 = diagRows && diagRows.length > 0 ? diagRows[0].icd10 : null;
+
+    return {
+      vn: targetVn,
+      item_money: 0,
+      uc_money: 0,
+      paid_money: 0,
+      rcpt_money: 0,
+      remain_money: 0,
+      dx0,
+      pdx: dx0,
+      drug_count: drugCount,
+    };
   } catch (err) {
     console.warn('[telemed-today] vn_stat query warning:', err.message);
   }
@@ -299,11 +327,12 @@ router.post('/:id/sync-vn', authenticateToken, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. GET /api/telemed-today/pharmacy — ห้องยา (2 Tabs: รายการวันนี้, รอจัดส่ง)
+// 3. GET /api/telemed-today/pharmacy — ห้องยา (3 Tabs: รายการวันนี้, รอจัดส่ง, History)
 // ---------------------------------------------------------------------------
 router.get('/pharmacy', authenticateToken, async (req, res) => {
-  const tab = (req.query.tab || 'today').trim(); // 'today' | 'delivery'
+  const tab = (req.query.tab || 'today').trim(); // 'today' | 'delivery' | 'history'
   const search = (req.query.search || '').trim();
+  const deliveryDate = (req.query.delivery_date || req.query.date || '').trim();
 
   let connVhos;
   let connHos;
@@ -314,47 +343,64 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
     // Summary counts for badges
     const summaryRows = await connVhos.query(`
       SELECT 
-        SUM(CASE WHEN (DATE(nextdate) <= CURDATE() OR nextdate IS NULL) AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '') THEN 1 ELSE 0 END) AS today_count,
-        SUM(CASE WHEN (pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID')) AND (status != 'จัดส่งเรียบร้อย' OR delivery_at IS NULL) THEN 1 ELSE 0 END) AS delivery_count
+        SUM(CASE WHEN (DATE(nextdate) <= CURDATE() OR nextdate IS NULL) AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '') AND (status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถจัดส่งได้%') THEN 1 ELSE 0 END) AS today_count,
+        SUM(CASE WHEN (pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID')) AND (tracking_number IS NULL OR tracking_number = '') AND status != 'จัดส่งเรียบร้อย' THEN 1 ELSE 0 END) AS delivery_count,
+        SUM(CASE WHEN (tracking_number IS NOT NULL AND tracking_number != '') OR status = 'จัดส่งเรียบร้อย' OR status LIKE '%กำลังจัดส่ง%' THEN 1 ELSE 0 END) AS history_count
       FROM virtualhos.req_telemed
-      WHERE (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%')
-        AND (status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถจัดส่งได้%')
     `);
     const todayCount = Number(summaryRows[0]?.today_count || 0);
     const deliveryCount = Number(summaryRows[0]?.delivery_count || 0);
+    const historyCount = Number(summaryRows[0]?.history_count || 0);
 
-    let whereClause = `
-      (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%')
-      AND (status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถจัดส่งได้%')
-    `;
+    let whereClause = `1=1`;
     const params = [];
 
     if (tab === 'today') {
       // 1. รายการยาวันนี้ + ย้อนหลังที่ยังไม่ได้กด dispense: นัดวันนี้หรือย้อนหลัง (<= CURDATE()) และยังไม่ได้กดยืนยันการชำระเงิน/จัดยา
-      whereClause += ` AND (DATE(nextdate) <= CURDATE() OR nextdate IS NULL) AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '')`;
-    } else {
+      whereClause += `
+        AND (status LIKE '%สามารถจัดส่งได้%' OR status LIKE '%อนุมัติ%')
+        AND (status NOT LIKE '%ไม่อนุมัติ%' AND status NOT LIKE '%ไม่สามารถจัดส่งได้%')
+        AND (DATE(nextdate) <= CURDATE() OR nextdate IS NULL)
+        AND (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '')
+      `;
+    } else if (tab === 'delivery') {
       // 2. รอจัดส่ง: เภสัชระบุไม่ต้องชำระ (FREE) หรือ การเงินชำระเงินแล้ว (PAID) และยังไม่จัดส่ง
       whereClause += `
         AND (pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID'))
-        AND (status != 'จัดส่งเรียบร้อย' OR delivery_at IS NULL)
+        AND (tracking_number IS NULL OR tracking_number = '')
+        AND status != 'จัดส่งเรียบร้อย'
       `;
+    } else if (tab === 'history') {
+      // 3. History: เคสที่เคยผ่านห้องยาแล้ว (สถานะ = กำลังจัดส่ง หรือ มีเลขพัสดุแล้ว)
+      whereClause += `
+        AND ((tracking_number IS NOT NULL AND tracking_number != '') OR status = 'จัดส่งเรียบร้อย' OR status LIKE '%กำลังจัดส่ง%')
+      `;
+      if (deliveryDate) {
+        whereClause += ` AND (DATE(delivery_at) = ? OR (delivery_at IS NULL AND DATE(updated_at) = ?))`;
+        params.push(deliveryDate, deliveryDate);
+      }
     }
 
     if (search) {
-      whereClause += ` AND (hn LIKE ? OR patient_name LIKE ? OR phone LIKE ? OR clinic_name LIKE ? OR doctor_name LIKE ? OR vn_today LIKE ?)`;
+      whereClause += ` AND (hn LIKE ? OR patient_name LIKE ? OR phone LIKE ? OR clinic_name LIKE ? OR doctor_name LIKE ? OR vn_today LIKE ? OR tracking_number LIKE ?)`;
       const s = `%${search}%`;
-      params.push(s, s, s, s, s, s);
+      params.push(s, s, s, s, s, s, s);
+    }
+
+    let orderBy = 'nextdate ASC, id ASC';
+    if (tab === 'history') {
+      orderBy = 'delivery_at DESC, updated_at DESC, id DESC';
     }
 
     const query = `
       SELECT *
       FROM virtualhos.req_telemed
       WHERE ${whereClause}
-      ORDER BY nextdate ASC, id ASC
+      ORDER BY ${orderBy}
     `;
     const rows = await connVhos.query(query, params);
 
-    // Enrich with vn_stat prices if vn_today is present (and auto-sync vn_today if missing)
+    // Enrich with vn_stat prices and clinical drug/dx info
     const enriched = [];
     for (const r of rows) {
       const item = serializeRow(r);
@@ -392,6 +438,8 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
           item.uc_money = vnStat.uc_money;
           item.paid_money = vnStat.paid_money;
           item.pttype_name = vnStat.pttype_name || item.pttype_name;
+          item.dx0 = vnStat.dx0 || vnStat.pdx || null;
+          item.drug_count = Number(vnStat.drug_count || 0);
         }
       }
       enriched.push(item);
@@ -402,6 +450,7 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
       summary: {
         today_count: todayCount,
         delivery_count: deliveryCount,
+        history_count: historyCount,
       },
     });
   } catch (err) {
