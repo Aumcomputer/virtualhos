@@ -138,6 +138,24 @@ async function fetchVnStat(connHos, targetVn) {
     `, [targetVn]);
     const dx0 = diagRows && diagRows.length > 0 ? diagRows[0].icd10 : null;
 
+    let pttype = null;
+    let pttypeName = null;
+    try {
+      const ovRows = await connHos.query(`
+        SELECT o.pttype, pt.name AS pttype_name
+        FROM ovst o
+        LEFT OUTER JOIN pttype pt ON pt.pttype = o.pttype
+        WHERE o.vn = ?
+        LIMIT 1
+      `, [targetVn]);
+      if (ovRows && ovRows.length > 0) {
+        pttype = ovRows[0].pttype || null;
+        pttypeName = ovRows[0].pttype_name || null;
+      }
+    } catch {
+      // ignore
+    }
+
     return {
       vn: targetVn,
       item_money: 0,
@@ -147,6 +165,8 @@ async function fetchVnStat(connHos, targetVn) {
       remain_money: 0,
       dx0,
       pdx: dx0,
+      pttype,
+      pttype_name: pttypeName,
       drug_count: drugCount,
     };
   } catch (err) {
@@ -231,17 +251,60 @@ router.get('/appointments', authenticateToken, async (req, res) => {
         }
       }
 
-      // Look up vn_stat.dx0 for dynamic status lifecycle
+      // Look up vn_stat / ovst for dx0 and pttype
       if (currentVn) {
         try {
-          const statRows = await connHos.query(
-            'SELECT dx0, pdx FROM vn_stat WHERE vn = ? LIMIT 1',
-            [currentVn]
-          );
+          const statRows = await connHos.query(`
+            SELECT v.dx0, v.pdx, v.pttype, pt.name AS pttype_name
+            FROM vn_stat v
+            LEFT OUTER JOIN pttype pt ON pt.pttype = v.pttype
+            WHERE v.vn = ?
+            LIMIT 1
+          `, [currentVn]);
           if (statRows && statRows.length > 0) {
             item.dx0 = statRows[0].dx0 || statRows[0].pdx || null;
+            item.pttype = statRows[0].pttype || null;
+            item.pttype_name = statRows[0].pttype_name || null;
           }
         } catch (dxErr) {
+          // ignore
+        }
+      }
+
+      // If pttype_name not yet resolved from vn_stat, check ovst or patient table
+      if (!item.pttype_name && currentVn) {
+        try {
+          const ovRows = await connHos.query(`
+            SELECT o.pttype, pt.name AS pttype_name
+            FROM ovst o
+            LEFT OUTER JOIN pttype pt ON pt.pttype = o.pttype
+            WHERE o.vn = ?
+            LIMIT 1
+          `, [currentVn]);
+          if (ovRows && ovRows.length > 0) {
+            item.pttype = ovRows[0].pttype || null;
+            item.pttype_name = ovRows[0].pttype_name || null;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!item.pttype_name && item.hn) {
+        try {
+          const strippedHn = item.hn.replace(/^0+/, '') || item.hn;
+          const ptRows = await connHos.query(`
+            SELECT p.pttype, pt.name AS pttype_name
+            FROM patient p
+            LEFT OUTER JOIN pttype pt ON pt.pttype = p.pttype
+            WHERE p.hn = ? OR p.hn = ?
+            LIMIT 1
+          `, [item.hn, strippedHn]);
+          if (ptRows && ptRows.length > 0) {
+            item.pttype = item.pttype || ptRows[0].pttype || null;
+            item.pttype_name = ptRows[0].pttype_name || null;
+          }
+        } catch {
           // ignore
         }
       }
@@ -443,6 +506,26 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
           item.drug_count = Number(vnStat.drug_count || 0);
         }
       }
+
+      if (!item.pttype_name && item.hn) {
+        try {
+          const strippedHn = item.hn.replace(/^0+/, '') || item.hn;
+          const ptRows = await connHos.query(`
+            SELECT p.pttype, pt.name AS pttype_name
+            FROM patient p
+            LEFT OUTER JOIN pttype pt ON pt.pttype = p.pttype
+            WHERE p.hn = ? OR p.hn = ?
+            LIMIT 1
+          `, [item.hn, strippedHn]);
+          if (ptRows && ptRows.length > 0) {
+            item.pttype = item.pttype || ptRows[0].pttype || null;
+            item.pttype_name = ptRows[0].pttype_name || null;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       enriched.push(item);
     }
 

@@ -383,7 +383,6 @@ export default function TelemedTodayAppointmentsPage() {
                   <th>ชื่อ-นามสกุล</th>
                   <th>คลินิก / แพทย์ผู้นัด</th>
                   <th>สิทธิการรักษา</th>
-                  <th>เบอร์โทร</th>
                   <th style={{ textAlign: 'center', width: '160px' }}>สถานะ Visit วันนี้</th>
                   <th style={{ textAlign: 'center', width: '180px' }}>การดำเนินการ</th>
                 </tr>
@@ -391,7 +390,7 @@ export default function TelemedTodayAppointmentsPage() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -402,7 +401,7 @@ export default function TelemedTodayAppointmentsPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           ไม่มีรายการนัดหมายรับยาไม่พบแพทย์ในวันที่ {formatThaiDate(selectedDate)}
@@ -465,18 +464,7 @@ export default function TelemedTodayAppointmentsPage() {
                           {item.pttype_name || '—'}
                         </td>
 
-                        {/* 7. Phone */}
-                        <td>
-                          {item.phone ? (
-                            <span style={{ fontSize: '0.8125rem', fontFamily: 'monospace', color: '#334155' }}>
-                              {item.phone}
-                            </span>
-                          ) : (
-                            <span style={{ color: '#cbd5e1' }}>—</span>
-                          )}
-                        </td>
-
-                        {/* 8. Has Visit Status */}
+                        {/* 7. Has Visit Status */}
                         <td style={{ textAlign: 'center' }}>
                           {item.has_visit && item.vn_today ? (
                             <div className="tt-vn-cell">
