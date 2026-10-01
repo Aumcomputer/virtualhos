@@ -138,10 +138,6 @@ export default function TelemedTodayPharmacyPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [dispenseSubmitting, setDispenseSubmitting] = useState(false);
 
-  // Delivery Modal State
-  const [deliveryModalItem, setDeliveryModalItem] = useState(null);
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [deliverySubmitting, setDeliverySubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -204,33 +200,6 @@ export default function TelemedTodayPharmacyPage() {
     }
   };
 
-  // Open delivery modal
-  const openDeliveryModal = (item) => {
-    setDeliveryModalItem(item);
-    setTrackingNumber(item.tracking_number || '');
-  };
-
-  const handleConfirmDelivery = async (e) => {
-    e.preventDefault();
-    if (!deliveryModalItem) return;
-    const cleanTracking = trackingNumber.trim();
-    if (!cleanTracking) {
-      setToast({ type: 'error', message: 'กรุณากรอกเลขพัสดุจัดส่ง' });
-      return;
-    }
-
-    setDeliverySubmitting(true);
-    try {
-      const res = await api.deliveryTelemedToday(deliveryModalItem.id, { tracking_number: cleanTracking });
-      setToast({ type: 'success', message: res.message });
-      setDeliveryModalItem(null);
-      fetchData();
-    } catch (err) {
-      setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกจัดส่ง' });
-    } finally {
-      setDeliverySubmitting(false);
-    }
-  };
 
   // Print Address A5
   const handlePrintAddress = (item) => {
@@ -439,7 +408,7 @@ export default function TelemedTodayPharmacyPage() {
                     <>
                       <th style={{ textAlign: 'center', width: '140px' }}>สถานะการชำระเงิน</th>
                       <th>ที่อยู่จัดส่งยา</th>
-                      <th style={{ textAlign: 'center', width: '190px' }}>การจัดส่ง</th>
+                      <th style={{ textAlign: 'center', width: '150px' }}>การดำเนินการ</th>
                     </>
                   ) : (
                     <>
@@ -689,13 +658,11 @@ export default function TelemedTodayPharmacyPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn btn-primary rtm-btn-action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openDeliveryModal(item);
-                                  }}
+                                  className="btn btn-secondary rtm-btn-action"
+                                  onClick={() => openDetailModal(item)}
+                                  title="ดูรายละเอียดผู้ป่วย"
                                 >
-                                  🚚 จัดส่งยา
+                                  👁️ ดูข้อมูล
                                 </button>
                               </div>
                             </td>
@@ -1357,28 +1324,6 @@ export default function TelemedTodayPharmacyPage() {
                     💰 ต้องชำระเงิน
                   </button>
                 </div>
-              ) : tab === 'delivery' ? (
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary rtm-btn-action"
-                    onClick={() => handlePrintAddress(detailModalItem)}
-                    title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
-                  >
-                    🖨️ พิมพ์ที่อยู่ (A5)
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary rtm-btn-action"
-                    onClick={() => {
-                      const it = detailModalItem;
-                      setDetailModalItem(null);
-                      openDeliveryModal(it);
-                    }}
-                  >
-                    🚚 บันทึกจัดส่งยา
-                  </button>
-                </div>
               ) : (
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button
@@ -1392,56 +1337,6 @@ export default function TelemedTodayPharmacyPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delivery Tracking Modal */}
-      {deliveryModalItem && (
-        <div className="dialog-modal-overlay" onClick={() => setDeliveryModalItem(null)}>
-          <div className="dialog-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="dialog-modal-header">บันทึกการจัดส่งยาทางไปรษณีย์</div>
-            <form onSubmit={handleConfirmDelivery}>
-              <div className="dialog-modal-body">
-                <div>ผู้ป่วย: <strong>{deliveryModalItem.patient_name}</strong> (HN: {deliveryModalItem.hn})</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--gray-600)', marginTop: '4px' }}>
-                  ที่อยู่: {deliveryModalItem.address} {deliveryModalItem.postcode} (โทร: {deliveryModalItem.phone})
-                </div>
-
-                <div className="form-group" style={{ marginTop: '14px' }}>
-                  <label htmlFor="tt-tracking-input" className="form-label font-bold">
-                    หมายเลขพัสดุ (Tracking Number) <span style={{ color: 'var(--error-600)' }}>*</span>
-                  </label>
-                  <input
-                    id="tt-tracking-input"
-                    type="text"
-                    className="form-input font-mono"
-                    placeholder="เช่น ED123456789TH"
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value.toUpperCase())}
-                    autoFocus
-                    required
-                  />
-                </div>
-              </div>
-              <div className="dialog-modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setDeliveryModalItem(null)}
-                  disabled={deliverySubmitting}
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={deliverySubmitting}
-                >
-                  {deliverySubmitting ? 'กำลังบันทึก...' : 'บันทึกจัดส่งเรียบร้อย'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}
