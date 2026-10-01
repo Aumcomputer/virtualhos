@@ -19,7 +19,8 @@ const router = express.Router();
       ADD COLUMN IF NOT EXISTS pharmacy_dispense_at DATETIME DEFAULT NULL COMMENT 'วันเวลาที่เภสัชกรจัดยา' AFTER pharmacy_dispense_by,
       ADD COLUMN IF NOT EXISTS finance_status VARCHAR(20) DEFAULT NULL COMMENT 'PENDING (รอชำระเงิน), PAID (ชำระเงินแล้ว), FREE (ไม่ต้องชำระ)' AFTER pharmacy_dispense_at,
       ADD COLUMN IF NOT EXISTS finance_by VARCHAR(100) DEFAULT NULL COMMENT 'เจ้าหน้าที่การเงินผู้บันทึกชำระ' AFTER finance_status,
-      ADD COLUMN IF NOT EXISTS finance_at DATETIME DEFAULT NULL COMMENT 'วันเวลาที่ชำระเงิน' AFTER finance_by
+      ADD COLUMN IF NOT EXISTS finance_at DATETIME DEFAULT NULL COMMENT 'วันเวลาที่ชำระเงิน' AFTER finance_by,
+      ADD COLUMN IF NOT EXISTS delivery_by VARCHAR(100) DEFAULT NULL COMMENT 'เจ้าหน้าที่ผู้บันทึกจัดส่งยา' AFTER delivery_at
     `);
     console.log('[telemed-today] Ensured Telemed Today columns exist in virtualhos.req_telemed');
   } catch (err) {
@@ -696,15 +697,32 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
   try {
     conn = await pool_vhos.getConnection();
 
-    await conn.query(`
-      UPDATE virtualhos.req_telemed
-      SET 
-        tracking_number = ?,
-        delivery_at = NOW(),
-        status = 'จัดส่งเรียบร้อย',
-        updated_at = NOW()
-      WHERE id = ?
-    `, [cleanTracking || null, id]);
+    try {
+      await conn.query(`
+        UPDATE virtualhos.req_telemed
+        SET 
+          tracking_number = ?,
+          delivery_at = NOW(),
+          delivery_by = ?,
+          status = 'จัดส่งเรียบร้อย',
+          updated_at = NOW()
+        WHERE id = ?
+      `, [cleanTracking || null, officerName, id]);
+    } catch (colErr) {
+      if (colErr.message && colErr.message.includes('delivery_by')) {
+        await conn.query(`
+          UPDATE virtualhos.req_telemed
+          SET 
+            tracking_number = ?,
+            delivery_at = NOW(),
+            status = 'จัดส่งเรียบร้อย',
+            updated_at = NOW()
+          WHERE id = ?
+        `, [cleanTracking || null, id]);
+      } else {
+        throw colErr;
+      }
+    }
 
     const updated = await conn.query('SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1', [id]);
 

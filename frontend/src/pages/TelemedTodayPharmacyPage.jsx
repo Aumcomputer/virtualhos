@@ -705,6 +705,11 @@ export default function TelemedTodayPharmacyPage() {
                               <span style={{ fontSize: '0.8125rem', color: '#1e293b', fontWeight: 600 }}>
                                 {formatThaiDateTime(item.delivery_at || item.updated_at)}
                               </span>
+                              {item.delivery_by && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
+                                  โดย: {item.delivery_by}
+                                </div>
+                              )}
                             </td>
 
                             {/* เลขพัสดุ */}
@@ -1296,16 +1301,22 @@ export default function TelemedTodayPharmacyPage() {
 
                             {/* 2.5 การจัดส่งยา */}
                             <div className="audit-trail-item">
-                              <span className={`audit-dot ${(detailData?.request || detailModalItem).tracking_number ? 'success' : ''}`}></span>
+                              <span className={`audit-dot ${(detailData?.request || detailModalItem).status === 'จัดส่งเรียบร้อย' || (detailData?.request || detailModalItem).tracking_number ? 'success' : ''}`}></span>
                               <span>
                                 จัดส่งยา:{' '}
-                                {(detailData?.request || detailModalItem).tracking_number ? (
+                                {(detailData?.request || detailModalItem).status === 'จัดส่งเรียบร้อย' || (detailData?.request || detailModalItem).tracking_number ? (
                                   <>
-                                    <strong style={{ color: '#059669' }}>✓ จัดส่งเรียบร้อย</strong> (เลขพัสดุ: <span className="font-mono">{(detailData?.request || detailModalItem).tracking_number}</span>)
+                                    <strong style={{ color: '#059669' }}>✓ จัดส่งเรียบร้อย</strong>
+                                    {(detailData?.request || detailModalItem).tracking_number ? (
+                                      <> (เลขพัสดุ: <span className="font-mono">{(detailData?.request || detailModalItem).tracking_number}</span>)</>
+                                    ) : null}
+                                    {(detailData?.request || detailModalItem).delivery_by ? (
+                                      <span style={{ color: '#475569' }}> โดย: {(detailData?.request || detailModalItem).delivery_by}</span>
+                                    ) : null}
                                     {(detailData?.request || detailModalItem).delivery_at ? ` เมื่อ ${formatThaiDateTime((detailData?.request || detailModalItem).delivery_at)}` : ''}
                                   </>
                                 ) : ((detailData?.request || detailModalItem).pharmacy_pay_type === 'FREE' || (detailData?.request || detailModalItem).finance_status === 'PAID') && (detailData?.request || detailModalItem).pharmacy_dispense_at ? (
-                                  <span style={{ color: '#2563eb', fontWeight: 600 }}>📦 พร้อมจัดส่ง / รอเลขพัสดุ</span>
+                                  <span style={{ color: '#2563eb', fontWeight: 600 }}>📦 พร้อมจัดส่ง</span>
                                 ) : (
                                   <span style={{ color: '#94a3b8' }}>รอดำเนินการ</span>
                                 )}

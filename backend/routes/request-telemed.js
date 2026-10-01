@@ -569,6 +569,7 @@ router.post('/:id/approve', authenticateToken, async (req, res) => {
 router.post('/:id/delivery', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { tracking_number } = req.body;
+  const officerName = req.user.displayName || req.user.name || req.user.username || 'เจ้าหน้าที่';
 
   if (!tracking_number || !tracking_number.trim()) {
     return res.status(400).json({ error: 'กรุณาระบุเลขพัสดุ (Tracking Number)' });
@@ -584,16 +585,34 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'ไม่พบข้อมูลคำขอนี้' });
     }
 
-    const updateQuery = `
-      UPDATE virtualhos.req_telemed
-      SET 
-        tracking_number = ?,
-        status = 'จัดส่งเรียบร้อย',
-        delivery_at = NOW(),
-        updated_at = NOW()
-      WHERE id = ?
-    `;
-    await conn.query(updateQuery, [tracking_number.trim(), id]);
+    try {
+      const updateQuery = `
+        UPDATE virtualhos.req_telemed
+        SET 
+          tracking_number = ?,
+          status = 'จัดส่งเรียบร้อย',
+          delivery_at = NOW(),
+          delivery_by = ?,
+          updated_at = NOW()
+        WHERE id = ?
+      `;
+      await conn.query(updateQuery, [tracking_number.trim(), officerName, id]);
+    } catch (colErr) {
+      if (colErr.message && colErr.message.includes('delivery_by')) {
+        const updateQuery = `
+          UPDATE virtualhos.req_telemed
+          SET 
+            tracking_number = ?,
+            status = 'จัดส่งเรียบร้อย',
+            delivery_at = NOW(),
+            updated_at = NOW()
+          WHERE id = ?
+        `;
+        await conn.query(updateQuery, [tracking_number.trim(), id]);
+      } else {
+        throw colErr;
+      }
+    }
 
     const updated = await conn.query(`SELECT * FROM virtualhos.req_telemed WHERE id = ? LIMIT 1`, [id]);
     res.json({
