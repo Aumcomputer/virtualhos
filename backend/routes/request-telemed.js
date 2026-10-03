@@ -248,7 +248,26 @@ router.get('/', authenticateToken, async (req, res) => {
     try {
       connHos = await pool_hos.getConnection();
       for (const item of serializedRows) {
-        // Look up vn_today if missing and nextdate is available
+        // 1. Resolve vn_today from hos.oapp.visit_vn if oapp_id exists
+        if (item.oapp_id) {
+          try {
+            const oappRows = await connHos.query(
+              'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
+              [item.oapp_id]
+            );
+            if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
+              const oappVn = String(oappRows[0].visit_vn).trim();
+              if (oappVn && item.vn_today !== oappVn) {
+                item.vn_today = oappVn;
+                conn.query('UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?', [oappVn, item.id]).catch(() => {});
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        // 2. Fallback: Look up vn_today if missing and nextdate is available
         if (!item.vn_today && item.hn && item.nextdate) {
           const targetDate = formatToYMD(item.nextdate);
           const strippedHn = String(item.hn).replace(/^0+/, '') || item.hn;
@@ -259,7 +278,7 @@ router.get('/', authenticateToken, async (req, res) => {
             );
             if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
               item.vn_today = ovstRows[0].vn;
-              conn.query('UPDATE virtualhos.req_telemed SET vn_today = ? WHERE id = ?', [item.vn_today, item.id]).catch(() => {});
+              conn.query('UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?', [item.vn_today, item.id]).catch(() => {});
             }
           } catch (e) {
             // ignore

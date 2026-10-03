@@ -214,7 +214,7 @@ router.get('/appointments', authenticateToken, async (req, res) => {
     `;
     const rows = await connVhos.query(query, params);
 
-    // Auto-check and sync vn_today from HOSxP ovst for cases where vn_today is missing
+    // Auto-check and sync vn_today from HOSxP (preferring hos.oapp.visit_vn, fallback to ovst)
     const results = [];
     let hasVisitCount = 0;
     let noVisitCount = 0;
@@ -223,7 +223,32 @@ router.get('/appointments', authenticateToken, async (req, res) => {
       const item = serializeRow(rawRow);
       let currentVn = item.vn_today;
 
-      // If vn_today is not yet recorded, search HOSxP ovst for this patient on this date
+      // 1. If item has oapp_id, resolve vn_today directly from hos.oapp.visit_vn
+      if (item.oapp_id) {
+        try {
+          const oappRows = await connHos.query(
+            'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
+            [item.oapp_id]
+          );
+          if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
+            const oappVn = String(oappRows[0].visit_vn).trim();
+            if (oappVn) {
+              currentVn = oappVn;
+              if (item.vn_today !== oappVn) {
+                item.vn_today = oappVn;
+                await connVhos.query(
+                  'UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?',
+                  [oappVn, item.id]
+                );
+              }
+            }
+          }
+        } catch (oappErr) {
+          console.warn('[telemed-today] Error checking oapp.visit_vn for oapp_id:', item.oapp_id, oappErr.message);
+        }
+      }
+
+      // 2. Fallback: If vn_today is still not found and no oapp.visit_vn, search HOSxP ovst for this patient on this date
       if (!currentVn && item.hn) {
         try {
           const dateParam = targetDate || new Date().toISOString().split('T')[0];
@@ -357,15 +382,39 @@ router.post('/:id/sync-vn', authenticateToken, async (req, res) => {
     const strippedHn = item.hn.replace(/^0+/, '') || item.hn;
     const targetDate = item.nextdate ? new Date(item.nextdate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
 
-    const ovstRows = await connHos.query(`
-      SELECT vn, vstdate, vsttime, cur_dep
-      FROM ovst
-      WHERE (hn = ? OR hn = ?) AND vstdate = ?
-      ORDER BY vsttime DESC
-      LIMIT 1
-    `, [item.hn, strippedHn, targetDate]);
+    let vn = null;
 
-    if (!ovstRows || ovstRows.length === 0 || !ovstRows[0].vn) {
+    // 1. Try to pull from hos.oapp.visit_vn if oapp_id exists
+    if (item.oapp_id) {
+      try {
+        const oappRows = await connHos.query('SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1', [item.oapp_id]);
+        if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
+          const oappVn = String(oappRows[0].visit_vn).trim();
+          if (oappVn) {
+            vn = oappVn;
+          }
+        }
+      } catch (oappErr) {
+        console.warn('[telemed-today] Error checking oapp.visit_vn in sync-vn:', oappErr.message);
+      }
+    }
+
+    // 2. Fallback to ovst if not found from oapp
+    if (!vn) {
+      const ovstRows = await connHos.query(`
+        SELECT vn, vstdate, vsttime, cur_dep
+        FROM ovst
+        WHERE (hn = ? OR hn = ?) AND vstdate = ?
+        ORDER BY vsttime DESC
+        LIMIT 1
+      `, [item.hn, strippedHn, targetDate]);
+
+      if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
+        vn = ovstRows[0].vn;
+      }
+    }
+
+    if (!vn) {
       return res.json({
         success: false,
         message: `ยังไม่พบการเปิด Visit ใน HOSxP สำหรับผู้ป่วย HN ${item.hn} ในวันที่ ${targetDate}`,
@@ -373,7 +422,6 @@ router.post('/:id/sync-vn', authenticateToken, async (req, res) => {
       });
     }
 
-    const vn = ovstRows[0].vn;
     await connVhos.query('UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?', [vn, id]);
 
     res.json({
@@ -469,7 +517,29 @@ router.get('/pharmacy', authenticateToken, async (req, res) => {
     for (const r of rows) {
       const item = serializeRow(r);
 
-      // If vn_today is not yet recorded, search HOSxP ovst for this patient on their appointment date
+      // 1. If item has oapp_id, resolve vn_today directly from hos.oapp.visit_vn
+      if (item.oapp_id) {
+        try {
+          const oappRows = await connHos.query(
+            'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
+            [item.oapp_id]
+          );
+          if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
+            const oappVn = String(oappRows[0].visit_vn).trim();
+            if (oappVn && item.vn_today !== oappVn) {
+              item.vn_today = oappVn;
+              await connVhos.query(
+                'UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?',
+                [item.vn_today, item.id]
+              );
+            }
+          }
+        } catch (oappErr) {
+          console.warn('[telemed-today] Pharmacy oapp lookup error:', oappErr.message);
+        }
+      }
+
+      // 2. Fallback: If vn_today is not yet recorded, search HOSxP ovst for this patient on their appointment date
       if (!item.vn_today && item.hn) {
         try {
           const dateParam = item.nextdate ? new Date(item.nextdate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
@@ -585,8 +655,26 @@ router.get('/:id/detail', authenticateToken, async (req, res) => {
 
     const previousVisit = previousVn ? await fetchClinicalVisit(connHos, previousVn) : null;
 
-    // 2. Current visit (จาก vn_today ของวันนี้)
+    // 2. Current visit (จาก vn_today ของวันนี้ หรือ hos.oapp.visit_vn)
     let currentVn = requestItem.vn_today;
+    if (requestItem.oapp_id) {
+      try {
+        const oappRows = await connHos.query('SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1', [requestItem.oapp_id]);
+        if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
+          const oappVn = String(oappRows[0].visit_vn).trim();
+          if (oappVn) {
+            currentVn = oappVn;
+            if (requestItem.vn_today !== oappVn) {
+              requestItem.vn_today = currentVn;
+              await connVhos.query('UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?', [currentVn, id]);
+            }
+          }
+        }
+      } catch (oappErr) {
+        console.warn('[telemed-today] Detail oapp lookup error:', oappErr.message);
+      }
+    }
+
     if (!currentVn && requestItem.hn) {
       // Auto look up from ovst today
       const targetDate = requestItem.nextdate ? new Date(requestItem.nextdate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
@@ -598,7 +686,7 @@ router.get('/:id/detail', authenticateToken, async (req, res) => {
       if (ovstRows && ovstRows.length > 0) {
         currentVn = ovstRows[0].vn;
         requestItem.vn_today = currentVn;
-        await connVhos.query('UPDATE virtualhos.req_telemed SET vn_today = ? WHERE id = ?', [currentVn, id]);
+        await connVhos.query('UPDATE virtualhos.req_telemed SET vn_today = ?, updated_at = NOW() WHERE id = ?', [currentVn, id]);
       }
     }
 
