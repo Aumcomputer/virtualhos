@@ -707,12 +707,13 @@ router.post('/submit', authenticateToken, requireAdmin, async (req, res) => {
       // คำนวณ SHA-256 hash ของไฟล์ PDF
       const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
-      // อัปเดต pdf_path และ pdf_hash ใน caregiver_affidavits
+      // อัปเดต pdf_path และ pdf_hash ใน caregiver_affidavits (ใช้ forward slash สำหรับ Linux/Windows)
+      const relPdfPath = path.relative(path.join(__dirname, '..'), pdfFullPath).replace(/\\/g, '/');
       await connVhos.query(`
         UPDATE caregiver_affidavits 
         SET pdf_path = ?, pdf_hash = ?
         WHERE id = ?
-      `, [path.relative(path.join(__dirname, '..'), pdfFullPath), pdfHash, affidavitId]);
+      `, [relPdfPath, pdfHash, affidavitId]);
     } catch (pdfErr) {
       console.error('Error generating affidavit PDF:', pdfErr);
     }
@@ -891,39 +892,124 @@ router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) =>
 
 // ---------------------------------------------------------------------------
 // 6. GET /api/caregiver/pdf/:id
-// ดู/ดาวน์โหลดไฟล์ PDF เอกสารรับรอง
+// ดู/ดาวน์โหลดไฟล์ PDF เอกสารรับรอง (พร้อมระบบ Auto-Regenerate หากไฟล์บนดิสก์ไม่อยู่)
 // ---------------------------------------------------------------------------
 router.get('/pdf/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   let conn;
+  let connHos;
   try {
     conn = await pool_vhos.getConnection();
     const rows = await conn.query(`
-      SELECT id, session_id, pdf_path FROM caregiver_affidavits WHERE id = ? LIMIT 1
+      SELECT * FROM caregiver_affidavits WHERE id = ? LIMIT 1
     `, [id]);
 
-    if (!rows || rows.length === 0 || !rows[0].pdf_path) {
-      return res.status(404).send('ไม่พบไฟล์เอกสาร PDF');
+    if (!rows || rows.length === 0) {
+      return res.status(404).send('ไม่พบเอกสารรับรองในระบบ');
     }
 
-    const fullPdfPath = path.join(__dirname, '..', rows[0].pdf_path);
-    if (!fs.existsSync(fullPdfPath)) {
-      return res.status(404).send('ไม่พบไฟล์เอกสาร PDF บนเซิร์ฟเวอร์');
-    }
-
-    const safeSessionId = rows[0].session_id
-      ? String(rows[0].session_id).replace(/[^a-zA-Z0-9_-]/g, '_')
+    const item = rows[0];
+    const safeSessionId = item.session_id
+      ? String(item.session_id).replace(/[^a-zA-Z0-9_-]/g, '_')
       : `caregiver_affidavit_${id}`;
     const filename = `${safeSessionId}.pdf`;
+
+    // ตรวจสอบที่อยู่ไฟล์เดิม โดยแปลง path ให้รองรับทั้ง Linux และ Windows
+    let fullPdfPath = null;
+    if (item.pdf_path) {
+      const cleanRelativePath = item.pdf_path.replace(/\\/g, '/');
+      fullPdfPath = path.resolve(__dirname, '..', cleanRelativePath);
+    }
+
+    // หากไฟล์ไม่มีอยู่จริงบนเซิร์ฟเวอร์ ให้ auto-regenerate สร้างเอกสารขึ้นมาใหม่ทันที
+    if (!fullPdfPath || !fs.existsSync(fullPdfPath)) {
+      if (!fs.existsSync(PDFS_DIR)) {
+        fs.mkdirSync(PDFS_DIR, { recursive: true });
+      }
+      fullPdfPath = path.join(PDFS_DIR, `${safeSessionId}.pdf`);
+
+      // ค้นหาวันเกิดผู้ป่วยจาก HOSxP (ถ้ามี)
+      let ptBirthday = null;
+      if (item.patient_hn) {
+        try {
+          connHos = await pool_hos.getConnection();
+          const ptRows = await connHos.query('SELECT birthday FROM patient WHERE hn = ? LIMIT 1', [item.patient_hn]);
+          if (ptRows && ptRows.length > 0) ptBirthday = ptRows[0].birthday;
+        } catch (hErr) {
+          console.warn('Error fetching patient birthday for PDF re-generation:', hErr.message);
+        }
+      }
+
+      let inabilityReasons = [];
+      try {
+        inabilityReasons = typeof item.inability_reasons === 'string'
+          ? JSON.parse(item.inability_reasons)
+          : (item.inability_reasons || []);
+      } catch (e) {}
+
+      // ตรวจสอบตำแหน่งรูปภาพบัตรประชาชน (ถ้ามี)
+      let resolvedIdCardPath = null;
+      if (item.patient_id_card_img) {
+        const cleanImgRel = item.patient_id_card_img.replace(/\\/g, '/');
+        const candidateImgPath = path.resolve(__dirname, '..', cleanImgRel);
+        if (fs.existsSync(candidateImgPath)) {
+          resolvedIdCardPath = candidateImgPath;
+        }
+      }
+
+      const pdfBuffer = await generateCaregiverPdf({
+        affidavitId: item.id,
+        sessionId: item.session_id,
+        caregiverName: item.caregiver_name,
+        ptname_hos: item.caregiver_name,
+        caregiverCid: item.caregiver_cid,
+        caregiverPhone: item.caregiver_phone,
+        caregiverBirthdate: item.caregiver_birthdate,
+        caregiverAddress: item.caregiver_address,
+        patientName: item.patient_name,
+        patientHn: item.patient_hn,
+        patientCid: item.patient_cid,
+        patientBirthdate: ptBirthday,
+        patientAddress: item.patient_address,
+        relationship: item.relationship,
+        relationshipDesc: item.relationship_desc,
+        inabilityReasons,
+        inabilityReasonOther: item.inability_reason_other,
+        idCardImagePath: resolvedIdCardPath,
+        witnessName: item.witness_name,
+        witnessUsername: item.witness_username,
+        witnessPosition: item.witness_position,
+        mophAccountId: item.moph_account_id,
+        mophJti: item.moph_jti,
+        mophIal: item.moph_ial || '2.3',
+        createdAt: item.created_at || new Date()
+      });
+
+      fs.writeFileSync(fullPdfPath, pdfBuffer);
+
+      // อัปเดต path ในฐานข้อมูลให้เป็น forward slash มาตรฐาน
+      try {
+        const relativeSavedPath = path.relative(path.join(__dirname, '..'), fullPdfPath).replace(/\\/g, '/');
+        const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
+        await conn.query('UPDATE caregiver_affidavits SET pdf_path = ?, pdf_hash = COALESCE(pdf_hash, ?) WHERE id = ?', [
+          relativeSavedPath,
+          pdfHash,
+          item.id
+        ]);
+      } catch (uErr) {
+        console.warn('Error updating restored pdf_path:', uErr.message);
+      }
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     fs.createReadStream(fullPdfPath).pipe(res);
   } catch (err) {
     console.error('Error serving caregiver PDF:', err);
-    res.status(500).send('เกิดข้อผิดพลาดในการเปิดเอกสาร PDF');
+    res.status(500).send('เกิดข้อผิดพลาดในการเปิดเอกสาร PDF: ' + err.message);
   } finally {
     if (conn) conn.release();
+    if (connHos) connHos.release();
   }
 });
 
