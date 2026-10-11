@@ -59,8 +59,8 @@ export default function Sidebar({ isOpen, onClose }) {
     }
   };
 
-  const hasLineOa = isAdmin || canAccess('today_registrations') || canAccess('all_registrations');
-  const hasTelemed = isAdmin || canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_appointments') || canAccess('prescreening');
+  const hasLineOa = isAdmin || canAccess('today_registrations') || canAccess('all_registrations') || canAccess('caregivers');
+  const hasTelemed = isAdmin || canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_pharmacy') || canAccess('telemed_appointments') || canAccess('prescreening');
   const hasPreScreening = isAdmin || canAccess('request_telemed_register') || canAccess('request_telemed_receive') || canAccess('request_telemed_doctor') || canAccess('request_telemed_pharmacist') || canAccess('request_telemed_approved') || canAccess('request_telemed_all');
   const hasTelemedToday = isAdmin || canAccess('telemed_today_appointments') || canAccess('telemed_today_pharmacy') || canAccess('telemed_today_finance');
   const hasSettings = isAdmin || canAccess('settings');
@@ -173,6 +173,22 @@ export default function Sidebar({ isOpen, onClose }) {
                   <span>ข้อมูลลงทะเบียนทั้งหมด</span>
                 </NavLink>
               )}
+
+              {(isAdmin || canAccess('caregivers')) && (
+                <NavLink
+                  to="/caregivers"
+                  className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+                  onClick={handleNavClick}
+                  id="nav-caregivers"
+                >
+                  <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M19 8v6m3-3h-6" />
+                  </svg>
+                  <span>Caregiver (ผู้ดูแล)</span>
+                </NavLink>
+              )}
             </>
           )}
 
@@ -208,6 +224,21 @@ export default function Sidebar({ isOpen, onClose }) {
                     <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                   </svg>
                   <span>Case Telemed วันนี้</span>
+                </NavLink>
+              )}
+
+              {(isAdmin || canAccess('telemed_pharmacy')) && (
+                <NavLink
+                  to="/telemed-pharmacy"
+                  className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+                  onClick={handleNavClick}
+                  id="nav-telemed-pharmacy"
+                >
+                  <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+                    <path d="m8.5 8.5 7 7" />
+                  </svg>
+                  <span>ห้องยา</span>
                 </NavLink>
               )}
 

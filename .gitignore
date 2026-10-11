@@ -31,3 +31,8 @@ Thumbs.db
 
 # Local overrides
 *.local
+
+# Uploads & User generated data
+uploads/
+backend/uploads/
+backend/test_out-*.png

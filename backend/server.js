@@ -17,12 +17,14 @@ const requestTelemedRoutes = require('./routes/request-telemed');
 const telemedTodayRoutes = require('./routes/telemed-today');
 const roleRoutes = require('./routes/roles');
 const systemRoutes = require('./routes/system');
+const caregiverRoutes = require('./routes/caregiver');
+const telemedPharmacyRoutes = require('./routes/telemed-pharmacy');
 const { getAppVersion } = require('./lib/version');
 
 const app = express();
 
-// Trust reverse proxy (e.g., Nginx terminating SSL/TLS)
-app.set('trust proxy', 1);
+// Trust reverse proxy (Vite dev proxy, Nginx, etc.)
+app.set('trust proxy', true);
 
 // ---------------------------------------------------------------------------
 // Middleware
@@ -54,8 +56,8 @@ app.use(helmet({
 
 app.use(cors());
 
-// Body parser with size limit
-app.use(express.json({ limit: '1mb' }));
+// Body parser with size limit (10mb for photo uploads)
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
 // Rate limiting — general
@@ -90,6 +92,8 @@ app.use('/api/prescreening', prescreeningRoutes); // /api/prescreening queries/a
 app.use('/api/request-telemed', requestTelemedRoutes); // /api/request-telemed queries
 app.use('/api/telemed-today', telemedTodayRoutes);       // /api/telemed-today queries (real-date workflow)
 app.use('/api/roles', roleRoutes);                       // /api/roles & /api/roles/menus dynamic permissions
+app.use('/api/caregiver', caregiverRoutes);               // /api/caregiver sessions, submissions, list & pdf
+app.use('/api/telemed-pharmacy', telemedPharmacyRoutes);   // /api/telemed-pharmacy (telemed_stat workflow)
 
 // ---------------------------------------------------------------------------
 // Start Scheduler (node-cron)

@@ -14,6 +14,10 @@ import RegisterTelemedPage from './pages/RegisterTelemedPage';
 import TelemedTodayAppointmentsPage from './pages/TelemedTodayAppointmentsPage';
 import TelemedTodayPharmacyPage from './pages/TelemedTodayPharmacyPage';
 import TelemedTodayFinancePage from './pages/TelemedTodayFinancePage';
+import TelemedPharmacyPage from './pages/TelemedPharmacyPage';
+import CaregiverListPage from './pages/CaregiverListPage';
+import CaregiverFormPage from './pages/CaregiverFormPage';
+import { useParams } from 'react-router-dom';
 
 import { useAuth } from './context/AuthContext';
 
@@ -34,9 +38,11 @@ function HomeRoute() {
     { key: 'telemed_today_appointments', path: '/telemed-today/appointments' },
     { key: 'telemed_dashboard', path: '/telemed-dashboard' },
     { key: 'telemed_cases', path: '/telemed-with-doctor' },
+    { key: 'telemed_pharmacy', path: '/telemed-pharmacy' },
     { key: 'telemed_appointments', path: '/telemed-appointments' },
     { key: 'prescreening', path: '/prescreening' },
     { key: 'all_registrations', path: '/all' },
+    { key: 'caregivers', path: '/caregivers' },
     { key: 'settings', path: '/settings' },
   ];
   for (const r of defaultRoutes) {
@@ -52,12 +58,28 @@ function HomeRoute() {
   );
 }
 
+function CagiverRedirect() {
+  const { sessionId } = useParams();
+  return <Navigate to={`/caregiver/${sessionId}`} replace />;
+}
+
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          {/* Standalone Caregiver Form (ไม่มีเมนูด้านซ้าย / สำหรับ New Window) */}
+          <Route
+            path="caregiver/:sessionId"
+            element={
+              <ProtectedRoute menuKey="caregivers">
+                <CaregiverFormPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="cagiver/:sessionId" element={<CagiverRedirect />} />
+
           <Route
             element={
               <ProtectedRoute>
@@ -67,10 +89,12 @@ export default function App() {
           >
             <Route index element={<HomeRoute />} />
             <Route path="all" element={<ProtectedRoute menuKey="all_registrations"><AllRegistrations /></ProtectedRoute>} />
+            <Route path="caregivers" element={<ProtectedRoute menuKey="caregivers"><CaregiverListPage /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute menuKey="settings"><SettingsPage /></ProtectedRoute>} />
             <Route path="telemed-dashboard" element={<ProtectedRoute menuKey="telemed_dashboard"><TelemedDashboardPage /></ProtectedRoute>} />
             <Route path="telemed-with-doctor" element={<ProtectedRoute menuKey="telemed_cases"><TelemedCasesPage type="combined" /></ProtectedRoute>} />
             <Route path="telemed-no-doctor" element={<ProtectedRoute menuKey="telemed_cases"><TelemedCasesPage type="combined" /></ProtectedRoute>} />
+            <Route path="telemed-pharmacy" element={<ProtectedRoute menuKey="telemed_pharmacy"><TelemedPharmacyPage /></ProtectedRoute>} />
             <Route path="telemed-appointments" element={<ProtectedRoute menuKey="telemed_appointments"><TelemedCasesPage type="appointments" /></ProtectedRoute>} />
             <Route path="prescreening" element={<ProtectedRoute menuKey="prescreening"><PrescreeningPage /></ProtectedRoute>} />
             {/* Phase 1: Pre-screening (Request Telemed) */}

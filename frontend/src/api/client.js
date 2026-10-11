@@ -272,4 +272,66 @@ export const api = {
   // System version & updates
   getSystemVersion: () => request('/system/version'),
   checkSystemUpdate: () => request('/system/check-update'),
+
+  // Caregiver management
+  getCaregiverMasterOptions: () => request('/caregiver/master-options'),
+  getCaregiverSession: (sessionId) => request(`/caregiver/session/${encodeURIComponent(sessionId)}`),
+  lookupCaregiverPatient: (q) => request(`/caregiver/patient-lookup?q=${encodeURIComponent(q)}`),
+  submitCaregiverAffidavit: (payload) =>
+    request('/caregiver/submit', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  previewCaregiverPdf: async (payload) => {
+    const res = await fetch('/api/caregiver/preview-pdf', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(errJson.error || 'ไม่สามารถสร้างตัวอย่างเอกสาร PDF ได้');
+    }
+    return await res.blob();
+  },
+  getCaregiverList: (page = 1, limit = 20, search = '') => {
+    const params = new URLSearchParams({ page, limit });
+    if (search) params.set('search', search);
+    return request(`/caregiver/list?${params}`);
+  },
+  updateCaregiverStatus: (id, status) =>
+    request(`/caregiver/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    }),
+
+  // Telemed Pharmacy (telemed_stat workflow)
+  getTelemedPharmacy: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.tab) qs.set('tab', params.tab);
+    if (params.search) qs.set('search', params.search);
+    if (params.date) qs.set('date', params.date);
+    if (params.delivery_date) qs.set('delivery_date', params.delivery_date);
+    const qStr = qs.toString();
+    return request(`/telemed-pharmacy${qStr ? `?${qStr}` : ''}`);
+  },
+
+  syncTelemedPharmacyVn: (id) =>
+    request(`/telemed-pharmacy/${id}/sync-vn`, { method: 'POST' }),
+
+  getTelemedPharmacyDetail: (id) =>
+    request(`/telemed-pharmacy/${id}/detail`),
+
+  dispenseTelemedPharmacy: (id, { payType, note }) =>
+    request(`/telemed-pharmacy/${id}/dispense`, {
+      method: 'POST',
+      body: JSON.stringify({ payType, note }),
+    }),
+
+  deliveryTelemedPharmacy: (id, payload = {}) =>
+    request(`/telemed-pharmacy/${id}/delivery`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
