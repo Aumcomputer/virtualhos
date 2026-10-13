@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api/client';
 
 export default function CaregiverListPage() {
+  const [tab, setTab] = useState('all'); // 'all' | 'patient_moph' | 'official'
   const [caregivers, setCaregivers] = useState([]);
+  const [summary, setSummary] = useState({ all_count: 0, patient_count: 0, official_count: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
@@ -10,13 +12,14 @@ export default function CaregiverListPage() {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [statusUpdatingId, setStatusUpdatingId] = useState(null);
 
-  const fetchCaregivers = useCallback(async (targetPage = 1, searchQuery = '') => {
+  const fetchCaregivers = useCallback(async (targetPage = 1, searchQuery = '', activeTab = 'all') => {
     try {
       setLoading(true);
       setError(null);
-      const res = await api.getCaregiverList(targetPage, 20, searchQuery);
+      const res = await api.getCaregiverList(targetPage, 20, searchQuery, activeTab);
       if (res.success) {
         setCaregivers(res.data || []);
+        setSummary(res.summary || { all_count: 0, patient_count: 0, official_count: 0 });
         setPagination(res.pagination || { page: targetPage, limit: 20, total: 0, totalPages: 1 });
       }
     } catch (err) {
@@ -28,17 +31,21 @@ export default function CaregiverListPage() {
   }, []);
 
   useEffect(() => {
-    fetchCaregivers(page, search);
-  }, [fetchCaregivers, page]);
+    fetchCaregivers(page, search, tab);
+  }, [fetchCaregivers, page, tab]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     setPage(1);
-    fetchCaregivers(1, search);
+    fetchCaregivers(1, search, tab);
+  };
+
+  const handleTabChange = (newTab) => {
+    setTab(newTab);
+    setPage(1);
   };
 
   const handleAddCaregiver = () => {
-    // ใช้ UUID v4 มาตรฐานรูปแบบ เช่น 4fd61764-88e3-4652-a4d9-b2efb2df2202
     let sessionId;
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
       sessionId = crypto.randomUUID();
@@ -54,8 +61,9 @@ export default function CaregiverListPage() {
   };
 
   const handleToggleStatus = async (id, currentStatus) => {
-    const nextStatus = currentStatus === 'REJECTED' ? 'APPROVED' : 'REJECTED';
-    const actionText = nextStatus === 'APPROVED' ? 'อนุมัติ' : 'ไม่อนุมัติ';
+    const isCurrentlyActive = currentStatus === 'ACTIVE' || currentStatus === 'APPROVED';
+    const nextStatus = isCurrentlyActive ? 'INACTIVE' : 'ACTIVE';
+    const actionText = nextStatus === 'ACTIVE' ? 'เปิดใช้งาน (อนุมัติ)' : 'ระงับสิทธิ์ (ไม่อนุมัติ)';
     if (!window.confirm(`ต้องการเปลี่ยนสถานะรายการนี้เป็น "${actionText}" ใช่หรือไม่?`)) {
       return;
     }
@@ -65,7 +73,7 @@ export default function CaregiverListPage() {
       const res = await api.updateCaregiverStatus(id, nextStatus);
       if (res.success) {
         setCaregivers((prev) =>
-          prev.map((cg) => (cg.id === id ? { ...cg, status: nextStatus } : cg))
+          prev.map((cg) => (cg.id === id ? { ...cg, status: nextStatus, aff_status: nextStatus === 'ACTIVE' ? 'APPROVED' : 'REJECTED' } : cg))
         );
       } else {
         alert(res.error || res.message || 'ไม่สามารถอัปเดตสถานะได้');
@@ -93,8 +101,8 @@ export default function CaregiverListPage() {
       const d = new Date(isoString);
       const day = d.getDate();
       const months = [
-        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+        'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+        'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'
       ];
       const month = months[d.getMonth()];
       const year = d.getFullYear() + 543;
@@ -125,7 +133,7 @@ export default function CaregiverListPage() {
             <span style={{ fontSize: '26px' }}>👥</span> จัดการข้อมูลผู้ดูแล (Caregiver)
           </h1>
           <p style={{ color: 'var(--gray-500)', fontSize: '14px', margin: 0 }}>
-            หนังสือรับรองและประวัติการลงทะเบียนผู้ดูแลผู้ป่วยเพื่อรับบริการ Telemedicine โรงพยาบาลราชบุรี
+            รายชื่อผู้ดูแลและหนังสือรับรองผู้ดูแลผู้ป่วยเพื่อรับบริการ Telemedicine โรงพยาบาลราชบุรี
           </p>
         </div>
 
@@ -154,7 +162,112 @@ export default function CaregiverListPage() {
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          เพิ่ม Caregiver
+          เพิ่ม Caregiver (ออกหนังสือรับรอง)
+        </button>
+      </div>
+
+      {/* Tabs Navigation */}
+      <div style={{ display: 'flex', gap: '10px', borderBottom: '2px solid var(--gray-200)', marginBottom: '20px', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => handleTabChange('all')}
+          style={{
+            padding: '11px 18px',
+            fontSize: '14px',
+            fontWeight: '600',
+            border: 'none',
+            borderBottom: tab === 'all' ? '3px solid #0f766e' : '3px solid transparent',
+            color: tab === 'all' ? '#0f766e' : 'var(--gray-600)',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '-2px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>👥 ทั้งหมด</span>
+          <span
+            style={{
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '12px',
+              backgroundColor: tab === 'all' ? '#ccfbf1' : 'var(--gray-100)',
+              color: tab === 'all' ? '#0f766e' : 'var(--gray-600)',
+              fontWeight: '700',
+            }}
+          >
+            {summary.all_count}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('patient_moph')}
+          style={{
+            padding: '11px 18px',
+            fontSize: '14px',
+            fontWeight: '600',
+            border: 'none',
+            borderBottom: tab === 'patient_moph' ? '3px solid #0284c7' : '3px solid transparent',
+            color: tab === 'patient_moph' ? '#0284c7' : 'var(--gray-600)',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '-2px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>📱 ลงทะเบียนด้วยตนเอง</span>
+          <span
+            style={{
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '12px',
+              backgroundColor: tab === 'patient_moph' ? '#e0f2fe' : 'var(--gray-100)',
+              color: tab === 'patient_moph' ? '#0284c7' : 'var(--gray-600)',
+              fontWeight: '700',
+            }}
+          >
+            {summary.patient_count}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleTabChange('official')}
+          style={{
+            padding: '11px 18px',
+            fontSize: '14px',
+            fontWeight: '600',
+            border: 'none',
+            borderBottom: tab === 'official' ? '3px solid #7c3aed' : '3px solid transparent',
+            color: tab === 'official' ? '#7c3aed' : 'var(--gray-600)',
+            backgroundColor: 'transparent',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginBottom: '-2px',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <span>🏛️ รับรองผ่านเจ้าหน้าที่</span>
+          <span
+            style={{
+              padding: '2px 8px',
+              borderRadius: '9999px',
+              fontSize: '12px',
+              backgroundColor: tab === 'official' ? '#ede9fe' : 'var(--gray-100)',
+              color: tab === 'official' ? '#7c3aed' : 'var(--gray-600)',
+              fontWeight: '700',
+            }}
+          >
+            {summary.official_count}
+          </span>
         </button>
       </div>
 
@@ -212,7 +325,7 @@ export default function CaregiverListPage() {
               onClick={() => {
                 setSearch('');
                 setPage(1);
-                fetchCaregivers(1, '');
+                fetchCaregivers(1, '', tab);
               }}
               style={{
                 padding: '10px 14px',
@@ -246,8 +359,8 @@ export default function CaregiverListPage() {
                 <th style={{ padding: '14px 16px' }}>วันที่บันทึก</th>
                 <th style={{ padding: '14px 16px' }}>ผู้ดูแล (Caregiver)</th>
                 <th style={{ padding: '14px 16px' }}>ผู้ป่วยในความดูแล (Patient)</th>
-                <th style={{ padding: '14px 16px' }}>ความสัมพันธ์ & เหตุผล</th>
-                <th style={{ padding: '14px 16px' }}>พยาน (จนท. รพ.)</th>
+                <th style={{ padding: '14px 16px' }}>ความสัมพันธ์</th>
+                <th style={{ padding: '14px 16px' }}>การลงทะเบียน / พยาน</th>
                 <th style={{ padding: '14px 16px', textAlign: 'center' }}>สถานะ</th>
                 <th style={{ padding: '14px 16px', textAlign: 'center' }}>หนังสือรับรอง</th>
               </tr>
@@ -264,55 +377,63 @@ export default function CaregiverListPage() {
                 <tr>
                   <td colSpan="7" style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--gray-500)' }}>
                     <div style={{ fontSize: '36px', marginBottom: '10px' }}>📭</div>
-                    <div style={{ fontWeight: '600', fontSize: '16px', color: 'var(--gray-700)' }}>ยังไม่มีข้อมูลผู้ดูแล</div>
+                    <div style={{ fontWeight: '600', fontSize: '16px', color: 'var(--gray-700)' }}>
+                      ไม่พบข้อมูลผู้ดูแลในแท็บนี้
+                    </div>
                     <p style={{ margin: '6px 0 16px 0', fontSize: '13px', color: 'var(--gray-500)' }}>
-                      กดปุ่ม "+ เพิ่ม Caregiver" ด้านบนเพื่อเริ่มลงทะเบียนหนังสือรับรองผู้ดูแลผ่านหมอพร้อม
+                      {tab === 'patient_moph'
+                        ? 'ยังไม่มีรายการที่ลงทะเบียนด้วยตนเองผ่าน LINE OA'
+                        : tab === 'official'
+                        ? 'ยังไม่มีรายการที่รับรองผ่านเจ้าหน้าที่ รพ.'
+                        : 'กดปุ่ม "+ เพิ่ม Caregiver" ด้านบนเพื่อเริ่มลงทะเบียนหนังสือรับรองผู้ดูแลผ่านหมอพร้อม'}
                     </p>
-                    <button
-                      type="button"
-                      onClick={handleAddCaregiver}
-                      style={{
-                        padding: '8px 18px',
-                        backgroundColor: '#0f766e',
-                        color: '#fff',
-                        borderRadius: '8px',
-                        border: 'none',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      + เพิ่ม Caregiver ทันที
-                    </button>
                   </td>
                 </tr>
               ) : (
                 caregivers.map((cg) => {
                   const reasons = parseReasons(cg.inability_reasons);
-                  const isApproved = cg.status !== 'REJECTED';
+                  const isApproved = cg.status === 'ACTIVE' || cg.status === 'APPROVED';
                   const isUpdating = statusUpdatingId === cg.id;
+                  const isSelfRegistered = cg.added_by === 'PATIENT_MOPH';
+
                   return (
-                    <tr key={cg.id} style={{ borderBottom: '1px solid var(--gray-100)', transition: 'background 0.15s ease' }} onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')} onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}>
-                      <td style={{ padding: '14px 16px', color: 'var(--gray-500)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                    <tr
+                      key={cg.id}
+                      style={{ borderBottom: '1px solid var(--gray-100)', transition: 'background 0.15s ease' }}
+                      onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#f8fafc')}
+                      onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      {/* วันที่บันทึก */}
+                      <td style={{ padding: '14px 16px', color: 'var(--gray-500)', whiteSpace: 'nowrap', verticalAlign: 'top', fontSize: '13px' }}>
                         {formatDate(cg.created_at)}
                       </td>
+
+                      {/* ผู้ดูแล */}
                       <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
-                        <div style={{ fontWeight: '600', color: 'var(--gray-900)' }}>{cg.caregiver_name}</div>
+                        <div style={{ fontWeight: '600', color: 'var(--gray-900)' }}>
+                          {cg.caregiver_name || '-'}
+                        </div>
                         {cg.caregiver_phone && (
                           <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '2px' }}>
                             โทร: {cg.caregiver_phone}
                           </div>
                         )}
                       </td>
+
+                      {/* ผู้ป่วยในความดูแล */}
                       <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
-                        <div style={{ fontWeight: '600', color: '#1e40af' }}>{cg.patient_name}</div>
+                        <div style={{ fontWeight: '600', color: '#1e40af' }}>
+                          {cg.patient_name || '-'}
+                        </div>
                         <div style={{ fontSize: '13px', color: 'var(--gray-700)', marginTop: '2px' }}>
                           HN: <strong>{cg.patient_hn}</strong>
                         </div>
                       </td>
+
+                      {/* ความสัมพันธ์ & เหตุผล */}
                       <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
                         <div style={{ fontWeight: '600', color: '#4338ca' }}>
-                          {cg.relationship} {cg.relationship_desc ? `(${cg.relationship_desc})` : ''}
+                          {cg.relationship || '-'} {cg.relationship_desc ? `(${cg.relationship_desc})` : ''}
                         </div>
                         {reasons.length > 0 && (
                           <ul style={{ margin: '4px 0 0 16px', padding: 0, fontSize: '12px', color: 'var(--gray-600)' }}>
@@ -321,15 +442,74 @@ export default function CaregiverListPage() {
                             ))}
                           </ul>
                         )}
+                        {cg.inability_reason_other && (
+                          <div style={{ fontSize: '12px', color: 'var(--gray-600)', marginTop: '2px', fontStyle: 'italic' }}>
+                            เหตุผล: {cg.inability_reason_other}
+                          </div>
+                        )}
                       </td>
+
+                      {/* การลงทะเบียน / พยาน */}
                       <td style={{ padding: '14px 16px', verticalAlign: 'top' }}>
-                        <div style={{ fontWeight: '500', color: 'var(--gray-800)' }}>{cg.witness_name}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>({cg.witness_username})</div>
+                        {isSelfRegistered ? (
+                          <div>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                backgroundColor: '#e0f2fe',
+                                color: '#0369a1',
+                                border: '1px solid #bae6fd',
+                              }}
+                            >
+                              📱 LINE OA (ตนเอง)
+                            </span>
+                            <div style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
+                              ระดับยืนยัน: <strong>IAL {cg.ial || '-'}</strong>
+                            </div>
+                          </div>
+                        ) : (
+                          <div>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                backgroundColor: '#ede9fe',
+                                color: '#6d28d9',
+                                border: '1px solid #ddd6fe',
+                              }}
+                            >
+                              🏛️ เจ้าหน้าที่ รพ.
+                            </span>
+                            {cg.witness_name && (
+                              <div style={{ fontSize: '12px', fontWeight: '500', color: 'var(--gray-800)', marginTop: '4px' }}>
+                                {cg.witness_name}
+                              </div>
+                            )}
+                            {(cg.witness_username || cg.added_by) && (
+                              <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                                ({cg.witness_username || cg.added_by})
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </td>
+
+                      {/* สถานะ */}
                       <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'top' }}>
                         <button
                           type="button"
-                          onClick={() => handleToggleStatus(cg.id, cg.status || 'APPROVED')}
+                          onClick={() => handleToggleStatus(cg.id, cg.status || 'ACTIVE')}
                           disabled={isUpdating}
                           style={{
                             display: 'inline-flex',
@@ -357,7 +537,7 @@ export default function CaregiverListPage() {
                             e.currentTarget.style.transform = 'scale(1)';
                             e.currentTarget.style.boxShadow = 'none';
                           }}
-                          title={`สถานะปัจจุบัน: ${isApproved ? 'อนุมัติ' : 'ไม่อนุมัติ'} (คลิกเพื่อเปลี่ยนสถานะ)`}
+                          title={`สถานะปัจจุบัน: ${isApproved ? 'ใช้งานอยู่ / อนุมัติ' : 'ระงับสิทธิ์ / ไม่อนุมัติ'} (คลิกเพื่อเปลี่ยนสถานะ)`}
                         >
                           <span
                             style={{
@@ -367,57 +547,65 @@ export default function CaregiverListPage() {
                               backgroundColor: isApproved ? '#16a34a' : '#dc2626',
                             }}
                           />
-                          {isUpdating ? 'กำลังบันทึก...' : (isApproved ? 'อนุมัติ' : 'ไม่อนุมัติ')}
+                          {isUpdating ? 'กำลังบันทึก...' : (isApproved ? 'ใช้งานอยู่' : 'ระงับสิทธิ์')}
                         </button>
                       </td>
+
+                      {/* หนังสือรับรอง */}
                       <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'top' }}>
-                        <a
-                          href={`/api/caregiver/pdf/${cg.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            padding: '6px 14px',
-                            backgroundColor: '#eff6ff',
-                            color: '#1d4ed8',
-                            border: '1px solid #bfdbfe',
-                            borderRadius: '8px',
-                            fontSize: '13px',
-                            fontWeight: '600',
-                            textDecoration: 'none',
-                            transition: 'all 0.15s ease',
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.backgroundColor = '#dbeafe';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.backgroundColor = '#eff6ff';
-                          }}
-                          title="คลิกเพื่อเปิดดูหนังสือรับรอง PDF"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                          </svg>
-                          เปิด PDF
-                        </a>
-                        {cg.pdf_hash && (
-                          <div 
-                            title={`SHA-256: ${cg.pdf_hash}`}
-                            style={{ 
-                              fontSize: '10px', 
-                              color: 'var(--gray-500)', 
-                              marginTop: '4px',
-                              fontFamily: 'monospace'
-                            }}
-                          >
-                            Hash: {cg.pdf_hash.substring(0, 10)}...
+                        {cg.affidavit_id ? (
+                          <div>
+                            <a
+                              href={`/api/caregiver/pdf/${cg.affidavit_id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                backgroundColor: '#eff6ff',
+                                color: '#1d4ed8',
+                                border: '1px solid #bfdbfe',
+                                borderRadius: '8px',
+                                fontSize: '12px',
+                                fontWeight: '600',
+                                textDecoration: 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = '#dbeafe';
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = '#eff6ff';
+                              }}
+                              title="คลิกเพื่อเปิดดูหนังสือรับรอง PDF"
+                            >
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10 9 9 9 8 9"></polyline>
+                              </svg>
+                              เปิด PDF
+                            </a>
+                            {cg.pdf_hash && (
+                              <div
+                                title={`SHA-256: ${cg.pdf_hash}`}
+                                style={{
+                                  fontSize: '10px',
+                                  color: 'var(--gray-400)',
+                                  marginTop: '4px',
+                                  fontFamily: 'monospace',
+                                }}
+                              >
+                                Hash: {cg.pdf_hash.substring(0, 10)}...
+                              </div>
+                            )}
                           </div>
+                        ) : (
+                          <span style={{ fontSize: '13px', color: 'var(--gray-400)' }}>-</span>
                         )}
                       </td>
                     </tr>
@@ -448,7 +636,7 @@ export default function CaregiverListPage() {
                   color: page <= 1 ? 'var(--gray-400)' : 'var(--gray-700)',
                 }}
               >
-                ◀ ก่อนหน้า
+                ย้อนกลับ
               </button>
               <button
                 type="button"
@@ -463,7 +651,7 @@ export default function CaregiverListPage() {
                   color: page >= pagination.totalPages ? 'var(--gray-400)' : 'var(--gray-700)',
                 }}
               >
-                ถัดไป ▶
+                ถัดไป
               </button>
             </div>
           </div>

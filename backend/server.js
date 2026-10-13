@@ -19,6 +19,8 @@ const roleRoutes = require('./routes/roles');
 const systemRoutes = require('./routes/system');
 const caregiverRoutes = require('./routes/caregiver');
 const telemedPharmacyRoutes = require('./routes/telemed-pharmacy');
+const telemedFinanceRoutes = require('./routes/telemed-finance');
+const referralPttypeRoutes = require('./routes/referral-pttypes');
 const { getAppVersion } = require('./lib/version');
 
 const app = express();
@@ -94,6 +96,8 @@ app.use('/api/telemed-today', telemedTodayRoutes);       // /api/telemed-today q
 app.use('/api/roles', roleRoutes);                       // /api/roles & /api/roles/menus dynamic permissions
 app.use('/api/caregiver', caregiverRoutes);               // /api/caregiver sessions, submissions, list & pdf
 app.use('/api/telemed-pharmacy', telemedPharmacyRoutes);   // /api/telemed-pharmacy (telemed_stat workflow)
+app.use('/api/telemed-finance', telemedFinanceRoutes);     // /api/telemed-finance (telemed_stat finance workflow)
+app.use('/api/referral-pttypes', referralPttypeRoutes);     // /api/referral-pttypes (settings for referral-required pttypes)
 
 // ---------------------------------------------------------------------------
 // Start Scheduler (node-cron)

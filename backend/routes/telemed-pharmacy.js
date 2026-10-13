@@ -77,21 +77,80 @@ router.get('/', authenticateToken, async (req, res) => {
       console.warn('[telemed-pharmacy] auto sync prescreening warning:', syncErr.message);
     }
 
-    // 2. คำนวณยอดสรุปตัวเลขของแต่ละแท็บ
+    // 2. ดึงรายการ oapp_id ทั้งหมดใน telemed_stat และคัดกรองเฉพาะเคสที่มี oapp.visit_vn ใน HOSxP
+    const statOapps = await connVhos.query(`
+      SELECT DISTINCT oapp_id 
+      FROM virtualhos.telemed_stat 
+      WHERE oapp_id IS NOT NULL
+    `);
+
+    let validOappIds = [];
+    const oappIdMap = new Map();
+
+    if (statOapps && statOapps.length > 0) {
+      const oappIds = statOapps.map((r) => Number(r.oapp_id)).filter(Boolean);
+      if (oappIds.length > 0) {
+        const oappRows = await connHos.query(
+          `SELECT oapp_id, visit_vn 
+           FROM oapp 
+           WHERE oapp_id IN (${oappIds.map(() => '?').join(',')}) 
+             AND visit_vn IS NOT NULL 
+             AND TRIM(visit_vn) != ''`,
+          oappIds
+        );
+
+        for (const r of oappRows) {
+          if (r.visit_vn) {
+            const v = String(r.visit_vn).trim();
+            if (v) {
+              const oid = Number(r.oapp_id);
+              validOappIds.push(oid);
+              oappIdMap.set(oid, v);
+            }
+          }
+        }
+      }
+    }
+
+    // ถ้าไม่มีเคสไหนที่มี oapp.visit_vn เลย ให้ส่งผลลัพธ์ว่างกลับไปทันที
+    if (validOappIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        summary: {
+          today_count: 0,
+          delivery_count: 0,
+          history_count: 0,
+        },
+      });
+    }
+
+    // อัปเดต vn ใน telemed_stat ให้ตรงกับ oapp.visit_vn อัตโนมัติ
+    for (const [oid, visitVn] of oappIdMap.entries()) {
+      await connVhos.query(
+        `UPDATE virtualhos.telemed_stat 
+         SET vn = ?, updated_at = NOW() 
+         WHERE oapp_id = ? AND (vn IS NULL OR vn != ?)`,
+        [visitVn, oid, visitVn]
+      );
+    }
+
+    // 3. คำนวณยอดสรุปตัวเลขของแต่ละแท็บ (เฉพาะเคสที่มี oapp.visit_vn)
     const summaryRows = await connVhos.query(`
       SELECT 
         SUM(CASE WHEN (pharmacy_pay_type IS NULL OR pharmacy_pay_type = '') AND (status NOT LIKE '%ไม่สามารถจัดส่งได้%' AND status NOT LIKE '%ยกเลิก%') THEN 1 ELSE 0 END) AS today_count,
-        SUM(CASE WHEN (pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID')) AND (tracking_number IS NULL OR tracking_number = '') AND status != 'จัดส่งเรียบร้อย' THEN 1 ELSE 0 END) AS delivery_count,
-        SUM(CASE WHEN (tracking_number IS NOT NULL AND tracking_number != '') OR status = 'จัดส่งเรียบร้อย' OR delivery_status = 'SHIPPED' THEN 1 ELSE 0 END) AS history_count
+        SUM(CASE WHEN (pharmacy_pay_type = 'FREE' OR (pharmacy_pay_type = 'PAID' AND finance_status = 'PAID')) AND status != 'จัดส่งเรียบร้อย' AND (delivery_status IS NULL OR delivery_status != 'SHIPPED') THEN 1 ELSE 0 END) AS delivery_count,
+        SUM(CASE WHEN status = 'จัดส่งเรียบร้อย' OR delivery_status = 'SHIPPED' OR (tracking_number IS NOT NULL AND tracking_number != '') THEN 1 ELSE 0 END) AS history_count
       FROM virtualhos.telemed_stat
-    `);
+      WHERE oapp_id IN (${validOappIds.map(() => '?').join(',')})
+    `, validOappIds);
     const todayCount = Number(summaryRows[0]?.today_count || 0);
     const deliveryCount = Number(summaryRows[0]?.delivery_count || 0);
     const historyCount = Number(summaryRows[0]?.history_count || 0);
 
-    // 3. กรองข้อมูลตามแท็บ
-    let whereClause = '1=1';
-    const params = [];
+    // 4. กรองข้อมูลตามแท็บ (เฉพาะเคสที่มี oapp.visit_vn)
+    let whereClause = `ts.oapp_id IN (${validOappIds.map(() => '?').join(',')})`;
+    const params = [...validOappIds];
 
     if (tab === 'today') {
       whereClause += `
@@ -105,12 +164,12 @@ router.get('/', authenticateToken, async (req, res) => {
     } else if (tab === 'delivery') {
       whereClause += `
         AND (ts.pharmacy_pay_type = 'FREE' OR (ts.pharmacy_pay_type = 'PAID' AND ts.finance_status = 'PAID'))
-        AND (ts.tracking_number IS NULL OR ts.tracking_number = '')
         AND ts.status != 'จัดส่งเรียบร้อย'
+        AND (ts.delivery_status IS NULL OR ts.delivery_status != 'SHIPPED')
       `;
     } else if (tab === 'history') {
       whereClause += `
-        AND ((ts.tracking_number IS NOT NULL AND ts.tracking_number != '') OR ts.status = 'จัดส่งเรียบร้อย' OR ts.delivery_status = 'SHIPPED')
+        AND (ts.status = 'จัดส่งเรียบร้อย' OR ts.delivery_status = 'SHIPPED' OR (ts.tracking_number IS NOT NULL AND ts.tracking_number != ''))
       `;
       if (deliveryDate) {
         whereClause += ` AND (DATE(ts.delivery_at) = ? OR (ts.delivery_at IS NULL AND DATE(ts.updated_at) = ?))`;
@@ -152,47 +211,14 @@ router.get('/', authenticateToken, async (req, res) => {
 
     const rows = await connVhos.query(query, params);
 
-    // 4. Enrich ข้อมูล VN วันนี้และราคา
+    // 5. Enrich ข้อมูล VN วันนี้และราคา
     const enriched = [];
     for (const raw of rows) {
       const item = serializeRow(raw);
 
-      // ตรวจสอบและซิงก์ VN ถ้ายังไม่มี
-      if (!item.vn && item.hn) {
-        try {
-          let foundVn = null;
-          // ถ้ามี oapp_id เช็ก visit_vn
-          if (item.oapp_id) {
-            const oappRows = await connHos.query(
-              'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
-              [item.oapp_id]
-            );
-            if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
-              foundVn = String(oappRows[0].visit_vn).trim();
-            }
-          }
-          // ถ้ายังไม่มี ค้นหาจาก ovst วันนี้
-          if (!foundVn) {
-            const targetDateStr = item.vstdate ? new Date(item.vstdate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-            const ovstRows = await connHos.query(
-              'SELECT vn FROM ovst WHERE hn = ? AND vstdate = ? ORDER BY vsttime DESC LIMIT 1',
-              [item.hn, targetDateStr]
-            );
-            if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
-              foundVn = String(ovstRows[0].vn).trim();
-            }
-          }
-
-          if (foundVn) {
-            item.vn = foundVn;
-            await connVhos.query(
-              'UPDATE virtualhos.telemed_stat SET vn = ?, updated_at = NOW() WHERE id = ?',
-              [foundVn, item.id]
-            );
-          }
-        } catch (vErr) {
-          console.warn('[telemed-pharmacy] Error syncing VN for item:', item.id, vErr.message);
-        }
+      // กำหนดค่า VN จาก oapp.visit_vn ถ้าใน item ยังไม่มี
+      if (!item.vn && item.oapp_id && oappIdMap.has(Number(item.oapp_id))) {
+        item.vn = oappIdMap.get(Number(item.oapp_id));
       }
 
       // ดึงสิทธิการรักษาจาก ovst.pttype และ ข้อมูลราคาจาก vn_stat
@@ -335,7 +361,7 @@ router.post('/:id/sync-vn', authenticateToken, async (req, res) => {
 
     let foundVn = null;
 
-    // 1. จาก oapp
+    // 1. จาก oapp.visit_vn เท่านั้น
     if (item.oapp_id) {
       const oappRows = await connHos.query(
         'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
@@ -346,21 +372,10 @@ router.post('/:id/sync-vn', authenticateToken, async (req, res) => {
       }
     }
 
-    // 2. จาก ovst
-    if (!foundVn) {
-      const ovstRows = await connHos.query(
-        'SELECT vn FROM ovst WHERE hn = ? AND vstdate = ? ORDER BY vsttime DESC LIMIT 1',
-        [item.hn, targetDateStr]
-      );
-      if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
-        foundVn = String(ovstRows[0].vn).trim();
-      }
-    }
-
     if (!foundVn) {
       return res.json({
         success: false,
-        message: `ยังไม่พบการเปิด Visit ใน HOSxP สำหรับผู้ป่วย HN ${item.hn} ในวันที่ ${targetDateStr}`,
+        message: `ยังไม่พบการเปิด Visit ในใบนัด HOSxP (oapp.visit_vn) สำหรับผู้ป่วย HN ${item.hn}`,
         vn: null,
       });
     }
@@ -425,28 +440,16 @@ router.get('/:id/detail', authenticateToken, async (req, res) => {
 
     const item = serializeRow(statRows[0]);
 
-    // ถ้ายังไม่มี VN ลองค้นหาและซิงก์อัตโนมัติ
-    if (!item.vn && item.hn) {
+    // ถ้ายังไม่มี VN ลองค้นหาและซิงก์อัตโนมัติจาก oapp.visit_vn
+    if (!item.vn && item.oapp_id) {
       try {
         let foundVn = null;
-        if (item.oapp_id) {
-          const oappRows = await connHos.query(
-            'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
-            [item.oapp_id]
-          );
-          if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
-            foundVn = String(oappRows[0].visit_vn).trim();
-          }
-        }
-        if (!foundVn) {
-          const targetDateStr = item.vstdate ? new Date(item.vstdate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-          const ovstRows = await connHos.query(
-            'SELECT vn FROM ovst WHERE hn = ? AND vstdate = ? ORDER BY vsttime DESC LIMIT 1',
-            [item.hn, targetDateStr]
-          );
-          if (ovstRows && ovstRows.length > 0 && ovstRows[0].vn) {
-            foundVn = String(ovstRows[0].vn).trim();
-          }
+        const oappRows = await connHos.query(
+          'SELECT visit_vn FROM oapp WHERE oapp_id = ? LIMIT 1',
+          [item.oapp_id]
+        );
+        if (oappRows && oappRows.length > 0 && oappRows[0].visit_vn) {
+          foundVn = String(oappRows[0].visit_vn).trim();
         }
 
         if (foundVn) {
@@ -662,25 +665,24 @@ router.post('/:id/dispense', authenticateToken, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. POST /api/telemed-pharmacy/:id/delivery — บันทึกการจัดส่งยา (เลขพัสดุ)
+// 5. POST /api/telemed-pharmacy/:id/delivery — บันทึกการจัดส่งยา (เสร็จสิ้น)
 // ---------------------------------------------------------------------------
 router.post('/:id/delivery', authenticateToken, async (req, res) => {
   const { id } = req.params;
-  const { tracking_number, delivery_type } = req.body;
+  const { tracking_number, delivery_type } = req.body || {};
   const username = req.user?.displayName || req.user?.name || req.user?.username || 'officer';
-
-  if (!tracking_number || !tracking_number.trim()) {
-    return res.status(400).json({ error: 'กรุณาระบุหมายเลขพัสดุ (Tracking Number)' });
-  }
 
   let connVhos;
   try {
     connVhos = await pool_vhos.getConnection();
 
+    const trackingNumber = tracking_number ? tracking_number.trim() : null;
+    const deliveryType = delivery_type || 'POST';
+
     await connVhos.query(`
       UPDATE virtualhos.telemed_stat
       SET 
-        tracking_number = ?,
+        tracking_number = COALESCE(?, tracking_number),
         delivery_type = COALESCE(?, delivery_type, 'POST'),
         delivery_status = 'SHIPPED',
         delivery_at = NOW(),
@@ -688,7 +690,7 @@ router.post('/:id/delivery', authenticateToken, async (req, res) => {
         status = 'จัดส่งเรียบร้อย',
         updated_at = NOW()
       WHERE id = ?
-    `, [tracking_number.trim(), delivery_type || 'POST', username, id]);
+    `, [trackingNumber, deliveryType, username, id]);
 
     res.json({
       success: true,

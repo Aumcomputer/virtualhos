@@ -209,16 +209,26 @@ async function runPrescreeningJob() {
         d.name AS doctor_name,
         o.note,
         c.name AS clinic_name,
-        o.nextdate AS appointment_date
+        o.nextdate AS appointment_date,
+        ov.pttype,
+        pt.name AS pttype_name
       FROM oapp o
       LEFT JOIN patient p ON o.hn = p.hn
       LEFT JOIN doctor d ON o.doctor = d.code
       LEFT JOIN clinic c ON o.clinic = c.clinic
+      LEFT JOIN ovst ov ON o.vn = ov.vn
+      LEFT JOIN pttype pt ON ov.pttype = pt.pttype
       WHERE o.nextdate = CURDATE() + INTERVAL 1 DAY
         AND (o.note LIKE '%Telemed พบแพทย์%' OR o.note LIKE '%Telemed ไม่พบแพทย์%')
     `;
     const appointments = await connHos.query(fetchQuery);
     const recordsFound = appointments.length;
+
+    // Fetch active referral pttypes from virtualhos
+    const referralPttypesRows = await connVhos.query(`
+      SELECT pttype FROM virtualhos.referral_pttypes WHERE is_active = 1
+    `);
+    const referralPttypeSet = new Set(referralPttypesRows.map(r => String(r.pttype)));
 
     let recordsInserted = 0;
     let lineSentCount = 0;
@@ -243,14 +253,16 @@ async function runPrescreeningJob() {
       // Generate UUID token and calculate expires_at
       token = uuidv4();
       const expiresAt = `${app.appointment_date} 23:59:59`;
+      const requireReferral = (app.pttype && referralPttypeSet.has(String(app.pttype))) ? 1 : 0;
 
       // Insert into dextor.tele_prescreening
       const insertQuery = `
         INSERT INTO dextor.tele_prescreening (
           token, oapp_id, hn, patient_name, appointment_date, 
           doctor_code, doctor_name, note, clinic, 
+          pttype, pttype_name, require_referral,
           status, expires_at, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())
       `;
       await connVhos.query(insertQuery, [
         token,
@@ -262,19 +274,41 @@ async function runPrescreeningJob() {
         app.doctor_name,
         app.note,
         app.clinic_name,
+        app.pttype || null,
+        app.pttype_name || null,
+        requireReferral,
         expiresAt
       ]);
       recordsInserted++;
 
-      // 4. Try to find LINE account for the patient
+      // 4. ค้นหา LINE account ทั้งของผู้ป่วยโดยตรง และของผู้ดูแล (Caregiver)
+      const recipientUserIds = new Set();
+
+      // 4.1 จาก lineid ของผู้ป่วยโดยตรง (หรือ active_hn)
       const lineQuery = `
         SELECT line_user_id FROM virtualhos.lineid
-        WHERE hn = ? LIMIT 1
+        WHERE hn = ? OR active_hn = ?
       `;
-      const lineResult = await connVhos.query(lineQuery, [app.hn]);
+      const lineResult = await connVhos.query(lineQuery, [app.hn, app.hn]);
+      for (const r of (lineResult || [])) {
+        if (r.line_user_id && r.line_user_id.trim()) {
+          recipientUserIds.add(r.line_user_id.trim());
+        }
+      }
 
-      if (lineResult.length > 0) {
-        const lineUserId = lineResult[0].line_user_id;
+      // 4.2 จาก caregiver_dependents (ผู้ดูแลที่ผูกกับ HN นี้ และสถานะ ACTIVE)
+      const cgQuery = `
+        SELECT line_user_id FROM virtualhos.caregiver_dependents
+        WHERE hn = ? AND status = 'ACTIVE'
+      `;
+      const cgResult = await connVhos.query(cgQuery, [app.hn]);
+      for (const r of (cgResult || [])) {
+        if (r.line_user_id && r.line_user_id.trim()) {
+          recipientUserIds.add(r.line_user_id.trim());
+        }
+      }
+
+      if (recipientUserIds.size > 0) {
         let appDateThai = '';
 
         if (app.appointment_date instanceof Date) {
@@ -302,10 +336,20 @@ async function runPrescreeningJob() {
         const baseUrl = process.env.RBH_TELEMED_URL || 'https://telemed.rajburi.org';
         const screeningLink = `${baseUrl}/screening?token=${token}&openExternalBrowser=1`;
 
-        // Send LINE notification
-        const sent = await sendPrescreeningLineMessage(lineUserId, app.patient_name, docAndClinic, appDateThai, screeningLink);
+        // ส่งข้อความแจ้งเตือนหาทุกคน (ทั้งผู้ป่วยและผู้ดูแล)
+        let anySentSuccess = false;
+        for (const lineUserId of recipientUserIds) {
+          try {
+            const sent = await sendPrescreeningLineMessage(lineUserId, app.patient_name, docAndClinic, appDateThai, screeningLink);
+            if (sent) {
+              anySentSuccess = true;
+            }
+          } catch (sendErr) {
+            console.error(`Failed to send prescreening LINE message to ${lineUserId}:`, sendErr.message);
+          }
+        }
 
-        if (sent) {
+        if (anySentSuccess) {
           lineSentCount++;
           const updateSentQuery = `
             UPDATE dextor.tele_prescreening
@@ -317,7 +361,7 @@ async function runPrescreeningJob() {
           lineFailedCount++;
         }
       } else {
-        // No LINE account registered
+        // ไม่มีทั้ง LINE ผู้ป่วย และ LINE ผู้ดูแล
         const updateNoLineQuery = `
           UPDATE dextor.tele_prescreening
           SET line_sent = 'NO_LINE'

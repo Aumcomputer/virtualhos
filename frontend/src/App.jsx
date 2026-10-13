@@ -15,6 +15,7 @@ import TelemedTodayAppointmentsPage from './pages/TelemedTodayAppointmentsPage';
 import TelemedTodayPharmacyPage from './pages/TelemedTodayPharmacyPage';
 import TelemedTodayFinancePage from './pages/TelemedTodayFinancePage';
 import TelemedPharmacyPage from './pages/TelemedPharmacyPage';
+import TelemedFinancePage from './pages/TelemedFinancePage';
 import CaregiverListPage from './pages/CaregiverListPage';
 import CaregiverFormPage from './pages/CaregiverFormPage';
 import { useParams } from 'react-router-dom';
@@ -39,6 +40,7 @@ function HomeRoute() {
     { key: 'telemed_dashboard', path: '/telemed-dashboard' },
     { key: 'telemed_cases', path: '/telemed-with-doctor' },
     { key: 'telemed_pharmacy', path: '/telemed-pharmacy' },
+    { key: 'telemed_finance', path: '/telemed-finance' },
     { key: 'telemed_appointments', path: '/telemed-appointments' },
     { key: 'prescreening', path: '/prescreening' },
     { key: 'all_registrations', path: '/all' },
@@ -95,6 +97,7 @@ export default function App() {
             <Route path="telemed-with-doctor" element={<ProtectedRoute menuKey="telemed_cases"><TelemedCasesPage type="combined" /></ProtectedRoute>} />
             <Route path="telemed-no-doctor" element={<ProtectedRoute menuKey="telemed_cases"><TelemedCasesPage type="combined" /></ProtectedRoute>} />
             <Route path="telemed-pharmacy" element={<ProtectedRoute menuKey="telemed_pharmacy"><TelemedPharmacyPage /></ProtectedRoute>} />
+            <Route path="telemed-finance" element={<ProtectedRoute menuKey="telemed_finance"><TelemedFinancePage /></ProtectedRoute>} />
             <Route path="telemed-appointments" element={<ProtectedRoute menuKey="telemed_appointments"><TelemedCasesPage type="appointments" /></ProtectedRoute>} />
             <Route path="prescreening" element={<ProtectedRoute menuKey="prescreening"><PrescreeningPage /></ProtectedRoute>} />
             {/* Phase 1: Pre-screening (Request Telemed) */}

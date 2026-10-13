@@ -11,13 +11,50 @@ function getTodayStr() {
 }
 
 function formatThaiDate(dateStr) {
-  if (!dateStr) return '';
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const months = [
-    '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
-    'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
-  ];
-  return `${d} ${months[m]} ${y + 543}`;
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) {
+      const parts = String(dateStr).split('-');
+      if (parts.length < 3) return dateStr;
+      const [y, m, day] = parts.map(Number);
+      const months = [
+        '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+        'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+      ];
+      return `${day} ${months[m]} ${y + 543}`;
+    }
+    const day = d.getDate();
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear() + 543;
+    const months = [
+      '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+    ];
+    return `${day} ${months[month]} ${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatThaiDateTime(dateTimeStr) {
+  if (!dateTimeStr) return '—';
+  try {
+    const d = new Date(dateTimeStr);
+    if (isNaN(d.getTime())) return dateTimeStr;
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear() + 543;
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    const months = [
+      '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+      'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
+    ];
+    return `${day} ${months[month]} ${year} ${hours}:${mins} น.`;
+  } catch {
+    return dateTimeStr;
+  }
 }
 
 function formatShortDate(dateStr) {
@@ -44,6 +81,18 @@ function formatShortDateTime(dateStr) {
   } catch {
     return dateStr;
   }
+}
+
+function formatPhone(raw) {
+  if (!raw) return '—';
+  const clean = String(raw).replace(/\D/g, '');
+  if (clean.length === 10) {
+    return `${clean.slice(0, 3)}-${clean.slice(3, 6)}-${clean.slice(6)}`;
+  }
+  if (clean.length === 9) {
+    return `${clean.slice(0, 2)}-${clean.slice(2, 5)}-${clean.slice(5)}`;
+  }
+  return raw;
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +142,9 @@ export default function TelemedCasesPage({ type }) {
   const [visitFilter, setVisitFilter] = useState(isCombined ? 'screening' : 'all');
   const [callingHn, setCallingHn] = useState(null);
   const [selectedPrescreen, setSelectedPrescreen] = useState(null);
+  const [loadingPrescreenHn, setLoadingPrescreenHn] = useState(null);
+  const [prescreenImages, setPrescreenImages] = useState([]);
+  const [lightboxImageSrc, setLightboxImageSrc] = useState(null);
 
   const pageConfig = useMemo(() => {
     if (isAppointments) {
@@ -229,7 +281,7 @@ export default function TelemedCasesPage({ type }) {
     }
     try {
       setCallingHn(row.hn);
-      const res = await api.createTelemedLink(row.hn, row.cid, row.patient_name, 'line');
+      const res = await api.createTelemedLink(row.hn, row.cid, row.patient_name, 'line', row.vn);
       if (res.doctor_link) {
         const width = 1200;
         const height = 800;
@@ -251,25 +303,75 @@ export default function TelemedCasesPage({ type }) {
     }
   };
 
+  const handleRowClick = async (row) => {
+    // 1. ถ้าแถวข้อมูลมีรายละเอียดผลการคัดกรองอยู่แล้ว (เช่น มาจากแท็บ screening หรือดึงมาแล้ว)
+    if (
+      row.chief_complaint !== undefined ||
+      row.sbp !== undefined ||
+      row.visit_type === 'screening' ||
+      row.is_prescreening
+    ) {
+      setSelectedPrescreen(row);
+      if (row.id) {
+        try {
+          const imgs = await api.getPrescreeningImages(row.id);
+          setPrescreenImages(imgs || []);
+        } catch {
+          setPrescreenImages([]);
+        }
+      } else {
+        setPrescreenImages([]);
+      }
+      return;
+    }
+
+    // 2. ถ้ายังไม่มีรายละเอียด ลองค้นหาจากตาราง tele_prescreening ผ่าน API โดยใช้ HN
+    if (!row.hn) return;
+
+    try {
+      setLoadingPrescreenHn(row.hn);
+      const data = await api.getPrescreeningByHn(row.hn, selectedDate);
+      if (data) {
+        const merged = { ...row, ...data };
+        setSelectedPrescreen(merged);
+        if (data.id) {
+          try {
+            const imgs = await api.getPrescreeningImages(data.id);
+            setPrescreenImages(imgs || []);
+          } catch {
+            setPrescreenImages([]);
+          }
+        } else {
+          setPrescreenImages([]);
+        }
+      }
+    } catch (err) {
+      console.warn('Prescreening fetch failed:', err.message);
+      alert(`ไม่พบข้อมูลแบบคัดกรอง (tele_prescreening) สำหรับผู้ป่วย HN ${row.hn}`);
+    } finally {
+      setLoadingPrescreenHn(null);
+    }
+  };
+
   const isToday = selectedDate === getTodayStr();
 
   return (
-    <>
-      <div className="page-header">
+    <div className="telemed-cases-page-root" style={{ fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif" }}>
+      <div className="page-header" style={{ fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif" }}>
         <div className="page-title-row">
           <div>
-            <h2 className="page-title">
+            <h2 className="page-title" style={{ fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif" }}>
               {pageConfig.title}
-              <span className="page-title-date-badge">
+              <span className="page-title-date-badge" style={{ fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif" }}>
                 {isToday ? 'วันนี้' : formatThaiDate(selectedDate)}
               </span>
             </h2>
-            <p className="page-subtitle">{pageConfig.subtitle}</p>
+            <p className="page-subtitle" style={{ fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif" }}>{pageConfig.subtitle}</p>
           </div>
         </div>
       </div>
 
-      <div className="page-body telemed-cases-container">
+      <div className="page-body telemed-cases-container" style={{ fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif" }}>
         {/* Stats */}
         <div className="cases-stats-grid">
           {isCombined && (
@@ -450,17 +552,13 @@ export default function TelemedCasesPage({ type }) {
                   <tr>
                     <th style={{ width: '45px', textAlign: 'center' }}>#</th>
                     <th style={{ width: '105px' }}>HN</th>
+                    <th style={{ width: '120px' }}>VN</th>
                     <th>ชื่อคนไข้</th>
                     <th style={{ minWidth: '150px' }}>สิทธิการรักษา</th>
                     <th>ชื่อแพทย์</th>
                     <th>แผนก / Clinic</th>
                     {visitFilter === 'screening' ? (
-                      <>
-                        <th style={{ minWidth: '150px' }}>สัญญาณชีพ (Vital Signs)</th>
-                        <th style={{ minWidth: '180px' }}>อาการสำคัญ</th>
-                        <th style={{ width: '130px' }}>วันเวลาคัดกรอง</th>
-                        <th style={{ width: '150px', textAlign: 'center' }}>Video Call (Line OA)</th>
-                      </>
+                      <th style={{ width: '150px', textAlign: 'center' }}>Video Call (Line OA)</th>
                     ) : (
                       <>
                         {isCombined && (
@@ -473,7 +571,6 @@ export default function TelemedCasesPage({ type }) {
                         {isAppointments && (
                           <th style={{ width: '120px', textAlign: 'center' }}>Line Connected</th>
                         )}
-                        <th>Note</th>
                         <th style={{ width: '140px', textAlign: 'center' }}>Video Call</th>
                       </>
                     )}
@@ -481,187 +578,137 @@ export default function TelemedCasesPage({ type }) {
                 </thead>
                 <tbody>
                   {filteredData.map((row, idx) => (
-                    <tr key={`${row.hn}-${idx}`}>
-                      <td style={{ color: '#94a3b8', fontSize: '0.8rem', textAlign: 'center' }}>{idx + 1}</td>
-                      <td>
-                        {row.hn ? (
-                          <span className="font-mono font-bold" style={{ color: '#1e293b' }}>{row.hn}</span>
+                    <tr 
+                      key={`${row.hn}-${idx}`}
+                      onClick={() => handleRowClick(row)}
+                      style={{ cursor: 'pointer' }}
+                      title="คลิกที่แถวเพื่อดูรายละเอียดจากตาราง tele_prescreening"
+                    >
+                      <td style={{ color: '#64748b', fontSize: '13px', textAlign: 'center', fontWeight: 'normal' }}>
+                        {loadingPrescreenHn === row.hn ? '⏳' : idx + 1}
+                      </td>
+                      <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>
+                        {row.hn || '-'}
+                      </td>
+                      <td style={{ color: row.vn ? '#1e293b' : '#94a3b8', fontSize: '13px', fontWeight: 'normal' }}>
+                        {row.vn ? (
+                          <span title={row.vn_oapp ? `VN วันนี้: ${row.vn} (VN วันที่ทำนัด: ${row.vn_oapp})` : `VN วันนี้: ${row.vn}`}>
+                            {row.vn}
+                          </span>
                         ) : (
-                          <span style={{ color: '#cbd5e1' }}>-</span>
+                          <span title={row.vn_oapp ? `ยังไม่เปิด Visit วันนี้ (VN วันที่ทำนัด: ${row.vn_oapp})` : 'ยังไม่เปิด Visit วันนี้'} style={{ color: '#94a3b8' }}>
+                            -
+                          </span>
                         )}
                       </td>
-                      <td style={{ fontWeight: 600, color: '#0f172a' }}>
+                      <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>
                         {row.patient_name || '-'}
                       </td>
-                      <td>
+                      <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>
                         {row.pttype_name ? (
-                          <div style={{ fontSize: '12px', color: '#0369a1', lineHeight: 1.35 }}>
-                            <span style={{ fontWeight: 500 }}>{row.pttype_name}</span>
+                          <div>
+                            <span>{row.pttype_name}</span>
                             {row.pttype && (
-                              <span className="font-mono" style={{ fontSize: '11px', color: '#64748b', marginLeft: '4px' }}>
+                              <span style={{ fontSize: '12px', color: '#64748b', marginLeft: '4px' }}>
                                 ({row.pttype})
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>-</span>
+                          <span style={{ color: '#94a3b8' }}>-</span>
                         )}
                       </td>
-                      <td style={{ color: '#334155', fontWeight: 500 }}>{row.doctor_name || '-'}</td>
-                      <td>
-                        <span className="cases-clinic-badge">
-                          {row.clinic_name || row.clinic || '-'}
-                        </span>
+                      <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>{row.doctor_name || '-'}</td>
+                      <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>
+                        {row.clinic_name || row.clinic || '-'}
                       </td>
 
                       {visitFilter === 'screening' ? (
-                        <>
-                          <td>
-                            <div style={{ fontSize: '12px', lineHeight: 1.45, color: '#334155' }}>
-                              {(row.sbp || row.dbp) && (
-                                <div>
-                                  <strong>BP:</strong> {row.sbp || '-'}/{row.dbp || '-'} mmHg
-                                </div>
-                              )}
-                              {row.pulse && (
-                                <div>
-                                  <strong>ชีพจร:</strong> {row.pulse} /นาที
-                                </div>
-                              )}
-                              {row.temperature && (
-                                <div>
-                                  <strong>อุณหภูมิ:</strong> {row.temperature} °C
-                                </div>
-                              )}
-                              {row.spo2 && (
-                                <div>
-                                  <strong>SpO2:</strong> {row.spo2}%
-                                </div>
-                              )}
-                              {!row.sbp && !row.pulse && !row.temperature && (
-                                <span style={{ color: '#94a3b8' }}>-</span>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ fontSize: '13px', color: '#475569', maxWidth: '280px' }}>
-                              {row.chief_complaint ? (
-                                <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebKitLineClamp: 2, WebKitBoxOrient: 'vertical' }}>
-                                  {row.chief_complaint}
-                                </div>
+                        <td style={{ textAlign: 'center' }}>
+                          {row.is_line_registered ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleStartVideoCall(row);
+                              }}
+                              disabled={callingHn === row.hn || !row.cid}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '6px 14px',
+                                borderRadius: '8px',
+                                backgroundColor: row.cid ? '#06c755' : '#e2e8f0',
+                                color: row.cid ? '#ffffff' : '#94a3b8',
+                                border: 'none',
+                                fontSize: '12px',
+                                fontWeight: 'normal',
+                                cursor: callingHn === row.hn || !row.cid ? 'not-allowed' : 'pointer',
+                                boxShadow: row.cid ? '0 2px 6px rgba(6, 199, 85, 0.25)' : 'none',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={
+                                !row.cid
+                                  ? 'ไม่พบ CID สำหรับเปิด Video Call'
+                                  : row.line_type === 'CAREGIVER'
+                                  ? 'โทรวิดีโอคอลหาผู้ดูแล (Caregiver)'
+                                  : 'โทรวิดีโอคอลหาผู้ป่วยผ่าน Line OA'
+                              }
+                            >
+                              {callingHn === row.hn ? (
+                                'กำลังสร้างห้อง...'
                               ) : (
-                                <span style={{ color: '#94a3b8' }}>-</span>
+                                <>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                    <polygon points="23 7 16 12 23 17 23 7" />
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                                  </svg>
+                                  <span>{row.line_type === 'CAREGIVER' ? 'Video Call (ผู้ดูแล)' : 'Video Call'}</span>
+                                </>
                               )}
-                              <button
-                                type="button"
-                                onClick={() => setSelectedPrescreen(row)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: '#0284c7',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  cursor: 'pointer',
-                                  padding: 0,
-                                  marginTop: '4px',
-                                }}
-                              >
-                                🔍 ดูรายละเอียดคัดกรอง
-                              </button>
-                            </div>
-                          </td>
-                          <td>
-                            <span style={{ color: '#475569', fontSize: '0.8125rem' }}>
-                              {formatShortDateTime(row.completed_at)}
+                            </button>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                backgroundColor: '#f1f5f9',
+                                color: '#94a3b8',
+                                border: '1px solid #e2e8f0',
+                                fontSize: '11px',
+                                fontWeight: 'normal',
+                              }}
+                              title="ผู้ป่วยยังไม่ได้ลงทะเบียนในระบบ LINE OA หรือ Caregiver จึงไม่สามารถเริ่ม Video Call ได้"
+                            >
+                              🚫 ไม่ได้ลงทะเบียน
                             </span>
-                          </td>
-                          <td style={{ textAlign: 'center' }}>
-                            {row.is_line_registered ? (
-                              <button
-                                type="button"
-                                onClick={() => handleStartVideoCall(row)}
-                                disabled={callingHn === row.hn || !row.cid}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  padding: '6px 14px',
-                                  borderRadius: '8px',
-                                  backgroundColor: row.cid ? '#06c755' : '#e2e8f0',
-                                  color: row.cid ? '#ffffff' : '#94a3b8',
-                                  border: 'none',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: callingHn === row.hn || !row.cid ? 'not-allowed' : 'pointer',
-                                  boxShadow: row.cid ? '0 2px 6px rgba(6, 199, 85, 0.25)' : 'none',
-                                  transition: 'all 0.15s ease',
-                                }}
-                                title={
-                                  !row.cid
-                                    ? 'ไม่พบ CID สำหรับเปิด Video Call'
-                                    : row.line_type === 'CAREGIVER'
-                                    ? 'โทรวิดีโอคอลหาผู้ดูแล (Caregiver)'
-                                    : 'โทรวิดีโอคอลหาผู้ป่วยผ่าน Line OA'
-                                }
-                              >
-                                {callingHn === row.hn ? (
-                                  'กำลังสร้างห้อง...'
-                                ) : (
-                                  <>
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                                      <polygon points="23 7 16 12 23 17 23 7" />
-                                      <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-                                    </svg>
-                                    <span>{row.line_type === 'CAREGIVER' ? 'Video Call (ผู้ดูแล)' : 'Video Call'}</span>
-                                  </>
-                                )}
-                              </button>
-                            ) : (
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '5px 10px',
-                                  borderRadius: '6px',
-                                  backgroundColor: '#f1f5f9',
-                                  color: '#94a3b8',
-                                  border: '1px solid #e2e8f0',
-                                  fontSize: '11px',
-                                  fontWeight: '500',
-                                }}
-                                title="ผู้ป่วยยังไม่ได้ลงทะเบียนในระบบ LINE OA หรือ Caregiver จึงไม่สามารถเริ่ม Video Call ได้"
-                              >
-                                🚫 ไม่ได้ลงทะเบียน
-                              </span>
-                            )}
-                          </td>
-                        </>
+                          )}
+                        </td>
                       ) : (
                         <>
                           {isCombined && (
-                            <td>
-                              <span style={{ color: '#475569', fontSize: '0.8125rem' }}>
-                                {formatShortDate(row.vstdate)}
-                              </span>
+                            <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>
+                              {formatShortDate(row.vstdate)}
                             </td>
                           )}
                           {isCombined && visitFilter === 'all' && (
-                            <td style={{ textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center', fontSize: '13px', fontWeight: 'normal' }}>
                               <VisitTypeBadge type={row.visit_type} />
                             </td>
                           )}
                           {isAppointments && (
-                            <td>
-                              <span style={{ color: '#475569', fontSize: '0.8125rem' }}>
-                                {formatShortDate(row.nextdate)}
-                              </span>
+                            <td style={{ color: '#334155', fontSize: '13px', fontWeight: 'normal' }}>
+                              {formatShortDate(row.nextdate)}
                             </td>
                           )}
                           {isAppointments && (
-                            <td style={{ textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center', fontSize: '13px', fontWeight: 'normal' }}>
                               {row.line_connected ? (
-                                <span className="cases-line-connected-badge">
+                                <span className="cases-line-connected-badge" style={{ fontWeight: 'normal' }}>
                                   ✓ เชื่อมแล้ว
                                 </span>
                               ) : (
@@ -669,16 +716,14 @@ export default function TelemedCasesPage({ type }) {
                               )}
                             </td>
                           )}
-                          <td>
-                            <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                              {row.note || '-'}
-                            </span>
-                          </td>
                           <td style={{ textAlign: 'center' }}>
                             {row.is_line_registered ? (
                               <button
                                 type="button"
-                                onClick={() => handleStartVideoCall(row)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartVideoCall(row);
+                                }}
                                 disabled={callingHn === row.hn || !row.cid}
                                 style={{
                                   display: 'inline-flex',
@@ -690,7 +735,7 @@ export default function TelemedCasesPage({ type }) {
                                   color: row.cid ? '#ffffff' : '#94a3b8',
                                   border: 'none',
                                   fontSize: '11px',
-                                  fontWeight: '600',
+                                  fontWeight: 'normal',
                                   cursor: callingHn === row.hn || !row.cid ? 'not-allowed' : 'pointer',
                                 }}
                                 title={
@@ -739,7 +784,7 @@ export default function TelemedCasesPage({ type }) {
         </div>
       </div>
 
-      {/* Modal ดูผลการคัดกรองฉบับเต็ม */}
+      {/* Modal ดูผลการคัดกรองจากตาราง tele_prescreening */}
       {selectedPrescreen && (
         <div
           style={{
@@ -748,13 +793,14 @@ export default function TelemedCasesPage({ type }) {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.6)',
+            backgroundColor: 'rgba(15, 23, 42, 0.65)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 1000,
-            padding: '20px',
-            backdropFilter: 'blur(2px)',
+            padding: '24px 16px',
+            backdropFilter: 'blur(3px)',
+            fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif",
           }}
           onClick={() => setSelectedPrescreen(null)}
         >
@@ -762,107 +808,583 @@ export default function TelemedCasesPage({ type }) {
             style={{
               backgroundColor: '#fff',
               borderRadius: '16px',
-              maxWidth: '650px',
-              width: '100%',
-              maxHeight: '90vh',
+              maxWidth: '1280px',
+              width: '95%',
+              maxHeight: '94vh',
               overflowY: 'auto',
-              padding: '24px',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+              padding: '26px 32px',
+              boxShadow: '0 20px 40px -8px rgba(0,0,0,0.22)',
+              fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif",
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: '#0f172a' }}>
-                  📋 รายละเอียดผลการคัดกรอง (Prescreening)
+            {/* Modal Title Row with Close Button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                  รายละเอียดข้อมูลคัดกรองก่อนพบแพทย์
                 </h3>
-                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-                  ผู้ป่วย: <strong>{selectedPrescreen.patient_name}</strong> (HN: {selectedPrescreen.hn})
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
-                  {selectedPrescreen.pttype_name && (
-                    <span style={{ fontSize: '12px', background: '#e0f2fe', color: '#0369a1', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                      สิทธิ: {selectedPrescreen.pttype_name} {selectedPrescreen.pttype ? `(${selectedPrescreen.pttype})` : ''}
-                    </span>
-                  )}
-                  {selectedPrescreen.is_line_registered ? (
-                    <span style={{ fontSize: '12px', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                      ✓ ลงทะเบียน {selectedPrescreen.line_type === 'CAREGIVER' ? 'Caregiver แล้ว' : 'LINE OA แล้ว'}
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: '12px', background: '#fef2f2', color: '#dc2626', padding: '3px 8px', borderRadius: '6px', fontWeight: 500, border: '1px solid #fee2e2' }}>
-                      🚫 ยังไม่ได้ลงทะเบียน LINE OA หรือ Caregiver
-                    </span>
-                  )}
-                </div>
+                <span style={{ fontSize: '13px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #dbeafe', padding: '3px 10px', borderRadius: '6px', fontWeight: 600 }}>
+                  HN: {selectedPrescreen.hn}
+                </span>
+                {selectedPrescreen.is_line_registered ? (
+                  <span style={{ fontSize: '12.5px', background: '#dcfce7', color: '#15803d', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                    {selectedPrescreen.line_type === 'CAREGIVER' ? 'ลงทะเบียน Caregiver' : 'ลงทะเบียน LINE OA'}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '12.5px', background: '#fef2f2', color: '#dc2626', padding: '3px 8px', borderRadius: '6px', border: '1px solid #fee2e2' }}>
+                    ยังไม่ลงทะเบียน LINE
+                  </span>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedPrescreen(null)}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: '#94a3b8' }}
+                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#94a3b8', lineHeight: 1 }}
+                title="ปิดหน้าต่าง"
               >
                 ✕
               </button>
             </div>
 
-            {/* Vital Signs Grid */}
-            <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
-              <h4 style={{ margin: '0 0 10px 0', fontSize: '14px', fontWeight: 600, color: '#334155' }}>🩺 สัญญาณชีพและข้อมูลกายภาพ</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', fontSize: '13px' }}>
-                <div><strong>ความดันโลหิต (BP):</strong> {selectedPrescreen.sbp || '-'}/{selectedPrescreen.dbp || '-'} mmHg</div>
-                <div><strong>ชีพจร:</strong> {selectedPrescreen.pulse || '-'} ครั้ง/นาที</div>
-                <div><strong>อุณหภูมิ:</strong> {selectedPrescreen.temperature || '-'} °C</div>
-                <div><strong>SpO2:</strong> {selectedPrescreen.spo2 ? `${selectedPrescreen.spo2}%` : '-'}</div>
-                <div><strong>น้ำหนัก:</strong> {selectedPrescreen.weight || '-'} กก.</div>
-                <div><strong>ส่วนสูง:</strong> {selectedPrescreen.height || '-'} ซม.</div>
+            {/* Patient Quick Banner (แถบหัวเรื่องด้านบนตามรูป) */}
+            <div style={{
+              background: '#ffffff',
+              border: '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '16px 20px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '14px',
+              marginBottom: '18px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            }}>
+              <div>
+                <div style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>
+                  {selectedPrescreen.patient_name || '—'}
+                </div>
+                <div style={{ fontSize: '14.5px', color: '#475569', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontWeight: 700, color: '#2563eb' }}>
+                    HN: {selectedPrescreen.hn}
+                  </span>
+                  <span>• วันนัดหมาย: {formatThaiDate(selectedPrescreen.appointment_date || selectedPrescreen.vstdate || selectedPrescreen.nextdate)}</span>
+                  <span>• คลินิก: {selectedPrescreen.clinic_name || selectedPrescreen.clinic || '—'}</span>
+                  <span>• แพทย์: {selectedPrescreen.doctor_name || '—'}</span>
+                </div>
+              </div>
+              <div>
+                {(selectedPrescreen.status === 'completed' || selectedPrescreen.status === 'confirmed' || selectedPrescreen.sbp || selectedPrescreen.chief_complaint) ? (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '6px 14px',
+                    borderRadius: '9999px',
+                    background: '#ecfdf5',
+                    color: '#15803d',
+                    border: '1px solid #bbf7d0',
+                    fontSize: '13.5px',
+                    fontWeight: 600,
+                  }}>
+                    กรอกข้อมูลสำเร็จ
+                  </span>
+                ) : (
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    padding: '6px 14px',
+                    borderRadius: '9999px',
+                    background: '#fef3c7',
+                    color: '#b45309',
+                    border: '1px solid #fde68a',
+                    fontSize: '13.5px',
+                    fontWeight: 600,
+                  }}>
+                    รอกรอกข้อมูล
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Clinical Notes */}
-            <div style={{ marginBottom: '16px' }}>
-              <div style={{ marginBottom: '12px' }}>
-                <strong style={{ fontSize: '13px', color: '#334155' }}>อาการสำคัญที่ต้องการปรึกษา (Chief Complaint):</strong>
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', fontSize: '13px', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
-                  {selectedPrescreen.chief_complaint || 'ไม่ได้ระบุ'}
-                </div>
-              </div>
+            {/* 3 Columns Layout (3 กล่องการ์ดหลัก) */}
+            {(() => {
+              const bpVal = (selectedPrescreen.sbp && selectedPrescreen.dbp)
+                ? `${selectedPrescreen.sbp}/${selectedPrescreen.dbp}`
+                : (selectedPrescreen.sbp || selectedPrescreen.dbp || '—');
 
-              {selectedPrescreen.current_medications && (
-                <div style={{ marginBottom: '12px' }}>
-                  <strong style={{ fontSize: '13px', color: '#334155' }}>ยาเดิมที่รับประทานอยู่:</strong>
-                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', fontSize: '13px', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
-                    {selectedPrescreen.current_medications}
+              let bmiVal = '—';
+              if (selectedPrescreen.bmi) {
+                bmiVal = selectedPrescreen.bmi;
+              } else if (Number(selectedPrescreen.weight) > 0 && Number(selectedPrescreen.height) > 0) {
+                const w = Number(selectedPrescreen.weight);
+                const h = Number(selectedPrescreen.height) / 100;
+                bmiVal = (w / (h * h)).toFixed(2);
+              }
+
+              const formatSmoking = (smoking, detail) => {
+                const s = smoking?.trim();
+                if (!s || s === 'ไม่สูบ' || s === 'no' || s === '0' || s === '-') {
+                  return <span style={{ color: '#64748b' }}>ไม่สูบ</span>;
+                }
+                const extra = detail?.trim() ? ` (${detail.trim()})` : '';
+                return <span style={{ color: '#dc2626', fontWeight: 600 }}>สูบ{extra}</span>;
+              };
+
+              const formatAlcohol = (alcohol, detail) => {
+                const a = alcohol?.trim();
+                if (!a || a === 'ไม่ดื่ม' || a === 'no' || a === '0' || a === '-') {
+                  return <span style={{ color: '#64748b' }}>ไม่ดื่ม</span>;
+                }
+                const extra = detail?.trim() ? ` (${detail.trim()})` : '';
+                return <span style={{ color: '#dc2626', fontWeight: 600 }}>ดื่ม{extra}</span>;
+              };
+
+              return (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: '16px',
+                  marginBottom: '16px',
+                }}>
+                  {/* Column 1: ข้อมูลทั่วไปและการติดต่อ */}
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '18px 20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                  }}>
+                    <div style={{
+                      fontSize: '15.5px',
+                      fontWeight: 700,
+                      color: '#1e40af',
+                      paddingBottom: '10px',
+                      marginBottom: '14px',
+                      borderBottom: '1px solid #f1f5f9',
+                    }}>
+                      ข้อมูลทั่วไปและการติดต่อ
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                      <tbody>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, width: '90px', padding: '6px 0', verticalAlign: 'top' }}>HN:</td>
+                          <td style={{ color: '#1e293b', padding: '6px 0', fontWeight: 600 }}>{selectedPrescreen.hn}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>ชื่อคนไข้:</td>
+                          <td style={{ color: '#0f172a', fontWeight: 700, padding: '6px 0' }}>{selectedPrescreen.patient_name || '—'}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>สิทธิ์การรักษา:</td>
+                          <td style={{ color: '#0369a1', fontWeight: 600, padding: '6px 0' }}>
+                            {selectedPrescreen.pttype_name
+                              ? `${selectedPrescreen.pttype_name}${selectedPrescreen.pttype ? ` (${selectedPrescreen.pttype})` : ''}`
+                              : (selectedPrescreen.pttype || '—')}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>ที่อยู่:</td>
+                          <td style={{ color: '#1e293b', padding: '6px 0', lineHeight: '1.5' }}>{selectedPrescreen.address || 'ไม่มีข้อมูลที่อยู่'}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>รหัสไปรษณีย์:</td>
+                          <td style={{ color: '#1e293b', padding: '6px 0' }}>{selectedPrescreen.postal_code || '—'}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>เบอร์โทร:</td>
+                          <td style={{ color: '#1e293b', padding: '6px 0' }}>{formatPhone(selectedPrescreen.phone)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>นัดหมาย:</td>
+                          <td style={{ color: '#1e293b', padding: '6px 0' }}>
+                            {formatThaiDate(selectedPrescreen.appointment_date || selectedPrescreen.vstdate || selectedPrescreen.nextdate)} {selectedPrescreen.note ? `(${selectedPrescreen.note})` : ''}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ color: '#64748b', fontWeight: 600, padding: '6px 0', verticalAlign: 'top' }}>ส่ง LINE:</td>
+                          <td style={{ color: '#1e293b', padding: '6px 0' }}>
+                            {formatThaiDateTime(selectedPrescreen.line_sent_timestamp || selectedPrescreen.completed_at || selectedPrescreen.created_at)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Column 2: ผลการคัดกรองสัญญาณชีพ (8 กล่องการ์ดเหมือนแบบที่แล้ว) */}
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '18px 20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                  }}>
+                    <div style={{
+                      fontSize: '15.5px',
+                      fontWeight: 700,
+                      color: '#1e40af',
+                      paddingBottom: '10px',
+                      marginBottom: '14px',
+                      borderBottom: '1px solid #f1f5f9',
+                    }}>
+                      ผลการคัดกรองสัญญาณชีพ
+                    </div>
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: '10px',
+                    }}>
+                      {/* BP */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          BP (ความดัน)
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {bpVal}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            mmHg
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pulse */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          Pulse (ชีพจร)
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedPrescreen.pulse || '—'}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            bpm
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Temp */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          Temp (อุณหภูมิ)
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedPrescreen.temperature || '—'}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            °C
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* RR */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          RR (การหายใจ)
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedPrescreen.rr || '—'}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            /m
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Weight */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          น้ำหนัก
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedPrescreen.weight || '—'}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            kg
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Height */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          ส่วนสูง
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedPrescreen.height || '—'}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            cm
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* BMI */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          BMI
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {bmiVal}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            kg/m²
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* SpO2 */}
+                      <div style={{
+                        border: '1px solid #dbe2ea',
+                        borderRadius: '10px',
+                        background: '#ffffff',
+                        padding: '12px 8px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        textAlign: 'center',
+                        minHeight: '74px',
+                      }}>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#5b6e88', marginBottom: '4px' }}>
+                          SpO2 (ออกซิเจน)
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '4px' }}>
+                          <span style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>
+                            {selectedPrescreen.spo2 ? selectedPrescreen.spo2 : '—'}
+                          </span>
+                          <span style={{ fontSize: '12.5px', color: '#8c9fb5', fontWeight: 500 }}>
+                            %
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Column 3: อาการและประวัติ */}
+                  <div style={{
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
+                    padding: '18px 20px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                  }}>
+                    <div style={{
+                      fontSize: '15.5px',
+                      fontWeight: 700,
+                      color: '#1e40af',
+                      paddingBottom: '10px',
+                      marginBottom: '14px',
+                      borderBottom: '1px solid #f1f5f9',
+                    }}>
+                      อาการและประวัติ
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div>
+                        <span style={{ fontWeight: 600, color: '#475569', fontSize: '14px' }}>อาการสำคัญ (CC):</span>
+                        <div style={{
+                          padding: '10px 14px',
+                          background: '#f8fafc',
+                          border: '1px solid #f1f5f9',
+                          borderRadius: '8px',
+                          marginTop: '6px',
+                          whiteSpace: 'pre-wrap',
+                          color: '#0f172a',
+                          fontSize: '14.5px',
+                          minHeight: '48px',
+                          lineHeight: '1.6',
+                        }}>
+                          {selectedPrescreen.chief_complaint?.trim() || 'ไม่มี'}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'center', fontSize: '14px', marginTop: '2px' }}>
+                        <div>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>ดื่มสุรา:</span>{' '}
+                          {formatAlcohol(selectedPrescreen.alcohol, selectedPrescreen.alcohol_detail)}
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: 600, color: '#475569' }}>สูบบุหรี่:</span>{' '}
+                          {formatSmoking(selectedPrescreen.smoking, selectedPrescreen.smoking_detail)}
+                        </div>
+                      </div>
+
+                      {selectedPrescreen.current_medications?.trim() && (
+                        <div style={{ marginTop: '4px' }}>
+                          <span style={{ fontWeight: 600, color: '#475569', fontSize: '13.5px' }}>ยาเดิมที่รับประทานอยู่:</span>
+                          <div style={{
+                            padding: '8px 12px',
+                            background: '#f8fafc',
+                            border: '1px solid #f1f5f9',
+                            borderRadius: '8px',
+                            marginTop: '4px',
+                            fontSize: '13.5px',
+                            color: '#0f172a',
+                            whiteSpace: 'pre-wrap',
+                          }}>
+                            {selectedPrescreen.current_medications}
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedPrescreen.additional_notes?.trim() && (
+                        <div style={{ marginTop: '4px' }}>
+                          <span style={{ fontWeight: 600, color: '#475569', fontSize: '13.5px' }}>ข้อมูลเพิ่มเติม / ข้อกังวล:</span>
+                          <div style={{
+                            padding: '8px 12px',
+                            background: '#f8fafc',
+                            border: '1px solid #f1f5f9',
+                            borderRadius: '8px',
+                            marginTop: '4px',
+                            fontSize: '13.5px',
+                            color: '#0f172a',
+                            whiteSpace: 'pre-wrap',
+                          }}>
+                            {selectedPrescreen.additional_notes}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              )}
+              );
+            })()}
 
-              {selectedPrescreen.additional_notes && (
-                <div style={{ marginBottom: '12px' }}>
-                  <strong style={{ fontSize: '13px', color: '#334155' }}>ข้อมูลเพิ่มเติม / ข้อกังวล:</strong>
-                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px 12px', marginTop: '4px', fontSize: '13px', color: '#1e293b', whiteSpace: 'pre-wrap' }}>
-                    {selectedPrescreen.additional_notes}
-                  </div>
+            {/* รูปภาพแนบเพิ่มเติม (ด้านล่าง) */}
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid #e2e8f0' }}>
+              <div style={{ fontSize: '15px', fontWeight: 700, color: '#1e40af', marginBottom: '8px' }}>
+                รูปภาพแนบเพิ่มเติม ({prescreenImages ? prescreenImages.length : 0} รูป)
+              </div>
+              {prescreenImages && prescreenImages.length > 0 ? (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
+                  {prescreenImages.map((img) => (
+                    <button
+                      type="button"
+                      key={img.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLightboxImageSrc(`/api/prescreening/images/${img.id}`);
+                      }}
+                      style={{
+                        padding: 0,
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '8px',
+                        overflow: 'hidden',
+                        cursor: 'pointer',
+                        background: '#fff',
+                      }}
+                      title="คลิกเพื่อดูภาพขนาดเต็ม"
+                    >
+                      <img
+                        src={`/api/prescreening/images/${img.id}`}
+                        alt="รูปภาพคัดกรอง"
+                        style={{ width: '70px', height: '70px', objectFit: 'cover', display: 'block' }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: '14px', color: '#94a3b8', fontStyle: 'italic', padding: '4px 0' }}>
+                  ไม่มีรูปภาพแนบสำหรับเคสนี้
                 </div>
               )}
-
-              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '12px' }}>
-                <div><strong>เบอร์โทรศัพท์:</strong> {selectedPrescreen.phone || '-'}</div>
-                <div><strong>ที่อยู่จัดส่งยา:</strong> {selectedPrescreen.address || '-'} {selectedPrescreen.postal_code || ''}</div>
-                <div><strong>วันเวลาที่ส่งแบบคัดกรอง:</strong> {formatShortDateTime(selectedPrescreen.completed_at)}</div>
-              </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid #e2e8f0', paddingTop: '14px' }}>
+            {/* ปุ่มกดด้านล่าง Modal */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '18px', marginTop: '20px' }}>
               <button
                 type="button"
                 onClick={() => setSelectedPrescreen(null)}
                 style={{
-                  padding: '8px 18px',
+                  padding: '10px 22px',
                   borderRadius: '8px',
                   border: '1px solid #cbd5e1',
                   background: '#fff',
                   color: '#475569',
-                  fontSize: '13px',
+                  fontSize: '14.5px',
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}
@@ -878,17 +1400,17 @@ export default function TelemedCasesPage({ type }) {
                 }}
                 disabled={!selectedPrescreen.cid || !selectedPrescreen.is_line_registered}
                 style={{
-                  padding: '8px 20px',
+                  padding: '10px 24px',
                   borderRadius: '8px',
                   border: 'none',
                   background: selectedPrescreen.cid && selectedPrescreen.is_line_registered ? '#06c755' : '#e2e8f0',
                   color: selectedPrescreen.cid && selectedPrescreen.is_line_registered ? '#fff' : '#94a3b8',
-                  fontSize: '13px',
+                  fontSize: '14.5px',
                   fontWeight: 600,
                   cursor: selectedPrescreen.cid && selectedPrescreen.is_line_registered ? 'pointer' : 'not-allowed',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '8px',
                 }}
                 title={
                   !selectedPrescreen.is_line_registered
@@ -898,7 +1420,7 @@ export default function TelemedCasesPage({ type }) {
                     : 'เริ่มโทร Video Call ทันที'
                 }
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="23 7 16 12 23 17 23 7" />
                   <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
                 </svg>
@@ -912,6 +1434,54 @@ export default function TelemedCasesPage({ type }) {
           </div>
         </div>
       )}
-    </>
+
+      {/* Lightbox ดูรูปภาพขนาดเต็ม */}
+      {lightboxImageSrc && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '20px',
+            fontFamily: "'Sarabun', 'TH Sarabun New', sans-serif",
+          }}
+          onClick={() => setLightboxImageSrc(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img
+              src={lightboxImageSrc}
+              alt="ภาพขนาดเต็ม"
+              style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}
+            />
+            <button
+              type="button"
+              onClick={() => setLightboxImageSrc(null)}
+              style={{
+                position: 'absolute',
+                top: '-15px',
+                right: '-15px',
+                background: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

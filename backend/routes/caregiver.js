@@ -707,13 +707,12 @@ router.post('/submit', authenticateToken, requireAdmin, async (req, res) => {
       // คำนวณ SHA-256 hash ของไฟล์ PDF
       const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
 
-      // อัปเดต pdf_path และ pdf_hash ใน caregiver_affidavits (ใช้ forward slash สำหรับ Linux/Windows)
-      const relPdfPath = path.relative(path.join(__dirname, '..'), pdfFullPath).replace(/\\/g, '/');
+      // อัปเดต pdf_path และ pdf_hash ใน caregiver_affidavits
       await connVhos.query(`
         UPDATE caregiver_affidavits 
         SET pdf_path = ?, pdf_hash = ?
         WHERE id = ?
-      `, [relPdfPath, pdfHash, affidavitId]);
+      `, [path.relative(path.join(__dirname, '..'), pdfFullPath), pdfHash, affidavitId]);
     } catch (pdfErr) {
       console.error('Error generating affidavit PDF:', pdfErr);
     }
@@ -775,53 +774,116 @@ router.post('/submit', authenticateToken, requireAdmin, async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // 4. GET /api/caregiver/list
-// รายการประวัติ Caregiver ทั้งหมด สำหรับแสดงในตาราง
+// รายการผู้ดูแลทั้งหมด (ดึงจาก caregiver_dependents + lineid + caregiver_affidavits)
+// รองรับการแยกแท็บ: all (ทั้งหมด), patient_moph (ลงทะเบียนด้วยตนเอง), official (รับรองผ่านเจ้าหน้าที่)
 // ---------------------------------------------------------------------------
 router.get('/list', authenticateToken, requireAdmin, async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
   const search = (req.query.search || '').trim();
+  const tab = (req.query.tab || 'all').toLowerCase(); // 'all' | 'patient_moph' | 'official'
   const offset = (page - 1) * limit;
 
   let conn;
   try {
     conn = await pool_vhos.getConnection();
 
-    let whereClause = '';
+    // 1. คำนวณยอดสรุปจำนวนของแต่ละแท็บ
+    const summaryRows = await conn.query(`
+      SELECT 
+        COUNT(*) AS all_count,
+        SUM(CASE WHEN cd.added_by = 'PATIENT_MOPH' THEN 1 ELSE 0 END) AS patient_count,
+        SUM(CASE WHEN cd.verify_type = 'MOPH_ID_OFFICIAL' OR (cd.added_by IS NOT NULL AND cd.added_by != 'PATIENT_MOPH') THEN 1 ELSE 0 END) AS official_count
+      FROM virtualhos.caregiver_dependents cd
+    `);
+    const allCount = Number(summaryRows[0]?.all_count || 0);
+    const patientCount = Number(summaryRows[0]?.patient_count || 0);
+    const officialCount = Number(summaryRows[0]?.official_count || 0);
+
+    // 2. เงื่อนไขการกรอง
+    let whereClause = '1=1';
     const params = [];
 
-    if (search) {
-      whereClause = `
-        WHERE caregiver_name LIKE ? 
-           OR caregiver_cid LIKE ? 
-           OR patient_name LIKE ? 
-           OR patient_hn LIKE ? 
-           OR witness_name LIKE ?
-      `;
-      const s = `%${search}%`;
-      params.push(s, s, s, s, s);
+    if (tab === 'patient_moph') {
+      whereClause += ` AND cd.added_by = 'PATIENT_MOPH'`;
+    } else if (tab === 'official') {
+      whereClause += ` AND (cd.verify_type = 'MOPH_ID_OFFICIAL' OR (cd.added_by IS NOT NULL AND cd.added_by != 'PATIENT_MOPH'))`;
     }
 
+    if (search) {
+      whereClause += `
+        AND (
+          cd.patient_name LIKE ?
+          OR cd.hn LIKE ?
+          OR cd.cid LIKE ?
+          OR l.ptname_hos LIKE ?
+          OR ca.caregiver_name LIKE ?
+          OR l.cid LIKE ?
+          OR ca.caregiver_cid LIKE ?
+          OR ca.witness_name LIKE ?
+          OR cd.relationship LIKE ?
+        )
+      `;
+      const s = `%${search}%`;
+      params.push(s, s, s, s, s, s, s, s, s);
+    }
+
+    // 3. นับจำนวนรวมที่ตรงกับเงื่อนไข
     const countRows = await conn.query(`
-      SELECT COUNT(*) AS total FROM caregiver_affidavits ${whereClause}
+      SELECT COUNT(*) AS total
+      FROM virtualhos.caregiver_dependents cd
+      LEFT JOIN virtualhos.lineid l ON cd.line_user_id = l.line_user_id
+      LEFT JOIN virtualhos.caregiver_affidavits ca ON cd.hn = ca.patient_hn AND ca.caregiver_cid = l.cid
+      WHERE ${whereClause}
     `, params);
     const total = Number(countRows[0]?.total || 0);
 
+    // 4. ดึงข้อมูลรายการ
     const rows = await conn.query(`
       SELECT 
-        id, session_id, moph_account_id, caregiver_cid, caregiver_name, caregiver_phone, caregiver_birthdate,
-        patient_hn, patient_cid, patient_name, relationship_id, relationship, relationship_desc,
-        inability_reason_ids, inability_reasons, inability_reason_other, witness_username, witness_name,
-        moph_jti, moph_ial, pdf_path, pdf_hash, status, created_at
-      FROM caregiver_affidavits
-      ${whereClause}
-      ORDER BY created_at DESC
+        cd.id,
+        cd.line_user_id,
+        cd.hn AS patient_hn,
+        cd.cid AS patient_cid,
+        cd.patient_name,
+        cd.relationship,
+        cd.ial,
+        cd.moph_account_id,
+        cd.verify_type,
+        cd.added_by,
+        cd.status,
+        cd.created_at,
+        cd.updated_at,
+        COALESCE(ca.caregiver_cid, l.cid) AS caregiver_cid,
+        COALESCE(ca.caregiver_name, l.ptname_hos, TRIM(CONCAT(COALESCE(l.first_name, ''), ' ', COALESCE(l.last_name, '')))) AS caregiver_name,
+        COALESCE(ca.caregiver_phone, l.mobile_no) AS caregiver_phone,
+        ca.id AS affidavit_id,
+        ca.session_id,
+        ca.witness_name,
+        ca.witness_username,
+        ca.inability_reason_ids,
+        ca.inability_reasons,
+        ca.inability_reason_other,
+        ca.relationship_desc,
+        ca.pdf_path,
+        ca.pdf_hash,
+        ca.status AS aff_status
+      FROM virtualhos.caregiver_dependents cd
+      LEFT JOIN virtualhos.lineid l ON cd.line_user_id = l.line_user_id
+      LEFT JOIN virtualhos.caregiver_affidavits ca ON cd.hn = ca.patient_hn AND ca.caregiver_cid = l.cid
+      WHERE ${whereClause}
+      ORDER BY cd.created_at DESC, cd.id DESC
       LIMIT ? OFFSET ?
     `, [...params, limit, offset]);
 
     res.json({
       success: true,
       data: rows,
+      summary: {
+        all_count: allCount,
+        patient_count: patientCount,
+        official_count: officialCount
+      },
       pagination: {
         page,
         limit,
@@ -839,48 +901,74 @@ router.get('/list', authenticateToken, requireAdmin, async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // 5. PATCH /api/caregiver/:id/status
-// อัปเดตสถานะ อนุมัติ / ไม่อนุมัติ
+// อัปเดตสถานะ อนุมัติ / ไม่อนุมัติ (ACTIVE / INACTIVE)
 // ---------------------------------------------------------------------------
 router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status } = req.body; // 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'INACTIVE'
 
-  if (!status || !['APPROVED', 'REJECTED', 'PENDING'].includes(status)) {
-    return res.status(400).json({ error: 'สถานะไม่ถูกต้อง (ต้องเป็น APPROVED หรือ REJECTED)' });
+  if (!status || !['APPROVED', 'REJECTED', 'ACTIVE', 'INACTIVE'].includes(status)) {
+    return res.status(400).json({ error: 'สถานะไม่ถูกต้อง' });
   }
+
+  const isApproved = status === 'APPROVED' || status === 'ACTIVE';
+  const depStatus = isApproved ? 'ACTIVE' : 'INACTIVE';
+  const affStatus = isApproved ? 'APPROVED' : 'REJECTED';
 
   let conn;
   try {
     conn = await pool_vhos.getConnection();
 
-    // ตรวจสอบและดึงข้อมูลเดิม
-    const rows = await conn.query(`
-      SELECT id, caregiver_cid, patient_hn FROM caregiver_affidavits WHERE id = ? LIMIT 1
+    // 1. ตรวจสอบในตาราง caregiver_dependents ก่อน
+    const depRows = await conn.query(`
+      SELECT cd.id, cd.hn, cd.line_user_id, cd.cid
+      FROM caregiver_dependents cd
+      WHERE cd.id = ? 
+      LIMIT 1
     `, [id]);
 
-    if (!rows || rows.length === 0) {
-      return res.status(404).json({ error: 'ไม่พบรายการผู้ดูแล' });
+    let targetHn = null;
+
+    if (depRows && depRows.length > 0) {
+      targetHn = depRows[0].hn;
+
+      // อัปเดตใน caregiver_dependents
+      await conn.query(`
+        UPDATE caregiver_dependents SET status = ?, updated_at = NOW() WHERE id = ?
+      `, [depStatus, id]);
+
+      // ซิงก์สถานะไปยัง caregiver_affidavits (ถ้ามี)
+      await conn.query(`
+        UPDATE caregiver_affidavits SET status = ? WHERE patient_hn = ?
+      `, [affStatus, targetHn]);
+    } else {
+      // 2. ถ้าไม่พบใน caregiver_dependents ให้หาจาก caregiver_affidavits (fallback)
+      const affRows = await conn.query(`
+        SELECT id, caregiver_cid, patient_hn FROM caregiver_affidavits WHERE id = ? LIMIT 1
+      `, [id]);
+
+      if (!affRows || affRows.length === 0) {
+        return res.status(404).json({ error: 'ไม่พบรายการผู้ดูแล' });
+      }
+
+      targetHn = affRows[0].patient_hn;
+      const caregiverCid = affRows[0].caregiver_cid;
+
+      await conn.query(`
+        UPDATE caregiver_affidavits SET status = ? WHERE id = ?
+      `, [affStatus, id]);
+
+      await conn.query(`
+        UPDATE caregiver_dependents 
+        SET status = ?, updated_at = NOW() 
+        WHERE hn = ? AND (line_user_id LIKE ? OR cid = ?)
+      `, [depStatus, targetHn, `%${caregiverCid}%`, caregiverCid]);
     }
-
-    const item = rows[0];
-
-    // อัปเดตสถานะในตาราง caregiver_affidavits
-    await conn.query(`
-      UPDATE caregiver_affidavits SET status = ? WHERE id = ?
-    `, [status, id]);
-
-    // ซิงก์สถานะไปยัง caregiver_dependents
-    const depStatus = status === 'APPROVED' ? 'ACTIVE' : 'INACTIVE';
-    await conn.query(`
-      UPDATE caregiver_dependents 
-      SET status = ?, updated_at = NOW() 
-      WHERE hn = ? AND (line_user_id LIKE ? OR cid = ?)
-    `, [depStatus, item.patient_hn, `%${item.caregiver_cid}%`, item.caregiver_cid]);
 
     res.json({
       success: true,
-      message: `อัปเดตสถานะเป็น ${status === 'APPROVED' ? 'อนุมัติ' : 'ไม่อนุมัติ'} เรียบร้อยแล้ว`,
-      data: { id: Number(id), status }
+      message: `อัปเดตสถานะเป็น ${isApproved ? 'อนุมัติ / ใช้งานอยู่' : 'ระงับสิทธิ์ / ไม่อนุมัติ'} เรียบร้อยแล้ว`,
+      data: { id: Number(id), status: depStatus, affStatus }
     });
   } catch (err) {
     console.error('Error updating caregiver status:', err);
@@ -892,124 +980,39 @@ router.patch('/:id/status', authenticateToken, requireAdmin, async (req, res) =>
 
 // ---------------------------------------------------------------------------
 // 6. GET /api/caregiver/pdf/:id
-// ดู/ดาวน์โหลดไฟล์ PDF เอกสารรับรอง (พร้อมระบบ Auto-Regenerate หากไฟล์บนดิสก์ไม่อยู่)
+// ดู/ดาวน์โหลดไฟล์ PDF เอกสารรับรอง
 // ---------------------------------------------------------------------------
 router.get('/pdf/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   let conn;
-  let connHos;
   try {
     conn = await pool_vhos.getConnection();
     const rows = await conn.query(`
-      SELECT * FROM caregiver_affidavits WHERE id = ? LIMIT 1
+      SELECT id, session_id, pdf_path FROM caregiver_affidavits WHERE id = ? LIMIT 1
     `, [id]);
 
-    if (!rows || rows.length === 0) {
-      return res.status(404).send('ไม่พบเอกสารรับรองในระบบ');
+    if (!rows || rows.length === 0 || !rows[0].pdf_path) {
+      return res.status(404).send('ไม่พบไฟล์เอกสาร PDF');
     }
 
-    const item = rows[0];
-    const safeSessionId = item.session_id
-      ? String(item.session_id).replace(/[^a-zA-Z0-9_-]/g, '_')
+    const fullPdfPath = path.join(__dirname, '..', rows[0].pdf_path);
+    if (!fs.existsSync(fullPdfPath)) {
+      return res.status(404).send('ไม่พบไฟล์เอกสาร PDF บนเซิร์ฟเวอร์');
+    }
+
+    const safeSessionId = rows[0].session_id
+      ? String(rows[0].session_id).replace(/[^a-zA-Z0-9_-]/g, '_')
       : `caregiver_affidavit_${id}`;
     const filename = `${safeSessionId}.pdf`;
-
-    // ตรวจสอบที่อยู่ไฟล์เดิม โดยแปลง path ให้รองรับทั้ง Linux และ Windows
-    let fullPdfPath = null;
-    if (item.pdf_path) {
-      const cleanRelativePath = item.pdf_path.replace(/\\/g, '/');
-      fullPdfPath = path.resolve(__dirname, '..', cleanRelativePath);
-    }
-
-    // หากไฟล์ไม่มีอยู่จริงบนเซิร์ฟเวอร์ ให้ auto-regenerate สร้างเอกสารขึ้นมาใหม่ทันที
-    if (!fullPdfPath || !fs.existsSync(fullPdfPath)) {
-      if (!fs.existsSync(PDFS_DIR)) {
-        fs.mkdirSync(PDFS_DIR, { recursive: true });
-      }
-      fullPdfPath = path.join(PDFS_DIR, `${safeSessionId}.pdf`);
-
-      // ค้นหาวันเกิดผู้ป่วยจาก HOSxP (ถ้ามี)
-      let ptBirthday = null;
-      if (item.patient_hn) {
-        try {
-          connHos = await pool_hos.getConnection();
-          const ptRows = await connHos.query('SELECT birthday FROM patient WHERE hn = ? LIMIT 1', [item.patient_hn]);
-          if (ptRows && ptRows.length > 0) ptBirthday = ptRows[0].birthday;
-        } catch (hErr) {
-          console.warn('Error fetching patient birthday for PDF re-generation:', hErr.message);
-        }
-      }
-
-      let inabilityReasons = [];
-      try {
-        inabilityReasons = typeof item.inability_reasons === 'string'
-          ? JSON.parse(item.inability_reasons)
-          : (item.inability_reasons || []);
-      } catch (e) {}
-
-      // ตรวจสอบตำแหน่งรูปภาพบัตรประชาชน (ถ้ามี)
-      let resolvedIdCardPath = null;
-      if (item.patient_id_card_img) {
-        const cleanImgRel = item.patient_id_card_img.replace(/\\/g, '/');
-        const candidateImgPath = path.resolve(__dirname, '..', cleanImgRel);
-        if (fs.existsSync(candidateImgPath)) {
-          resolvedIdCardPath = candidateImgPath;
-        }
-      }
-
-      const pdfBuffer = await generateCaregiverPdf({
-        affidavitId: item.id,
-        sessionId: item.session_id,
-        caregiverName: item.caregiver_name,
-        ptname_hos: item.caregiver_name,
-        caregiverCid: item.caregiver_cid,
-        caregiverPhone: item.caregiver_phone,
-        caregiverBirthdate: item.caregiver_birthdate,
-        caregiverAddress: item.caregiver_address,
-        patientName: item.patient_name,
-        patientHn: item.patient_hn,
-        patientCid: item.patient_cid,
-        patientBirthdate: ptBirthday,
-        patientAddress: item.patient_address,
-        relationship: item.relationship,
-        relationshipDesc: item.relationship_desc,
-        inabilityReasons,
-        inabilityReasonOther: item.inability_reason_other,
-        idCardImagePath: resolvedIdCardPath,
-        witnessName: item.witness_name,
-        witnessUsername: item.witness_username,
-        witnessPosition: item.witness_position,
-        mophAccountId: item.moph_account_id,
-        mophJti: item.moph_jti,
-        mophIal: item.moph_ial || '2.3',
-        createdAt: item.created_at || new Date()
-      });
-
-      fs.writeFileSync(fullPdfPath, pdfBuffer);
-
-      // อัปเดต path ในฐานข้อมูลให้เป็น forward slash มาตรฐาน
-      try {
-        const relativeSavedPath = path.relative(path.join(__dirname, '..'), fullPdfPath).replace(/\\/g, '/');
-        const pdfHash = crypto.createHash('sha256').update(pdfBuffer).digest('hex');
-        await conn.query('UPDATE caregiver_affidavits SET pdf_path = ?, pdf_hash = COALESCE(pdf_hash, ?) WHERE id = ?', [
-          relativeSavedPath,
-          pdfHash,
-          item.id
-        ]);
-      } catch (uErr) {
-        console.warn('Error updating restored pdf_path:', uErr.message);
-      }
-    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     fs.createReadStream(fullPdfPath).pipe(res);
   } catch (err) {
     console.error('Error serving caregiver PDF:', err);
-    res.status(500).send('เกิดข้อผิดพลาดในการเปิดเอกสาร PDF: ' + err.message);
+    res.status(500).send('เกิดข้อผิดพลาดในการเปิดเอกสาร PDF');
   } finally {
     if (conn) conn.release();
-    if (connHos) connHos.release();
   }
 });
 

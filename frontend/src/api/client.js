@@ -69,10 +69,10 @@ export const api = {
       body: JSON.stringify({ phone }),
     }),
 
-  createTelemedLink: (hn, cid, patient_name, channel = 'line') =>
+  createTelemedLink: (hn, cid, patient_name, channel = 'line', vn = null) =>
     request('/create-link', {
       method: 'POST',
-      body: JSON.stringify({ hn, cid, patient_name, channel }),
+      body: JSON.stringify({ hn, cid, patient_name, channel, vn }),
     }),
 
   // Admin user management
@@ -139,6 +139,13 @@ export const api = {
   getTelemedDashboard: (startDate, endDate) => {
     const params = new URLSearchParams({ startDate, endDate });
     return request(`/telemed-cases/dashboard?${params}`);
+  },
+
+  getPrescreeningByHn: (hn, date) => {
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    const qs = params.toString();
+    return request(`/telemed-cases/prescreening/${hn}${qs ? `?${qs}` : ''}`);
   },
 
   // Pre-screening
@@ -295,8 +302,8 @@ export const api = {
     }
     return await res.blob();
   },
-  getCaregiverList: (page = 1, limit = 20, search = '') => {
-    const params = new URLSearchParams({ page, limit });
+  getCaregiverList: (page = 1, limit = 20, search = '', tab = 'all') => {
+    const params = new URLSearchParams({ page, limit, tab });
     if (search) params.set('search', search);
     return request(`/caregiver/list?${params}`);
   },
@@ -333,5 +340,39 @@ export const api = {
     request(`/telemed-pharmacy/${id}/delivery`, {
       method: 'POST',
       body: JSON.stringify(payload),
+    }),
+
+  // Telemed Finance (telemed_stat workflow)
+  getTelemedFinance: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.tab) qs.set('tab', params.tab);
+    if (params.search) qs.set('search', params.search);
+    if (params.date) qs.set('date', params.date);
+    const qStr = qs.toString();
+    return request(`/telemed-finance${qStr ? `?${qStr}` : ''}`);
+  },
+
+  payTelemedFinance: (id, payload = {}) =>
+    request(`/telemed-finance/${id}/pay`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  // Referral Required Pttypes (Settings)
+  getHosPttypeOptions: () => request('/referral-pttypes/hos-options'),
+  getReferralPttypes: () => request('/referral-pttypes'),
+  addReferralPttype: (data) =>
+    request('/referral-pttypes', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateReferralPttype: (pttype, data) =>
+    request(`/referral-pttypes/${encodeURIComponent(pttype)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteReferralPttype: (pttype) =>
+    request(`/referral-pttypes/${encodeURIComponent(pttype)}`, {
+      method: 'DELETE',
     }),
 };

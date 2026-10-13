@@ -118,13 +118,29 @@ router.get('/visit-with-doctor', authenticateToken, async (req, res) => {
       SELECT 
         o.oapp_id,
         o.hn,
-        o.vn,
+        o.vn AS vn_oapp,
+        COALESCE(
+          NULLIF(TRIM(o.visit_vn), ''),
+          (SELECT ov2.vn 
+           FROM ovst ov2 
+           WHERE ov2.hn = o.hn AND ov2.vstdate = o.nextdate 
+           ORDER BY ov2.vsttime DESC 
+           LIMIT 1)
+        ) AS vn,
         p.cid,
         CONCAT(p.pname, p.fname, ' ', p.lname) AS patient_name,
         d.name AS doctor_name,
         c.name AS clinic_name,
-        ov.pttype,
-        COALESCE(pt.name, pt_pt.name) AS pttype_name,
+        COALESCE(
+          (SELECT ov1.pttype FROM ovst ov1 WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          ov.pttype,
+          p.pttype
+        ) AS pttype,
+        COALESCE(
+          (SELECT pt1.name FROM ovst ov1 LEFT JOIN pttype pt1 ON ov1.pttype = pt1.pttype WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          pt.name, 
+          pt_pt.name
+        ) AS pttype_name,
         o.note,
         o.nextdate,
         o.vstdate
@@ -170,13 +186,29 @@ router.get('/visit-no-doctor', authenticateToken, async (req, res) => {
       SELECT 
         o.oapp_id,
         o.hn,
-        o.vn,
+        o.vn AS vn_oapp,
+        COALESCE(
+          NULLIF(TRIM(o.visit_vn), ''),
+          (SELECT ov2.vn 
+           FROM ovst ov2 
+           WHERE ov2.hn = o.hn AND ov2.vstdate = o.nextdate 
+           ORDER BY ov2.vsttime DESC 
+           LIMIT 1)
+        ) AS vn,
         p.cid,
         CONCAT(p.pname, p.fname, ' ', p.lname) AS patient_name,
         d.name AS doctor_name,
         c.name AS clinic_name,
-        ov.pttype,
-        COALESCE(pt.name, pt_pt.name) AS pttype_name,
+        COALESCE(
+          (SELECT ov1.pttype FROM ovst ov1 WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          ov.pttype,
+          p.pttype
+        ) AS pttype,
+        COALESCE(
+          (SELECT pt1.name FROM ovst ov1 LEFT JOIN pttype pt1 ON ov1.pttype = pt1.pttype WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          pt.name, 
+          pt_pt.name
+        ) AS pttype_name,
         o.note,
         o.nextdate,
         o.vstdate
@@ -270,13 +302,29 @@ router.get('/combined', authenticateToken, async (req, res) => {
       SELECT 
         o.oapp_id,
         o.hn,
-        o.vn,
+        o.vn AS vn_oapp,
+        COALESCE(
+          NULLIF(TRIM(o.visit_vn), ''),
+          (SELECT ov2.vn 
+           FROM ovst ov2 
+           WHERE ov2.hn = o.hn AND ov2.vstdate = o.nextdate 
+           ORDER BY ov2.vsttime DESC 
+           LIMIT 1)
+        ) AS vn,
         p.cid,
         CONCAT(p.pname, p.fname, ' ', p.lname) AS patient_name,
         d.name AS doctor_name,
         c.name AS clinic_name,
-        ov.pttype,
-        COALESCE(pt.name, pt_pt.name) AS pttype_name,
+        COALESCE(
+          (SELECT ov1.pttype FROM ovst ov1 WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          ov.pttype,
+          p.pttype
+        ) AS pttype,
+        COALESCE(
+          (SELECT pt1.name FROM ovst ov1 LEFT JOIN pttype pt1 ON ov1.pttype = pt1.pttype WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          pt.name, 
+          pt_pt.name
+        ) AS pttype_name,
         o.note,
         o.nextdate,
         o.vstdate,
@@ -299,13 +347,29 @@ router.get('/combined', authenticateToken, async (req, res) => {
       SELECT 
         o.oapp_id,
         o.hn,
-        o.vn,
+        o.vn AS vn_oapp,
+        COALESCE(
+          NULLIF(TRIM(o.visit_vn), ''),
+          (SELECT ov2.vn 
+           FROM ovst ov2 
+           WHERE ov2.hn = o.hn AND ov2.vstdate = o.nextdate 
+           ORDER BY ov2.vsttime DESC 
+           LIMIT 1)
+        ) AS vn,
         p.cid,
         CONCAT(p.pname, p.fname, ' ', p.lname) AS patient_name,
         d.name AS doctor_name,
         c.name AS clinic_name,
-        ov.pttype,
-        COALESCE(pt.name, pt_pt.name) AS pttype_name,
+        COALESCE(
+          (SELECT ov1.pttype FROM ovst ov1 WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          ov.pttype,
+          p.pttype
+        ) AS pttype,
+        COALESCE(
+          (SELECT pt1.name FROM ovst ov1 LEFT JOIN pttype pt1 ON ov1.pttype = pt1.pttype WHERE ov1.hn = o.hn AND ov1.vstdate = o.nextdate ORDER BY ov1.vsttime DESC LIMIT 1),
+          pt.name, 
+          pt_pt.name
+        ) AS pttype_name,
         o.note,
         o.nextdate,
         o.vstdate,
@@ -340,6 +404,10 @@ router.get('/combined', authenticateToken, async (req, res) => {
         p.phone,
         p.address,
         p.postal_code,
+        p.smoking,
+        p.smoking_detail,
+        p.alcohol,
+        p.alcohol_detail,
         p.sbp,
         p.dbp,
         p.pulse,
@@ -352,6 +420,7 @@ router.get('/combined', authenticateToken, async (req, res) => {
         p.current_medications,
         p.additional_notes,
         p.status,
+        p.confirmed_vn,
         p.completed_at,
         'screening' AS visit_type
       FROM dextor.tele_prescreening p
@@ -393,25 +462,50 @@ router.get('/combined', authenticateToken, async (req, res) => {
         });
       }
 
-      // ดึงสิทธิ์จาก ovst.pttype ของ vn ที่ออกใบนัด (oapp)
+      // ดึงสิทธิ์จาก ovst.pttype ของ vn ที่ออกใบนัด (oapp) และดึง VN ปัจจุบัน
       const scrOappIds = Array.from(new Set(screeningResults.map(r => r.oapp_id).filter(Boolean)));
       if (scrOappIds.length > 0) {
         const plOapp = scrOappIds.map(() => '?').join(',');
         const oappRows = await connHos.query(
-          `SELECT o.oapp_id, o.vn, ov.pttype, pt.name AS pttype_name
+          `SELECT o.oapp_id, o.vn, o.visit_vn, ov.pttype, pt.name AS pttype_name
            FROM oapp o
            LEFT JOIN ovst ov ON o.vn = ov.vn
            LEFT JOIN pttype pt ON ov.pttype = pt.pttype
-           WHERE o.oapp_id IN (${plOapp}) AND ov.pttype IS NOT NULL`,
+           WHERE o.oapp_id IN (${plOapp})`,
           scrOappIds
         );
         const oappMap = new Map((oappRows || []).map(r => [r.oapp_id, r]));
         screeningResults.forEach(r => {
           if (r.oapp_id && oappMap.has(r.oapp_id)) {
             const op = oappMap.get(r.oapp_id);
-            r.pttype = op.pttype || r.pttype;
-            r.pttype_name = op.pttype_name || r.pttype_name;
+            if (op.pttype) r.pttype = op.pttype;
+            if (op.pttype_name) r.pttype_name = op.pttype_name;
             r.vn_oapp = op.vn || null;
+            r.visit_vn = (op.visit_vn && String(op.visit_vn).trim()) || null;
+            r.vn = r.confirmed_vn || r.visit_vn || null;
+          } else {
+            r.vn = r.confirmed_vn || null;
+          }
+        });
+      }
+
+      // สำหรับเคสที่ยังไม่มี VN ลองค้นหาจาก ovst ในวันที่นัดหมาย (date)
+      const missingVnHns = screeningResults.filter(r => !r.vn && r.hn).map(r => r.hn);
+      if (missingVnHns.length > 0) {
+        const plMiss = missingVnHns.map(() => '?').join(',');
+        const ovstRows = await connHos.query(
+          `SELECT hn, vn, pttype FROM ovst WHERE hn IN (${plMiss}) AND vstdate = ? ORDER BY vsttime DESC`,
+          [...missingVnHns, date]
+        );
+        const ovstMap = new Map();
+        for (const ov of (ovstRows || [])) {
+          if (!ovstMap.has(ov.hn)) ovstMap.set(ov.hn, ov);
+        }
+        screeningResults.forEach(r => {
+          if (!r.vn && ovstMap.has(r.hn)) {
+            const ov = ovstMap.get(r.hn);
+            r.vn = ov.vn;
+            if (ov.pttype) r.pttype = ov.pttype;
           }
         });
       }
@@ -428,6 +522,81 @@ router.get('/combined', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   } finally {
     if (connHos) connHos.release();
+    if (connVhos) connVhos.release();
+  }
+});
+
+// GET /api/telemed-cases/prescreening/:hn (ค้นหาข้อมูลคัดกรอง tele_prescreening ของ HN)
+router.get('/prescreening/:hn', authenticateToken, async (req, res) => {
+  const { hn } = req.params;
+  const { date } = req.query;
+  let connVhos;
+  try {
+    connVhos = await pool_vhos.getConnection();
+    let query = `
+      SELECT 
+        p.*,
+        p.appointment_date AS nextdate,
+        p.created_at AS vstdate,
+        p.clinic AS clinic_name,
+        'screening' AS visit_type
+      FROM dextor.tele_prescreening p
+      WHERE p.hn = ?
+    `;
+    const params = [hn];
+    if (date) {
+      query += ` AND p.appointment_date = ?`;
+      params.push(date);
+    }
+    query += ` ORDER BY p.completed_at DESC, p.id DESC LIMIT 1`;
+    let rows = await connVhos.query(query, params);
+    if (!rows || rows.length === 0) {
+      // Fallback: หากระบุ date แล้วไม่เจอ ให้ค้นหาประวัติคัดกรองล่าสุดของ HN นี้
+      if (date) {
+        rows = await connVhos.query(
+          `SELECT p.*, p.appointment_date AS nextdate, p.created_at AS vstdate, p.clinic AS clinic_name, 'screening' AS visit_type 
+           FROM dextor.tele_prescreening p 
+           WHERE p.hn = ? 
+           ORDER BY p.completed_at DESC, p.id DESC LIMIT 1`,
+          [hn]
+        );
+      }
+    }
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'ไม่พบข้อมูลการคัดกรอง (Prescreening) สำหรับผู้ป่วยรายนี้' });
+    }
+
+    const row = serializeRow(rows[0]);
+
+    // ดึง pttype และ pttype_name จาก patient ใน HOSxP หากยังไม่มี
+    if (!row.pttype_name) {
+      let connHos;
+      try {
+        connHos = await pool_hos.getConnection();
+        const ptRows = await connHos.query(
+          `SELECT p.pttype, pt.name AS pttype_name 
+           FROM patient p 
+           LEFT JOIN pttype pt ON p.pttype = pt.pttype 
+           WHERE p.hn = ? LIMIT 1`,
+          [hn]
+        );
+        if (ptRows && ptRows.length > 0) {
+          row.pttype = row.pttype || ptRows[0].pttype;
+          row.pttype_name = ptRows[0].pttype_name;
+        }
+      } catch (ptErr) {
+        console.warn('Error fetching patient pttype for prescreening:', ptErr.message);
+      } finally {
+        if (connHos) connHos.release();
+      }
+    }
+
+    res.json(row);
+  } catch (err) {
+    console.error('Error fetching prescreening by hn:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
     if (connVhos) connVhos.release();
   }
 });

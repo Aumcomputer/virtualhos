@@ -55,6 +55,15 @@ export default function SettingsPage() {
   const [cronLogsLoading, setCronLogsLoading] = useState(false);
   const [manualTriggerLoading, setManualTriggerLoading] = useState(false);
 
+  // Referral Required Pttypes States
+  const [referralPttypes, setReferralPttypes] = useState([]);
+  const [hosPttypeOptions, setHosPttypeOptions] = useState([]);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [hosSearch, setHosSearch] = useState('');
+  const [referralSearch, setReferralSearch] = useState('');
+  const [deleteConfirmPttype, setDeleteConfirmPttype] = useState(null);
+  const [referralActionLoading, setReferralActionLoading] = useState(null);
+
   // Redirect non-admin users
   useEffect(() => {
     if (!isAdmin) {
@@ -122,6 +131,27 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const fetchReferralPttypes = useCallback(async () => {
+    setReferralLoading(true);
+    try {
+      const res = await api.getReferralPttypes();
+      setReferralPttypes(Array.isArray(res) ? res : (res.data || []));
+    } catch (err) {
+      console.error('Failed to fetch referral pttypes:', err);
+    } finally {
+      setReferralLoading(false);
+    }
+  }, []);
+
+  const fetchHosPttypeOptions = useCallback(async () => {
+    try {
+      const res = await api.getHosPttypeOptions();
+      setHosPttypeOptions(Array.isArray(res) ? res : (res.data || []));
+    } catch (err) {
+      console.error('Failed to fetch hos pttype options:', err);
+    }
+  }, []);
+
   useEffect(() => {
     if (isAdmin) {
       fetchAdminUsers();
@@ -129,8 +159,19 @@ export default function SettingsPage() {
       fetchMenus();
       fetchCronSettings();
       fetchCronLogs();
+      fetchReferralPttypes();
+      fetchHosPttypeOptions();
     }
-  }, [fetchAdminUsers, fetchRoles, fetchMenus, fetchCronSettings, fetchCronLogs, isAdmin]);
+  }, [
+    fetchAdminUsers,
+    fetchRoles,
+    fetchMenus,
+    fetchCronSettings,
+    fetchCronLogs,
+    fetchReferralPttypes,
+    fetchHosPttypeOptions,
+    isAdmin,
+  ]);
 
   const menuGroups = useMemo(() => {
     const groups = {};
@@ -282,6 +323,96 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAddFromHos = async (opt) => {
+    setReferralActionLoading(opt.pttype);
+    try {
+      await api.addReferralPttype({
+        pttype: opt.pttype,
+        pttype_name: opt.name,
+        pcode: opt.pcode,
+        is_active: 1,
+      });
+      await fetchReferralPttypes();
+    } catch (err) {
+      alert(`❌ เกิดข้อผิดพลาดในการเพิ่มสิทธิ์: ${err.message}`);
+    } finally {
+      setReferralActionLoading(null);
+    }
+  };
+
+  const handleToggleReferralActive = async (item) => {
+    const newActive = item.is_active ? 0 : 1;
+    setReferralActionLoading(item.pttype);
+    try {
+      await api.updateReferralPttype(item.pttype, { is_active: newActive });
+      setReferralPttypes((prev) =>
+        prev.map((p) => (p.pttype === item.pttype ? { ...p, is_active: newActive } : p))
+      );
+    } catch (err) {
+      alert(`❌ เกิดข้อผิดพลาดในการปรับปรุงสถานะ: ${err.message}`);
+    } finally {
+      setReferralActionLoading(null);
+    }
+  };
+
+  const handleDeleteReferral = async (pttype) => {
+    setReferralActionLoading(pttype);
+    try {
+      await api.deleteReferralPttype(pttype);
+      setReferralPttypes((prev) => prev.filter((p) => p.pttype !== pttype));
+      setDeleteConfirmPttype(null);
+    } catch (err) {
+      alert(`❌ เกิดข้อผิดพลาดในการลบสิทธิ์: ${err.message}`);
+    } finally {
+      setReferralActionLoading(null);
+    }
+  };
+
+  const handleEditNote = async (item) => {
+    const currentNote = item.note || '';
+    const newNote = window.prompt(`ระบุหมายเหตุสำหรับสิทธิ์ [${item.pttype}] ${item.pttype_name || ''}:`, currentNote);
+    if (newNote === null) return;
+    setReferralActionLoading(item.pttype);
+    try {
+      await api.updateReferralPttype(item.pttype, { note: newNote.trim() });
+      setReferralPttypes((prev) =>
+        prev.map((p) => (p.pttype === item.pttype ? { ...p, note: newNote.trim() } : p))
+      );
+    } catch (err) {
+      alert(`❌ เกิดข้อผิดพลาดในการบันทึกหมายเหตุ: ${err.message}`);
+    } finally {
+      setReferralActionLoading(null);
+    }
+  };
+
+  const existingPttypeSet = useMemo(
+    () => new Set(referralPttypes.map((p) => String(p.pttype).trim())),
+    [referralPttypes]
+  );
+
+  const filteredHosOptions = useMemo(() => {
+    if (!hosSearch.trim()) return hosPttypeOptions;
+    const q = hosSearch.trim().toLowerCase();
+    return hosPttypeOptions.filter(
+      (opt) =>
+        (opt.pttype && String(opt.pttype).toLowerCase().includes(q)) ||
+        (opt.name && opt.name.toLowerCase().includes(q)) ||
+        (opt.pcode && String(opt.pcode).toLowerCase().includes(q))
+    );
+  }, [hosPttypeOptions, hosSearch]);
+
+  const filteredReferralPttypes = useMemo(() => {
+    if (!referralSearch.trim()) return referralPttypes;
+    const q = referralSearch.trim().toLowerCase();
+    return referralPttypes.filter(
+      (p) =>
+        (p.pttype && String(p.pttype).toLowerCase().includes(q)) ||
+        (p.pttype_name && p.pttype_name.toLowerCase().includes(q)) ||
+        (p.pcode && String(p.pcode).toLowerCase().includes(q)) ||
+        (p.note && p.note.toLowerCase().includes(q))
+    );
+  }, [referralPttypes, referralSearch]);
+
   if (!isAdmin) return null;
 
   return (
@@ -292,36 +423,6 @@ export default function SettingsPage() {
             <h2 className="page-title">ตั้งค่าระบบและผู้ใช้งาน</h2>
             <p className="page-subtitle">จัดการสิทธิ์บัญชีผู้ใช้ สิทธิ์การเข้าถึงเมนู และตั้งค่าการดึงข้อมูลคัดกรองอัตโนมัติ</p>
           </div>
-          {activeTab === 'users' && (
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowModal(true)}
-              type="button"
-              id="btn-add-admin-user"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              เพิ่มผู้ใช้งาน
-            </button>
-          )}
-          {activeTab === 'roles' && (
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowAddRoleModal(true)}
-              type="button"
-              id="btn-add-role"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              เพิ่มสิทธิ์ใหม่
-            </button>
-          )}
         </div>
       </div>
 
@@ -354,6 +455,21 @@ export default function SettingsPage() {
             </svg>
             <span>สิทธิ์และเมนูเข้าถึง</span>
             <span className="settings-tab-badge">{roles.length}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`settings-tab-btn ${activeTab === 'referral_pttypes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('referral_pttypes')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            <span>สิทธิ์ที่ต้องใช้ใบส่งตัว</span>
+            <span className="settings-tab-badge">{referralPttypes.length}</span>
           </button>
 
           <button
@@ -414,6 +530,29 @@ export default function SettingsPage() {
                   </svg>
                   รายชื่อผู้ใช้งานในระบบ
                 </h3>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setShowModal(true)}
+                  type="button"
+                  id="btn-add-admin-user"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    height: '32px',
+                    padding: '0 12px',
+                    fontSize: '0.8125rem',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    width: 'auto',
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  เพิ่มผู้ใช้งาน
+                </button>
               </div>
 
               {loading ? (
@@ -606,9 +745,35 @@ export default function SettingsPage() {
 
         {/* TAB 2: ROLES & PERMISSIONS MANAGEMENT */}
         {activeTab === 'roles' && (
-          <div className="settings-roles-layout">
-            {/* Left Master List */}
-            <div className="roles-master-list">
+          <>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '14px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setShowAddRoleModal(true)}
+                type="button"
+                id="btn-add-role"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  height: '32px',
+                  padding: '0 12px',
+                  fontSize: '0.8125rem',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  width: 'auto',
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                เพิ่มสิทธิ์ใหม่
+              </button>
+            </div>
+            <div className="settings-roles-layout">
+              {/* Left Master List */}
+              <div className="roles-master-list">
               {roles.map((r) => {
                 const isSelected = (selectedRoleKey || roles[0]?.role_key) === r.role_key;
                 return (
@@ -809,7 +974,8 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
-        )}
+        </>
+      )}
 
         {/* TAB 3: CRON JOB & AUTOMATION */}
         {activeTab === 'cron' && (
@@ -983,6 +1149,289 @@ export default function SettingsPage() {
               )}
             </div>
           </>
+        )}
+
+        {/* TAB 4: REFERRAL REQUIRED PTTYPES (DUAL BOX LAYOUT) */}
+        {activeTab === 'referral_pttypes' && (
+          <div className="referral-dual-container">
+            {/* กล่องซ้าย: สิทธิ์ใน HOSxP */}
+            <div className="referral-box-card">
+              <div className="referral-box-header">
+                <h3 className="referral-box-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#2563eb' }}>
+                    <ellipse cx="12" cy="5" rx="9" ry="3" />
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                  </svg>
+                  <span>สิทธิ์ในระบบ HOSxP</span>
+                </h3>
+                <span className="referral-box-count-badge">
+                  {hosPttypeOptions.length} รายการ
+                </span>
+              </div>
+
+              {/* Search wrap */}
+              <div className="referral-box-search-wrap">
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="loa-form-input"
+                    style={{ width: '100%', paddingLeft: '32px', height: '36px', fontSize: '0.8125rem' }}
+                    placeholder="ค้นหารหัสสิทธิ์ หรือชื่อสิทธิ์ (HOSxP)..."
+                    value={hosSearch}
+                    onChange={(e) => setHosSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* List */}
+              <div className="referral-box-list">
+                {referralLoading ? (
+                  <div className="loading-container" style={{ padding: '40px 0' }}>
+                    <div className="spinner" />
+                    <div className="loading-text">กำลังโหลดสิทธิ์จาก HOSxP...</div>
+                  </div>
+                ) : filteredHosOptions.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '40px 0' }}>
+                    <div className="empty-state-title" style={{ fontSize: '0.9rem' }}>
+                      {hosSearch ? `ไม่พบสิทธิ์ที่ตรงกับ "${hosSearch}"` : 'ไม่พบข้อมูลสิทธิ์ใน HOSxP'}
+                    </div>
+                  </div>
+                ) : (
+                  filteredHosOptions.map((opt) => {
+                    const isSelected = existingPttypeSet.has(String(opt.pttype).trim());
+                    return (
+                      <div
+                        key={opt.pttype}
+                        className={`referral-item-row ${isSelected ? 'is-selected-in-left' : ''}`}
+                      >
+                        <div className="referral-item-info">
+                          <span className="referral-code-badge">{opt.pttype}</span>
+                          <div className="referral-item-text">
+                            <span className="referral-item-name" title={opt.name}>
+                              {opt.name}
+                            </span>
+                            <span className="referral-item-sub">
+                              {opt.pcode ? `PCODE: ${opt.pcode}` : '—'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          {isSelected ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '0.75rem',
+                                color: '#059669',
+                                background: '#ecfdf5',
+                                padding: '3px 9px',
+                                borderRadius: 9999,
+                                fontWeight: 600,
+                                border: '1px solid #a7f3d0',
+                              }}
+                            >
+                              ✓ เลือกแล้ว
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="loa-btn loa-btn-primary"
+                              style={{
+                                padding: '4px 10px',
+                                fontSize: '0.775rem',
+                                height: 'auto',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                borderRadius: '6px',
+                              }}
+                              onClick={() => handleAddFromHos(opt)}
+                              disabled={referralActionLoading === opt.pttype}
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <line x1="12" y1="5" x2="12" y2="19" />
+                                <line x1="5" y1="12" x2="19" y2="12" />
+                              </svg>
+                              เลือก →
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* กล่องขวา: สิทธิ์ที่เลือกว่าต้องใช้ใบส่งตัว */}
+            <div className="referral-box-card">
+              <div className="referral-box-header">
+                <h3 className="referral-box-title">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#059669' }}>
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  <span>สิทธิ์ที่ต้องใช้ใบส่งตัว</span>
+                </h3>
+                <span className="referral-box-count-badge success">
+                  {referralPttypes.length} รายการ
+                </span>
+              </div>
+
+              {/* Search wrap */}
+              <div className="referral-box-search-wrap">
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', display: 'flex' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="11" cy="11" r="8" />
+                      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    </svg>
+                  </span>
+                  <input
+                    type="text"
+                    className="loa-form-input"
+                    style={{ width: '100%', paddingLeft: '32px', height: '36px', fontSize: '0.8125rem' }}
+                    placeholder="ค้นหาสิทธิ์ที่เลือกแล้ว..."
+                    value={referralSearch}
+                    onChange={(e) => setReferralSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* List */}
+              <div className="referral-box-list">
+                {referralLoading ? (
+                  <div className="loading-container" style={{ padding: '40px 0' }}>
+                    <div className="spinner" />
+                    <div className="loading-text">กำลังโหลดสิทธิ์ที่เลือก...</div>
+                  </div>
+                ) : referralPttypes.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '50px 20px' }}>
+                    <div className="empty-state-icon">👈</div>
+                    <div className="empty-state-title" style={{ fontSize: '0.95rem' }}>
+                      ยังไม่มีสิทธิ์ที่เลือก
+                    </div>
+                    <div className="empty-state-text" style={{ fontSize: '0.8125rem' }}>
+                      เลือกสิทธิ์จากกล่องด้านซ้ายเพื่อกำหนดให้ต้องใช้ใบส่งตัว
+                    </div>
+                  </div>
+                ) : filteredReferralPttypes.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '40px 0' }}>
+                    <div className="empty-state-title" style={{ fontSize: '0.9rem' }}>
+                      ไม่พบสิทธิ์ที่ตรงกับ "{referralSearch}"
+                    </div>
+                  </div>
+                ) : (
+                  filteredReferralPttypes.map((item) => (
+                    <div key={item.pttype} className="referral-item-row">
+                      <div className="referral-item-info">
+                        <span className="referral-code-badge">{item.pttype}</span>
+                        <div className="referral-item-text">
+                          <span className="referral-item-name" title={item.pttype_name}>
+                            {item.pttype_name || '—'}
+                          </span>
+                          <div className="referral-item-sub">
+                            {item.pcode && <span>PCODE: {item.pcode}</span>}
+                            {item.note && (
+                              <span style={{ color: '#0284c7' }} title={item.note}>
+                                📝 {item.note}
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleEditNote(item)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#94a3b8',
+                                cursor: 'pointer',
+                                fontSize: '0.72rem',
+                                padding: 0,
+                                textDecoration: 'underline',
+                              }}
+                            >
+                              {item.note ? 'แก้ไขหมายเหตุ' : '+ หมายเหตุ'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {/* Toggle Active */}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleReferralActive(item)}
+                          disabled={referralActionLoading === item.pttype}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
+                          title="คลิกเพื่อสลับสถานะ"
+                        >
+                          {item.is_active ? (
+                            <span className="settings-status-active">
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#059669' }}></span>
+                              เปิด
+                            </span>
+                          ) : (
+                            <span className="settings-status-inactive">
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8' }}></span>
+                              ปิด
+                            </span>
+                          )}
+                        </button>
+
+                        {/* Delete Action */}
+                        {deleteConfirmPttype === item.pttype ? (
+                          <div className="settings-delete-confirm-box" style={{ padding: '2px 4px' }}>
+                            <button
+                              className="settings-btn-confirm-yes"
+                              onClick={() => handleDeleteReferral(item.pttype)}
+                              disabled={referralActionLoading === item.pttype}
+                              type="button"
+                              style={{ padding: '2px 6px', fontSize: '0.72rem' }}
+                            >
+                              ยืนยัน
+                            </button>
+                            <button
+                              className="settings-btn-confirm-no"
+                              onClick={() => setDeleteConfirmPttype(null)}
+                              type="button"
+                              style={{ padding: '2px 4px', fontSize: '0.72rem' }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            className="settings-btn-icon delete"
+                            onClick={() => setDeleteConfirmPttype(item.pttype)}
+                            disabled={referralActionLoading === item.pttype}
+                            title="นำสิทธิ์นี้ออกจากรายการ"
+                            style={{ width: '28px', height: '28px' }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

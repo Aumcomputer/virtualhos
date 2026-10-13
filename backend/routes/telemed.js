@@ -67,23 +67,48 @@ router.post('/', authenticateToken, async (req, res) => {
       const mophResult = await sendMophAlert(cid, patientLink);
       mophStatus = mophResult.success ? "Sent" : "Failed";
     } else {
-      // LINE OA
+      // LINE OA: ค้นหาทั้ง LINE ของผู้ป่วย และ LINE ของผู้ดูแล (Caregiver)
+      const recipientUserIds = new Set();
+
+      // 1. ค้นหาจาก lineid ของผู้ป่วยโดยตรง (หรือ active_hn)
       const lineRows = await conn_vhos.query(
-        "SELECT line_user_id FROM lineid WHERE hn = ? LIMIT 1",
+        "SELECT line_user_id FROM lineid WHERE hn = ? OR active_hn = ?",
+        [hn, hn]
+      );
+      for (const r of (lineRows || [])) {
+        if (r.line_user_id && r.line_user_id.trim()) {
+          recipientUserIds.add(r.line_user_id.trim());
+        }
+      }
+
+      // 2. ค้นหาจาก caregiver_dependents (ผู้ดูแลที่ผูกกับ HN นี้ และสถานะ ACTIVE)
+      const cgRows = await conn_vhos.query(
+        "SELECT line_user_id FROM caregiver_dependents WHERE hn = ? AND status = 'ACTIVE'",
         [hn]
       );
+      for (const r of (cgRows || [])) {
+        if (r.line_user_id && r.line_user_id.trim()) {
+          recipientUserIds.add(r.line_user_id.trim());
+        }
+      }
 
-      lineStatus = "Not Linked"; // สถานะเริ่มต้น (ผู้ป่วยยังไม่เคยผูก LINE)
+      lineStatus = "Not Linked"; // สถานะเริ่มต้น (ยังไม่เคยผูก LINE ทั้งคนไข้และผู้ดูแล)
 
-      if (lineRows && lineRows.length > 0 && lineRows[0].line_user_id) {
-        const lineUserId = lineRows[0].line_user_id;
-
+      if (recipientUserIds.size > 0) {
         if (!process.env.LINE_CHANNEL_ACCESS_TOKEN) {
           lineStatus = "Token Missing";
           console.warn("WARNING: LINE_CHANNEL_ACCESS_TOKEN is not defined in .env. Skipping LINE push notification.");
         } else {
-          const isSent = await sendLineTelemedLink(lineUserId, patient_name, doctor_name, patientLink);
-          lineStatus = isSent ? "Sent" : "Failed";
+          let sentSuccessCount = 0;
+          for (const lineUserId of recipientUserIds) {
+            try {
+              const isSent = await sendLineTelemedLink(lineUserId, patient_name, doctor_name, patientLink);
+              if (isSent) sentSuccessCount++;
+            } catch (sendErr) {
+              console.error(`Failed to send telemed link to ${lineUserId}:`, sendErr.message);
+            }
+          }
+          lineStatus = sentSuccessCount > 0 ? "Sent" : "Failed";
         }
       }
     }

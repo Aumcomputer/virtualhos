@@ -130,10 +130,7 @@ export default function TelemedPharmacyPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [dispenseSubmitting, setDispenseSubmitting] = useState(false);
 
-  // Delivery Modal State (with Tracking number)
-  const [deliveryModalItem, setDeliveryModalItem] = useState(null);
-  const [trackingNumber, setTrackingNumber] = useState('');
-  const [deliveryType, setDeliveryType] = useState('POST');
+  // Delivery State
   const [deliverySubmitting, setDeliverySubmitting] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -216,31 +213,14 @@ export default function TelemedPharmacyPage() {
     }
   };
 
-  // Open Delivery Modal
-  const openDeliveryModal = (item) => {
-    setDeliveryModalItem(item);
-    setTrackingNumber(item.tracking_number || '');
-    setDeliveryType(item.delivery_type || 'POST');
-  };
-
-  // Confirm Delivery with Tracking Number
-  const handleConfirmDelivery = async (e) => {
-    if (e) e.preventDefault();
-    if (!deliveryModalItem) return;
-
-    if (!trackingNumber.trim()) {
-      setToast({ type: 'error', message: 'กรุณากรอกหมายเลขพัสดุ (Tracking Number)' });
-      return;
-    }
-
+  // Direct Delivery (บันทึกจัดส่งยาเสร็จสิ้นโดยตรง ไม่ต้องกรอกเลขพัสดุ)
+  const handleDirectDelivery = async (item) => {
+    if (!item) return;
     setDeliverySubmitting(true);
     try {
-      const res = await api.deliveryTelemedPharmacy(deliveryModalItem.id, {
-        tracking_number: trackingNumber.trim(),
-        delivery_type: deliveryType,
-      });
-      setToast({ type: 'success', message: res.message || 'บันทึกจัดส่งยาเรียบร้อยแล้ว' });
-      setDeliveryModalItem(null);
+      const res = await api.deliveryTelemedPharmacy(item.id, {});
+      setToast({ type: 'success', message: res.message || 'บันทึกการจัดส่งยาเรียบร้อยแล้ว' });
+      setDetailModalItem(null);
       fetchData();
     } catch (err) {
       setToast({ type: 'error', message: err.message || 'เกิดข้อผิดพลาดในการบันทึกจัดส่ง' });
@@ -306,7 +286,7 @@ export default function TelemedPharmacyPage() {
           <div>
             <h2 className="page-title">ห้องยา (Section Telemed)</h2>
             <p className="page-subtitle">
-              ตรวจสอบข้อมูลยา ค่ารักษาพยาบาล จัดยา และบันทึกจัดส่งยาสำหรับผู้ป่วยที่คัดกรองแล้ว (dextor.tele_prescreening)
+              ตรวจสอบข้อมูลยา ค่ารักษาพยาบาล จัดยา และบันทึกจัดส่งยาสำหรับผู้ป่วยที่คัดกรองแล้ว
             </p>
           </div>
         </div>
@@ -314,35 +294,38 @@ export default function TelemedPharmacyPage() {
 
       <div className="page-body prescreening-container">
         {/* Navigation Stage Chips (Tabs) */}
-        <div className="rtm-stage-bar">
+        <div className="rtm-stage-bar" style={{ fontFamily: "'Sarabun', sans-serif" }}>
           <button
             type="button"
             className={`rtm-stage-chip rtm-chip-pharmacist ${tab === 'today' ? 'active' : ''}`}
+            style={{ fontFamily: "'Sarabun', sans-serif" }}
             onClick={() => setTab('today')}
           >
             <span className="rtm-chip-icon">💊</span>
-            <span>รายการวันนี้</span>
-            <span className="rtm-chip-count">{summary.today_count || 0}</span>
+            <span style={{ fontFamily: "'Sarabun', sans-serif" }}>รายการวันนี้</span>
+            <span className="rtm-chip-count" style={{ fontFamily: "'Sarabun', sans-serif" }}>{summary.today_count || 0}</span>
           </button>
 
           <button
             type="button"
             className={`rtm-stage-chip rtm-chip-approved ${tab === 'delivery' ? 'active' : ''}`}
+            style={{ fontFamily: "'Sarabun', sans-serif" }}
             onClick={() => setTab('delivery')}
           >
             <span className="rtm-chip-icon">📦</span>
-            <span>รอจัดส่งยา</span>
-            <span className="rtm-chip-count">{summary.delivery_count || 0}</span>
+            <span style={{ fontFamily: "'Sarabun', sans-serif" }}>รอจัดส่งยา</span>
+            <span className="rtm-chip-count" style={{ fontFamily: "'Sarabun', sans-serif" }}>{summary.delivery_count || 0}</span>
           </button>
 
           <button
             type="button"
             className={`rtm-stage-chip rtm-chip-completed ${tab === 'history' ? 'active' : ''}`}
+            style={{ fontFamily: "'Sarabun', sans-serif" }}
             onClick={() => setTab('history')}
           >
             <span className="rtm-chip-icon">📜</span>
-            <span>ประวัติการจัดส่ง</span>
-            <span className="rtm-chip-count">{summary.history_count || 0}</span>
+            <span style={{ fontFamily: "'Sarabun', sans-serif" }}>ประวัติการจัดส่ง</span>
+            <span className="rtm-chip-count" style={{ fontFamily: "'Sarabun', sans-serif" }}>{summary.history_count || 0}</span>
           </button>
         </div>
 
@@ -443,28 +426,24 @@ export default function TelemedPharmacyPage() {
                   <th>คลินิก</th>
                   <th>แพทย์</th>
                   <th>สิทธิการรักษา</th>
-                  {tab === 'today' ? (
-                    <th style={{ textAlign: 'center', width: '130px' }}>การดำเนินการ</th>
-                  ) : tab === 'delivery' ? (
+                  {tab === 'delivery' ? (
                     <>
                       <th style={{ textAlign: 'center', width: '140px' }}>สถานะชำระเงิน</th>
                       <th>ที่อยู่จัดส่งยา</th>
-                      <th style={{ textAlign: 'center', width: '200px' }}>การจัดส่ง</th>
                     </>
-                  ) : (
+                  ) : tab === 'history' ? (
                     <>
                       <th style={{ textAlign: 'center', width: '150px' }}>วันที่จัดส่งยา</th>
                       <th style={{ textAlign: 'center', width: '160px' }}>เลขพัสดุ (Tracking)</th>
                       <th style={{ textAlign: 'center', width: '130px' }}>สถานะชำระเงิน</th>
-                      <th style={{ textAlign: 'center', width: '140px' }}>การดำเนินการ</th>
                     </>
-                  )}
+                  ) : null}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={tab === 'today' ? 9 : tab === 'delivery' ? 11 : 12} style={{ textAlign: 'center', padding: '48px 20px' }}>
+                    <td colSpan={tab === 'today' ? 8 : tab === 'delivery' ? 10 : 11} style={{ textAlign: 'center', padding: '48px 20px' }}>
                       <div className="loading-spinner-wrapper" style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', color: 'var(--gray-600)' }}>
                         <svg className="spin-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -475,7 +454,7 @@ export default function TelemedPharmacyPage() {
                   </tr>
                 ) : data.length === 0 ? (
                   <tr>
-                    <td colSpan={tab === 'today' ? 9 : tab === 'delivery' ? 11 : 12} style={{ textAlign: 'center', padding: '56px 20px' }}>
+                    <td colSpan={tab === 'today' ? 8 : tab === 'delivery' ? 10 : 11} style={{ textAlign: 'center', padding: '56px 20px' }}>
                       <div className="empty-state-box">
                         <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '6px' }}>
                           {tab === 'today'
@@ -488,7 +467,7 @@ export default function TelemedPharmacyPage() {
                         </div>
                         <div style={{ fontSize: '0.8125rem', color: 'var(--gray-500)' }}>
                           {tab === 'today'
-                            ? 'เมื่อผู้ป่วยผ่านการคัดกรองจาก dextor.tele_prescreening รายการจะปรากฏที่นี่เพื่อรอจัดยา'
+                            ? 'เมื่อผู้ป่วยผ่านการคัดกรอง รายการจะปรากฏที่นี่เพื่อรอจัดยา'
                             : tab === 'delivery'
                             ? 'รายการที่ระบุ "ไม่ต้องชำระเงิน" หรือผ่านการชำระเงินแล้ว จะปรากฏในแท็บนี้'
                             : 'รายการที่ลงเลขพัสดุจัดส่งเรียบร้อยแล้วจะแสดงในแท็บประวัตินี้'}
@@ -511,59 +490,46 @@ export default function TelemedPharmacyPage() {
                         </td>
 
                         {/* 2. วันที่ */}
-                        <td>
-                          <span className="appt-date-badge">
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                              <line x1="16" y1="2" x2="16" y2="6" />
-                              <line x1="8" y1="2" x2="8" y2="6" />
-                              <line x1="3" y1="10" x2="21" y2="10" />
-                            </svg>
-                            <span>{formatThaiDate(item.vstdate || item.completed_at)}</span>
-                          </span>
+                        <td style={{ fontSize: '0.8125rem', color: '#334155', whiteSpace: 'nowrap' }}>
+                          {formatThaiDate(item.vstdate || item.completed_at)}
                         </td>
 
                         {/* 3. VN */}
-                        <td>
+                        <td style={{ fontSize: '0.8125rem', color: '#0369a1', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                           {item.vn ? (
-                            <span className="tt-vn-tag">{item.vn}</span>
+                            item.vn
                           ) : (
                             <button
                               type="button"
                               className="btn btn-sm btn-outline-primary"
-                              style={{ fontSize: '0.72rem', padding: '2px 8px' }}
+                              style={{ fontSize: '0.72rem', padding: '2px 8px', fontWeight: 'normal' }}
                               onClick={(e) => handleSyncVn(e, item)}
                               disabled={syncingVnId === item.id}
                               title="ค้นหาและดึง VN จาก HOSxP"
                             >
-                              {syncingVnId === item.id ? '🔄 กำลังค้น...' : '🔍 ซิงก์ VN'}
+                              {syncingVnId === item.id ? 'กำลังค้น...' : 'ซิงก์ VN'}
                             </button>
                           )}
                         </td>
 
                         {/* 4. HN */}
-                        <td>
-                          <span className="rtm-hn-pill font-mono">{item.hn}</span>
+                        <td style={{ fontSize: '0.8125rem', color: '#1e293b', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                          {item.hn}
                         </td>
 
                         {/* 5. ชื่อ-นามสกุล */}
-                        <td style={{ fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap' }}>
+                        <td style={{ color: '#0f172a', whiteSpace: 'nowrap', fontSize: '0.875rem' }}>
                           {item.patient_name || '—'}
                         </td>
 
                         {/* 6. คลินิก */}
-                        <td>
-                          <div style={{ fontWeight: 600, color: '#1e293b', fontSize: '0.8125rem' }}>
-                            {item.clinic || 'คลินิก Telemed'}
-                          </div>
+                        <td style={{ color: '#334155', fontSize: '0.8125rem' }}>
+                          {item.clinic || 'คลินิก Telemed'}
                         </td>
 
                         {/* 7. แพทย์ */}
-                        <td>
-                          <div style={{ color: '#334155', fontSize: '0.8125rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span>🩺</span>
-                            <span>{formatDoctorName(item.doctor_name)}</span>
-                          </div>
+                        <td style={{ color: '#334155', fontSize: '0.8125rem' }}>
+                          {formatDoctorName(item.doctor_name)}
                         </td>
 
                         {/* 8. สิทธิการรักษา */}
@@ -571,69 +537,26 @@ export default function TelemedPharmacyPage() {
                           {item.pttype_name || '—'}
                         </td>
 
-                        {/* Tab 1: Today */}
-                        {tab === 'today' && (
-                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                            <button
-                              type="button"
-                              className="btn btn-primary rtm-btn-action"
-                              onClick={() => openDetailModal(item)}
-                              title="คลิกเพื่อตรวจดูเวชระเบียนและจัดยา"
-                            >
-                              💊 ตรวจและจัดยา
-                            </button>
-                          </td>
-                        )}
-
                         {/* Tab 2: Delivery */}
                         {tab === 'delivery' && (
                           <>
-                            <td style={{ textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center', fontSize: '0.8125rem' }}>
                               {item.pharmacy_pay_type === 'FREE' ? (
-                                <span className="pay-pill-free">✓ ไม่ต้องชำระเงิน</span>
+                                <span style={{ color: '#059669' }}>ไม่ต้องชำระเงิน</span>
                               ) : item.finance_status === 'PAID' ? (
-                                <span className="pay-pill-paid">✓ ชำระเงินแล้ว</span>
+                                <span style={{ color: '#2563eb' }}>ชำระเงินแล้ว</span>
                               ) : (
-                                <span className="pay-pill-pending">⏳ รอการเงิน</span>
+                                <span style={{ color: '#d97706' }}>รอการเงิน</span>
                               )}
                             </td>
 
-                            <td style={{ fontSize: '0.8125rem', color: '#334155', maxWidth: '320px' }}>
-                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '4px' }}>
-                                <span style={{ flexShrink: 0 }}>📍</span>
-                                <span>{item.address} {item.postal_code}</span>
-                              </div>
+                            <td style={{ fontSize: '0.8125rem', color: '#334155', maxWidth: '340px' }}>
+                              <div>{item.address} {item.postal_code}</div>
                               {item.phone && (
-                                <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '3px', marginLeft: '18px' }}>
-                                  📞 โทร: {formatPhone(item.phone)}
+                                <div style={{ color: '#64748b', fontSize: '0.75rem', marginTop: '3px' }}>
+                                  โทร: {formatPhone(item.phone)}
                                 </div>
                               )}
-                            </td>
-
-                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                              <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary rtm-btn-action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePrintAddress(item);
-                                  }}
-                                  title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
-                                >
-                                  🖨️ พิมพ์ที่อยู่
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-primary rtm-btn-action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openDeliveryModal(item);
-                                  }}
-                                >
-                                  🚚 จัดส่งยา
-                                </button>
-                              </div>
                             </td>
                           </>
                         )}
@@ -641,10 +564,10 @@ export default function TelemedPharmacyPage() {
                         {/* Tab 3: History */}
                         {tab === 'history' && (
                           <>
-                            <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              <span style={{ fontSize: '0.8125rem', color: '#1e293b', fontWeight: 600 }}>
+                            <td style={{ textAlign: 'center', whiteSpace: 'nowrap', fontSize: '0.8125rem', color: '#1e293b' }}>
+                              <div>
                                 {formatThaiDateTime(item.delivery_at || item.updated_at)}
-                              </span>
+                              </div>
                               {item.delivery_by && (
                                 <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '2px' }}>
                                   โดย: {item.delivery_by}
@@ -652,60 +575,18 @@ export default function TelemedPharmacyPage() {
                               )}
                             </td>
 
-                            <td style={{ textAlign: 'center' }}>
-                              {item.tracking_number ? (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  fontFamily: 'monospace',
-                                  fontWeight: 700,
-                                  fontSize: '0.8125rem',
-                                  color: '#0369a1',
-                                  background: '#e0f2fe',
-                                  border: '1px solid #bae6fd',
-                                  padding: '3px 8px',
-                                  borderRadius: '6px'
-                                }}>
-                                  🚚 {item.tracking_number}
-                                </span>
-                              ) : (
-                                <span style={{ color: '#94a3b8' }}>—</span>
-                              )}
+                            <td style={{ textAlign: 'center', fontFamily: 'monospace', fontSize: '0.8125rem', color: '#0369a1' }}>
+                              {item.tracking_number || <span style={{ color: '#94a3b8' }}>—</span>}
                             </td>
 
-                            <td style={{ textAlign: 'center' }}>
+                            <td style={{ textAlign: 'center', fontSize: '0.8125rem' }}>
                               {item.pharmacy_pay_type === 'FREE' ? (
-                                <span className="pay-pill-free">✓ ไม่ต้องชำระเงิน</span>
+                                <span style={{ color: '#059669' }}>ไม่ต้องชำระเงิน</span>
                               ) : item.finance_status === 'PAID' ? (
-                                <span className="pay-pill-paid">✓ ชำระเงินแล้ว</span>
+                                <span style={{ color: '#2563eb' }}>ชำระเงินแล้ว</span>
                               ) : (
-                                <span className="pay-pill-pending">รอชำระเงิน</span>
+                                <span style={{ color: '#d97706' }}>รอชำระเงิน</span>
                               )}
-                            </td>
-
-                            <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                              <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary rtm-btn-action"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handlePrintAddress(item);
-                                  }}
-                                  title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
-                                >
-                                  🖨️ พิมพ์ที่อยู่
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn btn-secondary rtm-btn-action"
-                                  onClick={() => openDetailModal(item)}
-                                  title="ดูรายละเอียดผู้ป่วย"
-                                >
-                                  👁️ ดูข้อมูล
-                                </button>
-                              </div>
                             </td>
                           </>
                         )}
@@ -720,10 +601,10 @@ export default function TelemedPharmacyPage() {
           {/* Footer */}
           <div style={{ padding: '14px 20px', borderTop: '1px solid #f1f5f9', fontSize: '0.8125rem', color: '#64748b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              แสดงทั้งหมด <strong style={{ color: '#0f172a' }}>{data.length}</strong> รายการ
+              แสดงทั้งหมด {data.length} รายการ
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              💡 คลิกที่แถวเพื่อดูรายละเอียดผลการคัดกรอง สัญญาณชีพ และรายการยาจาก HOSxP
+              คลิกที่แถวเพื่อดูรายละเอียดผลการคัดกรอง สัญญาณชีพ และรายการยาจาก HOSxP
             </div>
           </div>
         </div>
@@ -786,7 +667,7 @@ export default function TelemedPharmacyPage() {
                   </span>
                   {(detailData?.visit_info?.doctor_name || detailModalItem.doctor_name) && (
                     <span style={{ fontSize: '0.8125rem', color: '#475569', fontWeight: 500 }}>
-                      🩺 แพทย์: {formatDoctorName(detailData?.visit_info?.doctor_name || detailModalItem.doctor_name)}
+                      แพทย์: {formatDoctorName(detailData?.visit_info?.doctor_name || detailModalItem.doctor_name)}
                     </span>
                   )}
                 </div>
@@ -807,14 +688,14 @@ export default function TelemedPharmacyPage() {
                       {/* สัญญาณชีพ (Vital Signs) */}
                       <div className="clinical-card">
                         <div className="clinical-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>🩺 สัญญาณชีพ (Vital Signs)</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>สัญญาณชีพ (Vital Signs)</span>
                           {detailData?.opdscreen?.bps ? (
                             <span style={{ fontSize: '0.72rem', color: '#059669', background: '#ecfdf5', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                              🏥 HOSxP opdscreen
+                              HOSxP opdscreen
                             </span>
                           ) : detailData?.stat?.sbp ? (
                             <span style={{ fontSize: '0.72rem', color: '#0284c7', background: '#f0f9ff', padding: '2px 8px', borderRadius: '4px', fontWeight: 600 }}>
-                              📱 Pre-screening
+                              Pre-screening
                             </span>
                           ) : null}
                         </div>
@@ -911,7 +792,7 @@ export default function TelemedPharmacyPage() {
                       {((detailData?.diagnoses && detailData.diagnoses.length > 0) || detailData?.vn_stat?.pdx) && (
                         <div className="clinical-card" style={{ marginTop: '12px' }}>
                           <div className="clinical-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>🏷️ การวินิจฉัยโรค (Diagnoses - ICD10)</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>การวินิจฉัยโรค (Diagnoses - ICD10)</span>
                             {detailData?.vn_stat?.pdx && (
                               <span className="badge badge-primary font-mono">
                                 PDX: {detailData.vn_stat.pdx}
@@ -968,7 +849,7 @@ export default function TelemedPharmacyPage() {
                       {/* บันทึกอาการและการตรวจรักษา */}
                       <div className="clinical-card" style={{ marginTop: '12px' }}>
                         <div className="clinical-card-header">
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>📝 บันทึกอาการและการตรวจรักษา</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>บันทึกอาการและการตรวจรักษา</span>
                         </div>
                         <div className="clinical-card-body" style={{ padding: '12px', fontSize: '0.875rem' }}>
                           <div style={{ marginBottom: '10px' }}>
@@ -1019,7 +900,7 @@ export default function TelemedPharmacyPage() {
                       {/* ที่อยู่สำหรับจัดส่ง */}
                       <div className="clinical-card" style={{ marginTop: '12px' }}>
                         <div className="clinical-card-header">
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>📍 ที่อยู่จัดส่งยาทางไปรษณีย์</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>ที่อยู่จัดส่งยาทางไปรษณีย์</span>
                         </div>
                         <div className="clinical-card-body" style={{ padding: '12px', fontSize: '0.875rem', lineHeight: '1.6' }}>
                           <div style={{ fontWeight: 600 }}>{detailModalItem.patient_name}</div>
@@ -1086,7 +967,7 @@ export default function TelemedPharmacyPage() {
                         <div className="clinical-card" style={{ marginTop: '12px' }}>
                           <div className="clinical-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>
-                              🩺 รายการเวชภัณฑ์มิใช่ยา / ค่าบริการ ({detailData.nondrugitems.length} รายการ)
+                              รายการเวชภัณฑ์มิใช่ยา / ค่าบริการ ({detailData.nondrugitems.length} รายการ)
                             </span>
                           </div>
                           <div className="clinical-card-body" style={{ padding: '8px' }}>
@@ -1104,7 +985,9 @@ export default function TelemedPharmacyPage() {
                                   <tr key={nd.hos_guid || ndIdx} style={{ borderBottom: '1px solid #f1f5f9' }}>
                                     <td style={{ textAlign: 'center', color: '#94a3b8' }}>{ndIdx + 1}</td>
                                     <td style={{ padding: '6px 4px' }}>
-                                      <div style={{ fontWeight: 600, color: '#0f172a' }}>{nd.item_name}</div>
+                                      <div style={{ fontWeight: 600, color: '#0f172a' }}>
+                                        {nd.item_name}
+                                      </div>
                                     </td>
                                     <td style={{ textAlign: 'center', fontWeight: 600 }}>
                                       {nd.qty} {nd.unit || ''}
@@ -1123,7 +1006,7 @@ export default function TelemedPharmacyPage() {
                       {/* สรุปค่าใช้จ่าย */}
                       <div className="clinical-card" style={{ marginTop: '12px' }}>
                         <div className="clinical-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>💰 สรุปค่ารักษาพยาบาล</span>
+                          <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>สรุปค่ารักษาพยาบาล</span>
                           {(detailData?.visit_info?.pttype_name || detailData?.stat?.pttype_name || detailModalItem.pttype_name) && (
                             <span style={{ fontSize: '0.75rem', color: '#0369a1', fontWeight: 600 }}>
                               สิทธิ: {detailData?.visit_info?.pttype_name || detailData?.stat?.pttype_name || detailModalItem.pttype_name}
@@ -1133,19 +1016,19 @@ export default function TelemedPharmacyPage() {
                         <div className="clinical-card-body" style={{ padding: '12px' }}>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', textAlign: 'center' }}>
                             <div style={{ padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>ยอดรวมทั้งหมด</div>
+                              <div style={{ fontSize: '0.75rem', color: '#64748b' }}>ยอดรวม</div>
                               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#0f172a', marginTop: '4px' }}>
                                 {formatMoney(detailData?.vn_stat?.item_money ?? detailModalItem.item_money)} ฿
                               </div>
                             </div>
                             <div style={{ padding: '10px', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                              <div style={{ fontSize: '0.75rem', color: '#065f46' }}>สิทธิเบิกได้ (UC)</div>
+                              <div style={{ fontSize: '0.75rem', color: '#065f46' }}>เบิกได้</div>
                               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#059669', marginTop: '4px' }}>
                                 {formatMoney(detailData?.vn_stat?.uc_money ?? detailModalItem.uc_money)} ฿
                               </div>
                             </div>
                             <div style={{ padding: '10px', background: '#fef2f2', borderRadius: '8px', border: '1px solid #fecaca' }}>
-                              <div style={{ fontSize: '0.75rem', color: '#991b1b' }}>ต้องชำระเงิน</div>
+                              <div style={{ fontSize: '0.75rem', color: '#991b1b' }}>ยอดชำระ</div>
                               <div style={{ fontSize: '1.125rem', fontWeight: 700, color: '#dc2626', marginTop: '4px' }}>
                                 {formatMoney(detailData?.vn_stat?.paid_money ?? detailModalItem.paid_money)} ฿
                               </div>
@@ -1158,7 +1041,7 @@ export default function TelemedPharmacyPage() {
                       {detailModalItem.tracking_number && (
                         <div className="clinical-card" style={{ marginTop: '12px' }}>
                           <div className="clinical-card-header">
-                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>🚚 ข้อมูลการจัดส่งพัสดุ</span>
+                            <span style={{ fontWeight: 600, fontSize: '0.8125rem' }}>ข้อมูลการจัดส่งพัสดุ</span>
                           </div>
                           <div className="clinical-card-body" style={{ padding: '12px', fontSize: '0.875rem' }}>
                             <div>เลขพัสดุ: <strong className="font-mono" style={{ color: '#0369a1' }}>{detailModalItem.tracking_number}</strong></div>
@@ -1193,7 +1076,7 @@ export default function TelemedPharmacyPage() {
                     onClick={() => handleDispenseAction('FREE')}
                     disabled={dispenseSubmitting}
                   >
-                    {dispenseSubmitting ? 'กำลังบันทึก...' : '✓ ไม่ต้องชำระเงิน (ฟรี)'}
+                    {dispenseSubmitting ? 'กำลังบันทึก...' : 'ไม่ต้องชำระเงิน'}
                   </button>
 
                   <button
@@ -1203,7 +1086,7 @@ export default function TelemedPharmacyPage() {
                     onClick={() => handleDispenseAction('PAID')}
                     disabled={dispenseSubmitting}
                   >
-                    {dispenseSubmitting ? 'กำลังบันทึก...' : '💰 มีค่าใช้จ่าย - ต้องชำระเงิน'}
+                    {dispenseSubmitting ? 'กำลังบันทึก...' : 'ต้องชำระเงิน'}
                   </button>
                 </div>
               ) : tab === 'delivery' ? (
@@ -1211,21 +1094,20 @@ export default function TelemedPharmacyPage() {
                   <button
                     type="button"
                     className="btn btn-secondary rtm-btn-action"
+                    style={{ fontFamily: "'Sarabun', sans-serif" }}
                     onClick={() => handlePrintAddress(detailModalItem)}
                     title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
                   >
-                    🖨️ พิมพ์ที่อยู่ (A5)
+                    พิมพ์ที่อยู่ (A5)
                   </button>
                   <button
                     type="button"
                     className="btn btn-primary rtm-btn-action"
-                    onClick={() => {
-                      const it = detailModalItem;
-                      setDetailModalItem(null);
-                      openDeliveryModal(it);
-                    }}
+                    style={{ fontFamily: "'Sarabun', sans-serif" }}
+                    onClick={() => handleDirectDelivery(detailModalItem)}
+                    disabled={deliverySubmitting}
                   >
-                    🚚 บันทึกจัดส่งยา
+                    {deliverySubmitting ? 'กำลังบันทึก...' : 'บันทึกจัดส่งยา'}
                   </button>
                 </div>
               ) : (
@@ -1233,89 +1115,15 @@ export default function TelemedPharmacyPage() {
                   <button
                     type="button"
                     className="btn btn-secondary rtm-btn-action"
+                    style={{ fontFamily: "'Sarabun', sans-serif" }}
                     onClick={() => handlePrintAddress(detailModalItem)}
                     title="พิมพ์ใบปะหน้าชื่อ ที่อยู่ (A5)"
                   >
-                    🖨️ พิมพ์ที่อยู่ (A5)
+                    พิมพ์ที่อยู่ (A5)
                   </button>
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delivery Confirmation Modal with Tracking Number */}
-      {deliveryModalItem && (
-        <div className="dialog-modal-overlay" onClick={() => setDeliveryModalItem(null)}>
-          <div className="dialog-modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
-            <div className="dialog-modal-header">🚚 ยืนยันการจัดส่งยาและบันทึกเลขพัสดุ</div>
-            <form onSubmit={handleConfirmDelivery}>
-              <div className="dialog-modal-body">
-                <div>ผู้ป่วย: <strong>{deliveryModalItem.patient_name}</strong> (HN: {deliveryModalItem.hn})</div>
-                <div style={{ fontSize: '0.8125rem', color: 'var(--gray-600)', marginTop: '4px' }}>
-                  ที่อยู่: {deliveryModalItem.address} {deliveryModalItem.postal_code} {deliveryModalItem.phone ? `(โทร: ${formatPhone(deliveryModalItem.phone)})` : ''}
-                </div>
-
-                <div style={{ marginTop: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                    ประเภทการจัดส่ง:
-                  </label>
-                  <select
-                    className="form-control"
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
-                    value={deliveryType}
-                    onChange={(e) => setDeliveryType(e.target.value)}
-                  >
-                    <option value="POST">ไปรษณีย์ไทย (EMS / ลงทะเบียน)</option>
-                    <option value="FLASH">Flash Express</option>
-                    <option value="KERRY">Kerry Express</option>
-                    <option value="J&T">J&T Express</option>
-                    <option value="HOSPITAL_RIDER">เจ้าหน้าที่ รพ. จัดส่งถึงบ้าน</option>
-                    <option value="OTHER">อื่นๆ</option>
-                  </select>
-                </div>
-
-                <div style={{ marginTop: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#334155', marginBottom: '6px' }}>
-                    หมายเลขพัสดุ (Tracking Number) <span style={{ color: '#ef4444' }}>*</span>:
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="เช่น ED123456789TH"
-                    className="form-control font-mono"
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9375rem' }}
-                    value={trackingNumber}
-                    onChange={(e) => setTrackingNumber(e.target.value)}
-                    autoFocus
-                  />
-                </div>
-
-                <div style={{ marginTop: '14px', padding: '12px 14px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '0.8125rem', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>📦</span>
-                  <span>เมื่อบันทึกแล้ว รายการจะถูกย้ายไปยังแท็บ "ประวัติการจัดส่ง"</span>
-                </div>
-              </div>
-
-              <div className="dialog-modal-footer">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setDeliveryModalItem(null)}
-                  disabled={deliverySubmitting}
-                >
-                  ยกเลิก
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={deliverySubmitting || !trackingNumber.trim()}
-                >
-                  {deliverySubmitting ? 'กำลังบันทึก...' : '🚚 บันทึกจัดส่งเรียบร้อย'}
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

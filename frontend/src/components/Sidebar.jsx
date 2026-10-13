@@ -60,7 +60,7 @@ export default function Sidebar({ isOpen, onClose }) {
   };
 
   const hasLineOa = isAdmin || canAccess('today_registrations') || canAccess('all_registrations') || canAccess('caregivers');
-  const hasTelemed = isAdmin || canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_pharmacy') || canAccess('telemed_appointments') || canAccess('prescreening');
+  const hasTelemed = isAdmin || canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_pharmacy') || canAccess('telemed_finance') || canAccess('telemed_appointments') || canAccess('prescreening');
   const hasPreScreening = isAdmin || canAccess('request_telemed_register') || canAccess('request_telemed_receive') || canAccess('request_telemed_doctor') || canAccess('request_telemed_pharmacist') || canAccess('request_telemed_approved') || canAccess('request_telemed_all');
   const hasTelemedToday = isAdmin || canAccess('telemed_today_appointments') || canAccess('telemed_today_pharmacy') || canAccess('telemed_today_finance');
   const hasSettings = isAdmin || canAccess('settings');
@@ -239,6 +239,21 @@ export default function Sidebar({ isOpen, onClose }) {
                     <path d="m8.5 8.5 7 7" />
                   </svg>
                   <span>ห้องยา</span>
+                </NavLink>
+              )}
+
+              {(isAdmin || canAccess('telemed_finance') || canAccess('telemed_pharmacy')) && (
+                <NavLink
+                  to="/telemed-finance"
+                  className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+                  onClick={handleNavClick}
+                  id="nav-telemed-finance"
+                >
+                  <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="5" width="20" height="14" rx="2" />
+                    <line x1="2" y1="10" x2="22" y2="10" />
+                  </svg>
+                  <span>การเงิน</span>
                 </NavLink>
               )}
 

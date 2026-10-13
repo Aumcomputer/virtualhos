@@ -35,7 +35,9 @@ router.get('/', authenticateToken, async (req, res) => {
     const query = `
       SELECT 
         p.id, p.token, p.oapp_id, p.hn, p.patient_name, p.appointment_date, 
-        p.doctor_code, p.doctor_name, p.note, p.clinic, p.address, 
+        p.doctor_code, p.doctor_name, p.note, p.clinic, 
+        p.pttype, p.pttype_name, p.require_referral,
+        p.address, 
         p.phone, p.postal_code, p.smoking, p.smoking_detail, p.alcohol, p.alcohol_detail,
         p.sbp, p.dbp, p.pulse, p.temperature, p.rr, p.weight, p.height, p.spo2, 
         p.chief_complaint, p.current_medications, p.additional_notes, 
@@ -132,7 +134,7 @@ router.get('/:id/images', authenticateToken, async (req, res) => {
   try {
     conn = await pool_vhos.getConnection();
     const query = `
-      SELECT id, mime_type FROM dextor.tele_prescreening_images
+      SELECT id, mime_type, image_type FROM dextor.tele_prescreening_images
       WHERE prescreening_id = ?
       ORDER BY id ASC
     `;
