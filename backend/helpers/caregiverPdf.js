@@ -333,7 +333,7 @@ async function generateCaregiverPdf(data) {
             lineHeight: 0.95,
             stack: [
               line('ลงนามลายมือชื่ออิเล็กทรอนิกส์'),
-              line(`โดย: ${witnessName || '-'}`),
+              line(`โดย: ${effectiveCaregiverName || '-'}`),
               line(`MOPH ID: ${mophAccountId || '-'}`),
               line(`เมื่อ: ${signedDateTime}`),
               ...signerRefLines
