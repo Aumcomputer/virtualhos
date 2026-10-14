@@ -641,8 +641,8 @@ router.post('/submit', authenticateToken, requireAdmin, async (req, res) => {
         patient_hn, patient_cid, patient_name, patient_address,
         relationship_id, relationship, relationship_desc,
         inability_reason_ids, inability_reasons, inability_reason_other, patient_id_card_img,
-        witness_username, witness_name, witness_position, moph_jti, moph_ial
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'เจ้าหน้าที่โรงพยาบาลราชบุรี', ?, ?)
+        witness_username, witness_name, witness_position, witness_ip, moph_jti, moph_ial
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'เจ้าหน้าที่โรงพยาบาลราชบุรี', ?, ?, ?)
     `, [
       sessionId,
       session.moph_account_id || null,
@@ -664,6 +664,7 @@ router.post('/submit', authenticateToken, requireAdmin, async (req, res) => {
       savedImagePath ? path.relative(path.join(__dirname, '..'), savedImagePath) : null,
       witnessUsername,
       witnessName,
+      userIp,
       session.moph_jti,
       session.moph_ial || '2.3'
     ]);

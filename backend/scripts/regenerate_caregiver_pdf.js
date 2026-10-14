@@ -111,7 +111,7 @@ async function main() {
         idCardImagePath: idCardFullPath,
         witnessName: aff.witness_name,
         witnessUsername: aff.witness_username,
-        userIp: '127.0.0.1',
+        userIp: aff.witness_ip || '172.18.5.18',
         mophAccountId: mophAccountId,
         mophJti: mophJti,
         mophIal: mophIal,
