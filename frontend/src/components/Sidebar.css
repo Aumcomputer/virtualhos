@@ -307,6 +307,22 @@
   z-index: 45;
 }
 
+.sidebar-badge {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 /* Responsive Rules */
 @media (max-width: 768px) {
   .app-sidebar {

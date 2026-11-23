@@ -10,6 +10,9 @@ export default function Sidebar({ isOpen, onClose }) {
   const { user, logout, isAdmin, canAccess } = useAuth();
   const [versionStatus, setVersionStatus] = useState(getVersionStatus());
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
+
+  const canAccessLineChat = isAdmin || canAccess('line_chat');
 
   useEffect(() => {
     // Subscribe to version changes (e.g. from API responses)
@@ -30,6 +33,32 @@ export default function Sidebar({ isOpen, onClose }) {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    if (!canAccessLineChat) return undefined;
+
+    let cancelled = false;
+    const refreshUnread = () => {
+      api
+        .getLineChatUnreadTotal()
+        .then((res) => {
+          if (!cancelled) {
+            setUnreadChatCount(Number(res?.total || 0));
+          }
+        })
+        .catch(() => {});
+    };
+
+    refreshUnread();
+    const timer = setInterval(refreshUnread, 30000);
+    window.addEventListener('line-chat-unread-changed', refreshUnread);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      window.removeEventListener('line-chat-unread-changed', refreshUnread);
+    };
+  }, [canAccessLineChat]);
 
   const initial = user?.displayName?.charAt(0)?.toUpperCase() || user?.name?.charAt(0)?.toUpperCase() || '?';
 
@@ -59,7 +88,7 @@ export default function Sidebar({ isOpen, onClose }) {
     }
   };
 
-  const hasLineOa = isAdmin || canAccess('today_registrations') || canAccess('all_registrations') || canAccess('caregivers');
+  const hasLineOa = isAdmin || canAccess('today_registrations') || canAccess('all_registrations') || canAccess('caregivers') || canAccess('line_chat');
   const hasTelemed = isAdmin || canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_pharmacy') || canAccess('telemed_finance') || canAccess('telemed_appointments') || canAccess('prescreening');
   const hasPreScreening = isAdmin || canAccess('request_telemed_register') || canAccess('request_telemed_receive') || canAccess('request_telemed_doctor') || canAccess('request_telemed_pharmacist') || canAccess('request_telemed_approved') || canAccess('request_telemed_all');
   const hasTelemedToday = isAdmin || canAccess('telemed_today_appointments') || canAccess('telemed_today_pharmacy') || canAccess('telemed_today_finance');
@@ -187,6 +216,23 @@ export default function Sidebar({ isOpen, onClose }) {
                     <path d="M19 8v6m3-3h-6" />
                   </svg>
                   <span>Caregiver (ผู้ดูแล)</span>
+                </NavLink>
+              )}
+
+              {canAccessLineChat && (
+                <NavLink
+                  to="/line-chat"
+                  className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
+                  onClick={handleNavClick}
+                  id="nav-line-chat"
+                >
+                  <svg className="nav-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span>แชท LINE OA</span>
+                  {unreadChatCount > 0 && (
+                    <span className="sidebar-badge">{unreadChatCount > 99 ? '99+' : unreadChatCount}</span>
+                  )}
                 </NavLink>
               )}
             </>

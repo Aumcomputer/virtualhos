@@ -1,0 +1,883 @@
+/* ==========================================================================
+   LineChatPage.css - 3-Column LINE OA Chat Center
+   ========================================================================== */
+
+.line-chat-page {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 330px;
+  height: 100vh;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.line-chat-page.no-patient-panel {
+  grid-template-columns: 320px minmax(0, 1fr);
+}
+
+/* ---------- Shared Avatar & Badges ---------- */
+.lc-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.lc-avatar.sm {
+  width: 36px;
+  height: 36px;
+  font-size: 0.875rem;
+}
+
+.lc-hn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.lc-hn-pill.unlinked {
+  background: #f1f5f9;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+/* ---------- Column 1: Room List ---------- */
+.lc-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  min-height: 0;
+}
+
+.lc-sidebar-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.lc-sidebar-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.lc-sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.lc-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.lc-live-dot.reconnecting {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.lc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lc-icon-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.lc-search-box {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.lc-search-box svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  pointer-events: none;
+}
+
+.lc-search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: #f8fafc;
+  color: #0f172a;
+  outline: none;
+}
+
+.lc-search-input:focus {
+  border-color: #3b82f6;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.lc-filter-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.lc-filter-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 7px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.lc-filter-tab:hover {
+  background: #f8fafc;
+}
+
+.lc-filter-tab.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.lc-unread-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.lc-room-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.lc-room-item {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-bottom: 4px;
+}
+
+.lc-room-item:hover {
+  background: #f8fafc;
+}
+
+.lc-room-item.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.lc-room-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.lc-room-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.lc-room-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-room-time {
+  font-size: 0.72rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.lc-room-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.lc-room-patient {
+  font-size: 0.78rem;
+  color: #0369a1;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-room-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.lc-room-preview {
+  font-size: 0.82rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-room-item.has-unread .lc-room-preview {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* ---------- Column 2: Chat Area ---------- */
+.lc-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: #f1f5f9;
+  position: relative;
+}
+
+.lc-main.is-dragging::after {
+  content: 'วางรูปภาพที่นี่เพื่อเตรียมส่งให้คนไข้';
+  position: absolute;
+  inset: 12px;
+  border: 2px dashed #2563eb;
+  border-radius: 14px;
+  background: rgba(239, 246, 255, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1d4ed8;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.lc-chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.lc-chat-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lc-mobile-back-btn {
+  display: none;
+}
+
+.lc-chat-header-title {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lc-chat-header-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.lc-toggle-info-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lc-toggle-info-btn:hover {
+  background: #f8fafc;
+}
+
+.lc-toggle-info-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+/* Messages Scroll Area */
+.lc-messages-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.lc-load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.lc-load-more-btn {
+  padding: 5px 14px;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  font-size: 0.8rem;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lc-load-more-btn:hover {
+  background: #f8fafc;
+}
+
+.lc-date-divider {
+  align-self: center;
+  margin: 8px 0;
+  padding: 3px 12px;
+  border-radius: 9999px;
+  background: rgba(100, 116, 139, 0.16);
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.lc-system-msg {
+  align-self: center;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.78rem;
+}
+
+.lc-msg-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 74%;
+}
+
+.lc-msg-row.inbound {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.lc-msg-row.outbound {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.lc-msg-bubble {
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 0.94rem;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: pre-wrap;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+.lc-msg-row.inbound .lc-msg-bubble {
+  background: #ffffff;
+  color: #0f172a;
+  border-top-left-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.lc-msg-row.outbound .lc-msg-bubble {
+  background: #dcfce7;
+  color: #0f172a;
+  border-top-right-radius: 4px;
+  border: 1px solid #bbf7d0;
+}
+
+.lc-msg-bubble a {
+  color: #1d4ed8;
+  text-decoration: underline;
+}
+
+.lc-msg-image-btn {
+  display: block;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.lc-msg-image {
+  display: block;
+  max-width: 260px;
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.lc-msg-sticker {
+  width: 112px;
+  height: 112px;
+  object-fit: contain;
+  display: block;
+}
+
+.lc-msg-file-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid #cbd5e1;
+  color: #0f172a !important;
+  text-decoration: none !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.lc-msg-media-player {
+  max-width: 280px;
+  border-radius: 8px;
+}
+
+.lc-msg-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  padding: 0 2px;
+  font-size: 0.72rem;
+  color: #64748b;
+  flex-wrap: wrap;
+}
+
+.lc-method-badge {
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.lc-method-badge.reply {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.lc-method-badge.push {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.lc-method-badge.failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Quick Replies & Image Preview & Composer */
+.lc-quick-replies {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+
+.lc-quick-chip {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.78rem;
+  font-family: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.lc-quick-chip:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.lc-staged-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #eff6ff;
+  border-top: 1px solid #bfdbfe;
+}
+
+.lc-staged-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lc-staged-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #93c5fd;
+  background: #ffffff;
+}
+
+.lc-staged-info {
+  font-size: 0.82rem;
+  color: #1e3a8a;
+}
+
+.lc-staged-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.lc-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+}
+
+.lc-upload-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lc-upload-btn:hover:not(:disabled) {
+  background: #eff6ff;
+  color: #2563eb;
+  border-color: #93c5fd;
+}
+
+.lc-composer-textarea {
+  flex: 1;
+  min-height: 40px;
+  max-height: 130px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  font-family: inherit;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+  color: #0f172a;
+}
+
+.lc-composer-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.lc-send-btn {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: none;
+  background: #16a34a;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lc-send-btn:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.lc-send-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.lc-error-banner {
+  padding: 8px 16px;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.84rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ---------- Column 3: Patient Info Panel ---------- */
+.lc-patient-panel {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-left: 1px solid #e2e8f0;
+  overflow-y: auto;
+  padding: 16px;
+  gap: 14px;
+}
+
+.lc-info-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.lc-info-card-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lc-info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 3px 0;
+}
+
+.lc-info-label {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.lc-info-val {
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.lc-hn-link-form {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.lc-hn-link-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 0.82rem;
+  font-family: inherit;
+}
+
+.lc-mini-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lc-mini-btn.primary {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #ffffff;
+}
+
+.lc-sublist-item {
+  padding: 7px 9px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+.lc-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #64748b;
+  padding: 32px;
+  gap: 10px;
+}
+
+/* ---------- Lightbox Modal ---------- */
+.lc-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.lc-lightbox-img {
+  max-width: 92vw;
+  max-height: 88vh;
+  border-radius: 8px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.lc-lightbox-close {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1200px) {
+  .line-chat-page {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .lc-patient-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px;
+    z-index: 60;
+    box-shadow: -8px 0 24px rgba(15, 23, 42, 0.15);
+  }
+}
+
+@media (max-width: 768px) {
+  .line-chat-page {
+    grid-template-columns: minmax(0, 1fr);
+    height: calc(100vh - 56px);
+  }
+  .line-chat-page.mobile-has-room .lc-sidebar {
+    display: none;
+  }
+  .line-chat-page:not(.mobile-has-room) .lc-main {
+    display: none;
+  }
+  .lc-mobile-back-btn {
+    display: inline-flex;
+  }
+  .lc-msg-row {
+    max-width: 88%;
+  }
+}

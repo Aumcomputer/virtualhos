@@ -18,6 +18,7 @@ import TelemedPharmacyPage from './pages/TelemedPharmacyPage';
 import TelemedFinancePage from './pages/TelemedFinancePage';
 import CaregiverListPage from './pages/CaregiverListPage';
 import CaregiverFormPage from './pages/CaregiverFormPage';
+import LineChatPage from './pages/LineChatPage';
 import { useParams } from 'react-router-dom';
 
 import { useAuth } from './context/AuthContext';
@@ -45,6 +46,7 @@ function HomeRoute() {
     { key: 'prescreening', path: '/prescreening' },
     { key: 'all_registrations', path: '/all' },
     { key: 'caregivers', path: '/caregivers' },
+    { key: 'line_chat', path: '/line-chat' },
     { key: 'settings', path: '/settings' },
   ];
   for (const r of defaultRoutes) {
@@ -92,6 +94,7 @@ export default function App() {
             <Route index element={<HomeRoute />} />
             <Route path="all" element={<ProtectedRoute menuKey="all_registrations"><AllRegistrations /></ProtectedRoute>} />
             <Route path="caregivers" element={<ProtectedRoute menuKey="caregivers"><CaregiverListPage /></ProtectedRoute>} />
+            <Route path="line-chat" element={<ProtectedRoute menuKey="line_chat"><LineChatPage /></ProtectedRoute>} />
             <Route path="settings" element={<ProtectedRoute menuKey="settings"><SettingsPage /></ProtectedRoute>} />
             <Route path="telemed-dashboard" element={<ProtectedRoute menuKey="telemed_dashboard"><TelemedDashboardPage /></ProtectedRoute>} />
             <Route path="telemed-with-doctor" element={<ProtectedRoute menuKey="telemed_cases"><TelemedCasesPage type="combined" /></ProtectedRoute>} />

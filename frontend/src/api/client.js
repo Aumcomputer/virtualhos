@@ -375,4 +375,62 @@ export const api = {
     request(`/referral-pttypes/${encodeURIComponent(pttype)}`, {
       method: 'DELETE',
     }),
+
+  // LINE OA Chat Center
+  getLineChatUnreadTotal: () => request('/line-chat/unread-total'),
+
+  getLineChatRooms: ({ search = '', filter = 'all', page = 1, limit = 50 } = {}) => {
+    const qs = new URLSearchParams({ filter, page, limit });
+    if (search) qs.set('search', search);
+    return request(`/line-chat/rooms?${qs}`);
+  },
+
+  getLineChatMessages: (roomId, beforeId = null, limit = 50) => {
+    const qs = new URLSearchParams({ limit });
+    if (beforeId) qs.set('beforeId', beforeId);
+    return request(`/line-chat/rooms/${roomId}/messages?${qs}`);
+  },
+
+  markLineChatRoomRead: (roomId) =>
+    request(`/line-chat/rooms/${roomId}/read`, { method: 'POST' }),
+
+  getLineChatPatientInfo: (roomId) =>
+    request(`/line-chat/rooms/${roomId}/patient-info`),
+
+  linkLineChatHn: (roomId, hn) =>
+    request(`/line-chat/rooms/${roomId}/link-hn`, {
+      method: 'PUT',
+      body: JSON.stringify({ hn }),
+    }),
+
+  sendLineChatText: (roomId, text) =>
+    request(`/line-chat/rooms/${roomId}/messages/text`, {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
+  sendLineChatImage: async (roomId, file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    const response = await fetch(`${API_BASE}/line-chat/rooms/${roomId}/messages/image`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    const serverVersion = response.headers?.get('x-app-version') || response.headers?.get('X-App-Version');
+    if (serverVersion) {
+      checkServerVersion(serverVersion);
+    }
+    const data = await response.json();
+    if (!response.ok) {
+      if (response.status === 401 && window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      const error = new Error(data.error || data.message || 'ส่งรูปภาพไม่สำเร็จ');
+      error.status = response.status;
+      error.data = data;
+      throw error;
+    }
+    return data;
+  },
 };

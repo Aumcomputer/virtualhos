@@ -21,6 +21,8 @@ const caregiverRoutes = require('./routes/caregiver');
 const telemedPharmacyRoutes = require('./routes/telemed-pharmacy');
 const telemedFinanceRoutes = require('./routes/telemed-finance');
 const referralPttypeRoutes = require('./routes/referral-pttypes');
+const lineWebhookRoutes = require('./routes/line-webhook');
+const lineChatRoutes = require('./routes/line-chat');
 const { getAppVersion } = require('./lib/version');
 
 const app = express();
@@ -40,7 +42,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "https://profile.line-scdn.net", "data:"],
+      imgSrc: ["'self'", "https://profile.line-scdn.net", "https://stickershop.line-scdn.net", "data:", "blob:"],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
     },
@@ -58,16 +60,25 @@ app.use(helmet({
 
 app.use(cors());
 
-// Body parser with size limit (10mb for photo uploads)
-app.use(express.json({ limit: '10mb' }));
+// Body parser with size limit (10mb for photo uploads; capture rawBody for LINE signature verification)
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  },
+}));
 app.use(cookieParser());
 
-// Rate limiting — general
+// Rate limiting — general (skip LINE webhook, SSE stream & media proxy)
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) =>
+    req.path.startsWith('/api/webhook') ||
+    req.path === '/api/line-chat/stream' ||
+    req.path.startsWith('/api/line-chat/media/'),
   message: { error: 'Too many requests, please try again later.' },
 });
 app.use(generalLimiter);
@@ -98,6 +109,8 @@ app.use('/api/caregiver', caregiverRoutes);               // /api/caregiver sess
 app.use('/api/telemed-pharmacy', telemedPharmacyRoutes);   // /api/telemed-pharmacy (telemed_stat workflow)
 app.use('/api/telemed-finance', telemedFinanceRoutes);     // /api/telemed-finance (telemed_stat finance workflow)
 app.use('/api/referral-pttypes', referralPttypeRoutes);     // /api/referral-pttypes (settings for referral-required pttypes)
+app.use('/api/webhook', lineWebhookRoutes);                 // LINE OA Messaging API Webhook & outbound signed media
+app.use('/api/line-chat', lineChatRoutes);                  // Staff LINE OA Chat Center (auth required)
 
 // ---------------------------------------------------------------------------
 // Start Scheduler (node-cron)
