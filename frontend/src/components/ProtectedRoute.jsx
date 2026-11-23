@@ -2,7 +2,7 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProtectedRoute({ children, menuKey, allowedRoles, disallowedRoles }) {
-  const { user, loading, canAccess, isAdmin } = useAuth();
+  const { user, loading, canAccess } = useAuth();
 
   if (loading) {
     return (
@@ -16,12 +16,7 @@ export default function ProtectedRoute({ children, menuKey, allowedRoles, disall
     return <Navigate to="/login" replace />;
   }
 
-  // Admin has access to all routes
-  if (isAdmin) {
-    return children;
-  }
-
-  // Dynamic menuKey permission check
+  // Dynamic menuKey permission check (applies to all roles including admin)
   if (menuKey && !canAccess(menuKey)) {
     return <Navigate to="/" replace />;
   }

@@ -7,12 +7,12 @@ import VersionModal from './VersionModal';
 import './Sidebar.css';
 
 export default function Sidebar({ isOpen, onClose }) {
-  const { user, logout, isAdmin, canAccess } = useAuth();
+  const { user, logout, canAccess } = useAuth();
   const [versionStatus, setVersionStatus] = useState(getVersionStatus());
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
-  const canAccessLineChat = isAdmin || canAccess('line_chat');
+  const canAccessLineChat = canAccess('line_chat');
 
   useEffect(() => {
     // Subscribe to version changes (e.g. from API responses)
@@ -88,11 +88,11 @@ export default function Sidebar({ isOpen, onClose }) {
     }
   };
 
-  const hasLineOa = isAdmin || canAccess('today_registrations') || canAccess('all_registrations') || canAccess('caregivers') || canAccess('line_chat');
-  const hasTelemed = isAdmin || canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_pharmacy') || canAccess('telemed_finance') || canAccess('telemed_appointments') || canAccess('prescreening');
-  const hasPreScreening = isAdmin || canAccess('request_telemed_register') || canAccess('request_telemed_receive') || canAccess('request_telemed_doctor') || canAccess('request_telemed_pharmacist') || canAccess('request_telemed_approved') || canAccess('request_telemed_all');
-  const hasTelemedToday = isAdmin || canAccess('telemed_today_appointments') || canAccess('telemed_today_pharmacy') || canAccess('telemed_today_finance');
-  const hasSettings = isAdmin || canAccess('settings');
+  const hasLineOa = canAccess('today_registrations') || canAccess('all_registrations') || canAccess('caregivers') || canAccess('line_chat');
+  const hasTelemed = canAccess('telemed_dashboard') || canAccess('telemed_cases') || canAccess('telemed_pharmacy') || canAccess('telemed_finance') || canAccess('telemed_appointments') || canAccess('prescreening');
+  const hasPreScreening = canAccess('request_telemed_register') || canAccess('request_telemed_receive') || canAccess('request_telemed_doctor') || canAccess('request_telemed_pharmacist') || canAccess('request_telemed_approved') || canAccess('request_telemed_all');
+  const hasTelemedToday = canAccess('telemed_today_appointments') || canAccess('telemed_today_pharmacy') || canAccess('telemed_today_finance');
+  const hasSettings = canAccess('settings');
 
   return (
     <>
@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <>
               <div className="sidebar-group-title">LINE OA</div>
 
-              {(isAdmin || canAccess('today_registrations')) && (
+              {canAccess('today_registrations') && (
                 <NavLink
                   to="/"
                   end
@@ -186,7 +186,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('all_registrations')) && (
+              {canAccess('all_registrations') && (
                 <NavLink
                   to="/all"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -203,7 +203,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('caregivers')) && (
+              {canAccess('caregivers') && (
                 <NavLink
                   to="/caregivers"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -243,7 +243,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <>
               <div className="sidebar-group-title">Telemed</div>
 
-              {(isAdmin || canAccess('telemed_dashboard')) && (
+              {canAccess('telemed_dashboard') && (
                 <NavLink
                   to="/telemed-dashboard"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -259,7 +259,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('telemed_cases')) && (
+              {canAccess('telemed_cases') && (
                 <NavLink
                   to="/telemed-with-doctor"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -273,7 +273,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('telemed_pharmacy')) && (
+              {canAccess('telemed_pharmacy') && (
                 <NavLink
                   to="/telemed-pharmacy"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -288,7 +288,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('telemed_finance') || canAccess('telemed_pharmacy')) && (
+              {(canAccess('telemed_finance') || canAccess('telemed_pharmacy')) && (
                 <NavLink
                   to="/telemed-finance"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -303,7 +303,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('telemed_appointments')) && (
+              {canAccess('telemed_appointments') && (
                 <NavLink
                   to="/telemed-appointments"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -320,7 +320,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('prescreening')) && (
+              {canAccess('prescreening') && (
                 <NavLink
                   to="/prescreening"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -343,7 +343,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <>
               <div className="sidebar-group-title">Pre-screening (คำขอรับยา)</div>
 
-              {(isAdmin || canAccess('request_telemed_register')) && (
+              {canAccess('request_telemed_register') && (
                 <NavLink
                   to="/request-telemed/register"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -360,7 +360,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('request_telemed_receive')) && (
+              {canAccess('request_telemed_receive') && (
                 <NavLink
                   to="/request-telemed/pending-receive"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -375,7 +375,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('request_telemed_doctor')) && (
+              {canAccess('request_telemed_doctor') && (
                 <NavLink
                   to="/request-telemed/pending-doctor"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -389,7 +389,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('request_telemed_pharmacist')) && (
+              {canAccess('request_telemed_pharmacist') && (
                 <NavLink
                   to="/request-telemed/pharmacist"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -405,7 +405,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('request_telemed_approved')) && (
+              {canAccess('request_telemed_approved') && (
                 <NavLink
                   to="/request-telemed/approved"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -420,7 +420,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('request_telemed_all')) && (
+              {canAccess('request_telemed_all') && (
                 <NavLink
                   to="/request-telemed/all"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -446,7 +446,7 @@ export default function Sidebar({ isOpen, onClose }) {
             <>
               <div className="sidebar-group-title">Telemed Today (วันนัดจริง)</div>
 
-              {(isAdmin || canAccess('telemed_today_appointments')) && (
+              {canAccess('telemed_today_appointments') && (
                 <NavLink
                   to="/telemed-today/appointments"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -463,7 +463,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('telemed_today_pharmacy')) && (
+              {canAccess('telemed_today_pharmacy') && (
                 <NavLink
                   to="/telemed-today/pharmacy"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}
@@ -478,7 +478,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 </NavLink>
               )}
 
-              {(isAdmin || canAccess('telemed_today_finance')) && (
+              {canAccess('telemed_today_finance') && (
                 <NavLink
                   to="/telemed-today/finance"
                   className={({ isActive }) => `sidebar-nav-item${isActive ? ' active' : ''}`}

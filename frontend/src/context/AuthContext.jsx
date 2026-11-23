@@ -8,6 +8,17 @@ export function AuthProvider({ children }) {
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const refreshMe = useCallback(async () => {
+    try {
+      const data = await api.me();
+      setUser(data.user);
+      setPermissions(data.permissions || []);
+      return data;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Check session on mount
   useEffect(() => {
     api.me()
@@ -45,13 +56,13 @@ export function AuthProvider({ children }) {
   // Check if current user has permission to access a menu key
   const canAccess = useCallback((menuKey) => {
     if (!user) return false;
-    if (user.role === 'admin') return true;
     if (!menuKey) return true;
+    if (user.role === 'admin' && menuKey === 'settings') return true;
     return permissions.includes(menuKey);
   }, [user, permissions]);
 
   return (
-    <AuthContext.Provider value={{ user, permissions, loading, login, logout, isAdmin, canAccess }}>
+    <AuthContext.Provider value={{ user, permissions, loading, login, logout, refreshMe, isAdmin, canAccess }}>
       {children}
     </AuthContext.Provider>
   );

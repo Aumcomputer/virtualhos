@@ -72,19 +72,20 @@ router.post('/login', loginLimiter, async (req, res) => {
       role = adminCheck[0].role || 'operator';
     }
 
-    // Fetch permitted menus for this role
+    // Fetch permitted menus for this role from system_role_permissions
     let permissions = [];
     try {
-      if (role === 'admin') {
-        const all = await connVhos.query('SELECT menu_key FROM system_menus ORDER BY sort_order ASC');
-        permissions = all.map(m => m.menu_key);
-      } else {
-        const perms = await connVhos.query('SELECT menu_key FROM system_role_permissions WHERE role_key = ?', [role]);
-        permissions = perms.map(p => p.menu_key);
+      const perms = await connVhos.query(
+        'SELECT menu_key FROM system_role_permissions WHERE role_key = ?',
+        [role]
+      );
+      permissions = perms.map((p) => p.menu_key);
+      if (role === 'admin' && !permissions.includes('settings')) {
+        permissions.push('settings');
       }
     } catch (permErr) {
       console.warn('Could not fetch permissions:', permErr.message);
-      if (role === 'admin') permissions = ['settings', 'today_registrations', 'all_registrations'];
+      if (role === 'admin') permissions = ['settings'];
     }
 
     // 3. Issue JWT with role
@@ -166,12 +167,13 @@ router.get('/me', authenticateToken, async (req, res) => {
     }
 
     let permissions = [];
-    if (role === 'admin') {
-      const all = await connVhos.query('SELECT menu_key FROM system_menus ORDER BY sort_order ASC');
-      permissions = all.map(m => m.menu_key);
-    } else {
-      const perms = await connVhos.query('SELECT menu_key FROM system_role_permissions WHERE role_key = ?', [role]);
-      permissions = perms.map(p => p.menu_key);
+    const perms = await connVhos.query(
+      'SELECT menu_key FROM system_role_permissions WHERE role_key = ?',
+      [role]
+    );
+    permissions = perms.map((p) => p.menu_key);
+    if (role === 'admin' && !permissions.includes('settings')) {
+      permissions.push('settings');
     }
 
     res.json({

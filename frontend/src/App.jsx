@@ -24,8 +24,8 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 
 function HomeRoute() {
-  const { canAccess, isAdmin } = useAuth();
-  if (isAdmin || canAccess('today_registrations')) {
+  const { canAccess } = useAuth();
+  if (canAccess('today_registrations')) {
     return <TodayRegistrations />;
   }
   // Redirect to first permitted route

@@ -28,7 +28,7 @@ function formatDateOnly(dateTimeStr) {
 }
 
 export default function SettingsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, refreshMe } = useAuth();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('users'); // 'users' | 'roles' | 'cron'
@@ -194,6 +194,9 @@ export default function SettingsPage() {
   };
 
   const handleTogglePerm = (menuKey) => {
+    if (selectedRole?.role_key === 'admin' && menuKey === 'settings') {
+      return;
+    }
     setSelectedRolePerms((prev) =>
       prev.includes(menuKey) ? prev.filter((k) => k !== menuKey) : [...prev, menuKey]
     );
@@ -204,7 +207,7 @@ export default function SettingsPage() {
   };
 
   const handleClearAllPerms = () => {
-    setSelectedRolePerms([]);
+    setSelectedRolePerms(selectedRole?.role_key === 'admin' ? ['settings'] : []);
   };
 
   const handleSaveRolePerms = async () => {
@@ -216,6 +219,9 @@ export default function SettingsPage() {
       });
       alert(`💾 บันทึกการตั้งค่าสิทธิ์ "${selectedRole.role_name}" เรียบร้อยแล้ว`);
       await fetchRoles();
+      if (selectedRole.role_key === 'admin') {
+        await refreshMe();
+      }
     } catch (err) {
       alert(`❌ เกิดข้อผิดพลาดในการบันทึกสิทธิ์: ${err.message}`);
     } finally {
@@ -822,7 +828,7 @@ export default function SettingsPage() {
                         👤 {r.user_count || 0} ผู้ใช้
                       </span>
                       <span className="role-badge-tag perms-count">
-                        📋 {r.role_key === 'admin' ? 'ทุกเมนู' : `${(r.menu_keys || []).length} เมนู`}
+                        📋 {(r.menu_keys || []).length} เมนู
                       </span>
                     </div>
                   </div>
@@ -856,98 +862,88 @@ export default function SettingsPage() {
                     </div>
 
                     <div className="role-detail-actions">
-                      {selectedRole.role_key !== 'admin' && (
-                        <>
-                          <button
-                            type="button"
-                            className="loa-btn loa-btn-secondary"
-                            onClick={handleSelectAllPerms}
-                            style={{ fontSize: '0.8125rem', height: '34px' }}
-                          >
-                            เลือกทั้งหมด
-                          </button>
-                          <button
-                            type="button"
-                            className="loa-btn loa-btn-secondary"
-                            onClick={handleClearAllPerms}
-                            style={{ fontSize: '0.8125rem', height: '34px' }}
-                          >
-                            ล้างทั้งหมด
-                          </button>
-                        </>
-                      )}
+                      <button
+                        type="button"
+                        className="loa-btn loa-btn-secondary"
+                        onClick={handleSelectAllPerms}
+                        style={{ fontSize: '0.8125rem', height: '34px' }}
+                      >
+                        เลือกทั้งหมด
+                      </button>
+                      <button
+                        type="button"
+                        className="loa-btn loa-btn-secondary"
+                        onClick={handleClearAllPerms}
+                        style={{ fontSize: '0.8125rem', height: '34px' }}
+                      >
+                        ล้างทั้งหมด
+                      </button>
                     </div>
                   </div>
 
                   <div className="role-perms-body">
-                    {selectedRole.role_key === 'admin' ? (
-                      <div style={{
-                        background: '#eff6ff',
-                        border: '1px solid #bfdbfe',
-                        borderRadius: '12px',
-                        padding: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '14px',
-                        color: '#1e40af'
-                      }}>
-                        <span style={{ fontSize: '2rem' }}>👑</span>
-                        <div>
-                          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#1e3a8a' }}>
-                            สิทธิ์ผู้ดูแลระบบสูงสุด (Super Administrator)
-                          </h4>
-                          <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#1d4ed8' }}>
-                            สิทธิ์ Admin มีสิทธิ์เข้าถึง ดูข้อมูล และจัดการทุกเมนูในระบบโดยอัตโนมัติ จึงไม่ต้องกำหนดแยกรายเมนู
-                          </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                      {selectedRole.role_key === 'admin' && (
+                        <div style={{
+                          background: '#eff6ff',
+                          border: '1px solid #bfdbfe',
+                          borderRadius: '10px',
+                          padding: '12px 16px',
+                          fontSize: '0.8125rem',
+                          color: '#1e40af',
+                        }}>
+                          👑 สามารถเลือกเปิด-ปิดเมนูของสิทธิ์ Admin ได้ตามต้องการ (เมนู <strong>ตั้งค่า</strong> จะถูกเปิดไว้เสมอเพื่อป้องกันการเข้าหน้านี้ไม่ได้)
                         </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                        {Object.entries(menuGroups).map(([groupName, items]) => (
-                          <div key={groupName} className="role-perms-group">
-                            <div className="role-perms-group-title">
-                              <span>📁 {groupName}</span>
-                              <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>
-                                ({items.filter(m => selectedRolePerms.includes(m.menu_key)).length}/{items.length})
-                              </span>
-                            </div>
-                            <div className="role-perms-grid">
-                              {items.map((m) => {
-                                const checked = selectedRolePerms.includes(m.menu_key);
-                                return (
-                                  <div
-                                    key={m.menu_key}
-                                    className={`role-perm-checkbox-card ${checked ? 'selected' : ''}`}
-                                    onClick={() => handleTogglePerm(m.menu_key)}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={() => {}}
-                                    />
-                                    <div className="role-perm-label-wrap">
-                                      <span className="role-perm-label">{m.menu_name}</span>
-                                      <span className="role-perm-path">{m.path}</span>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                      )}
+                      {Object.entries(menuGroups).map(([groupName, items]) => (
+                        <div key={groupName} className="role-perms-group">
+                          <div className="role-perms-group-title">
+                            <span>📁 {groupName}</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#94a3b8' }}>
+                              ({items.filter(m => selectedRolePerms.includes(m.menu_key)).length}/{items.length})
+                            </span>
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          <div className="role-perms-grid">
+                            {items.map((m) => {
+                              const isLockedSettings = selectedRole.role_key === 'admin' && m.menu_key === 'settings';
+                              const checked = isLockedSettings || selectedRolePerms.includes(m.menu_key);
+                              return (
+                                <div
+                                  key={m.menu_key}
+                                  className={`role-perm-checkbox-card ${checked ? 'selected' : ''}`}
+                                  onClick={() => handleTogglePerm(m.menu_key)}
+                                  style={isLockedSettings ? { opacity: 0.85, cursor: 'not-allowed' } : undefined}
+                                  title={isLockedSettings ? 'จำเป็นต้องเปิดไว้สำหรับสิทธิ์ Admin' : undefined}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    disabled={isLockedSettings}
+                                    onChange={() => {}}
+                                  />
+                                  <div className="role-perm-label-wrap">
+                                    <span className="role-perm-label">
+                                      {m.menu_name}{isLockedSettings ? ' 🔒' : ''}
+                                    </span>
+                                    <span className="role-perm-path">{m.path}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
-                  {selectedRole.role_key !== 'admin' && (
-                    <div className="role-detail-footer">
-                      <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
-                        เลือกแล้ว {selectedRolePerms.length} จาก {menus.length} เมนู
-                      </span>
-                      <button
-                        type="button"
-                        className="loa-btn loa-btn-primary"
-                        onClick={handleSaveRolePerms}
+                  <div className="role-detail-footer">
+                    <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>
+                      เลือกแล้ว {selectedRolePerms.length} จาก {menus.length} เมนู
+                    </span>
+                    <button
+                      type="button"
+                      className="loa-btn loa-btn-primary"
+                      onClick={handleSaveRolePerms}
                         disabled={savingRolePerms}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
@@ -965,8 +961,7 @@ export default function SettingsPage() {
                         )}
                       </button>
                     </div>
-                  )}
-                </>
+                  </>
               ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
                   กรุณาเลือกสิทธิ์จากรายการทางซ้าย
